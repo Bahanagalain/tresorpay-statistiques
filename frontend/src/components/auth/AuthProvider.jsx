@@ -56,9 +56,16 @@ export function AuthProvider({ children }) {
     }
 
     refreshProfile().catch(() => {
-      resetAuth();
+      // If we already have a stored user, keep the session alive
+      const storedUser = getStoredUser();
+      if (storedUser) {
+        setUser(storedUser);
+        setStatus('authenticated');
+      } else {
+        resetAuth();
+      }
     });
-  }, [refreshProfile, resetAuth]);
+  }, []);
 
   useEffect(() => {
     const syncFromSession = () => {

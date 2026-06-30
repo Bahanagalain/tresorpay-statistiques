@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import { useTheme } from '../components/theme/ThemeProvider';
 import { useAuth } from '../components/auth/AuthProvider';
 import { useLanguage } from '../components/i18n/LanguageProvider';
+import tresorPayLogo from '../assets/logo-tresorpay.png';
 import './Login.css';
 
 /* ── rate-limiter ── */
@@ -85,7 +86,7 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { toggleTheme, isDark } = useTheme();
-  const { t, lang, setLang } = useLanguage();
+  const { lang, setLang } = useLanguage();
 
   const [identifiant, setIdentifiant] = useState('');
   const [password, setPassword] = useState('');
@@ -113,35 +114,27 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isLocked) {
-      toast.error(t?.loginLocked || `Compte verrouille. Reessayez dans ${remainingSec}s`);
+      toast.error(`Compte verrouille. Reessayez dans ${remainingSec}s`);
       return;
     }
     if (!identifiant.trim() || !password.trim()) {
-      toast.error(t?.loginFieldsRequired || 'Veuillez remplir tous les champs');
+      toast.error('Veuillez remplir tous les champs');
       return;
     }
 
     setLoading(true);
     try {
-      await login(identifiant.trim(), password);
-      toast.success(t?.loginSuccess || 'Connexion reussie');
+      await login({ username: identifiant.trim(), password });
+      toast.success('Connexion reussie');
       navigate('/tableau-de-bord');
     } catch (err) {
       const next = attempts + 1;
       setAttempts(next);
       if (next >= MAX_ATTEMPTS) {
         setLockedUntil(Date.now() + LOCKOUT_MS);
-        toast.error(
-          t?.loginLockedOut ||
-            `Trop de tentatives. Verrouille pendant 60 secondes.`,
-        );
+        toast.error('Trop de tentatives. Verrouille pendant 60 secondes.');
       } else {
-        toast.error(
-          err?.response?.data?.message ||
-            err?.message ||
-            t?.loginFailed ||
-            'Identifiants incorrects',
-        );
+        toast.error(err?.message || 'Identifiants incorrects');
       }
     } finally {
       setLoading(false);
@@ -150,6 +143,8 @@ export default function Login() {
 
   return (
     <div className="login-root">
+      <Toaster position="top-right" toastOptions={{ style: { fontSize: '0.82rem', borderRadius: '10px' } }} />
+
       {/* ── top bar ── */}
       <div className="login-top-bar">
         <button
@@ -157,7 +152,7 @@ export default function Login() {
           onClick={toggleTheme}
           title={isDark ? 'Mode clair' : 'Mode sombre'}
         >
-          {isDark ? '\u2600\uFE0F' : '\uD83C\uDF19'}
+          {isDark ? '☀' : '☽'}
         </button>
         <button
           className="ltb-btn"
@@ -179,34 +174,37 @@ export default function Login() {
         </div>
 
         <div className="lp-content">
-          <h1 className="lp-title">TresorPay Statistiques</h1>
+          <img src="/assets/logo-dgtcfm.png" alt="DGTCFM" className="lp-logo-institution" />
+          <h1 className="lp-title">TresorPay Statistiques RNF</h1>
           <p className="lp-subtitle">
-            {t?.loginSubtitle || 'Plateforme de suivi et analyse des paiements'}
+            Plateforme de suivi et analyse des recettes non fiscales
           </p>
         </div>
 
         <div className="lp-partners">
-          <span className="lp-partner-text">Republique du Cameroun</span>
-          <span className="lp-partner-sep">|</span>
-          <span className="lp-partner-text">Ministere des Finances</span>
+          <img src="/assets/logo-cameroun.png" alt="Cameroun" className="lp-partner-logo" />
+          <div className="lp-partner-texts">
+            <span className="lp-partner-text">Republique du Cameroun</span>
+            <span className="lp-partner-sep">|</span>
+            <span className="lp-partner-text">Ministere des Finances</span>
+          </div>
         </div>
       </div>
 
       {/* ── right panel ── */}
       <div className="login-panel login-panel--right">
         <div className="lr-card">
-          <div className="lr-logo-text">TresorPay Statistiques</div>
-          <h2 className="lr-title">
-            {t?.loginTitle || 'Connexion'}
-          </h2>
+          <img src={tresorPayLogo} alt="TresorPay" className="lr-logo" />
+
+          <h2 className="lr-title">Connexion</h2>
           <p className="lr-desc">
-            {t?.loginDesc || 'Accedez a votre espace de statistiques'}
+            Accedez a votre espace de statistiques
           </p>
 
           <form className="lr-form" onSubmit={handleSubmit}>
             <div className="lr-field">
               <label className="lr-label" htmlFor="identifiant">
-                {t?.loginIdentifiant || 'Identifiant'}
+                Identifiant
               </label>
               <input
                 id="identifiant"
@@ -216,13 +214,13 @@ export default function Login() {
                 value={identifiant}
                 onChange={(e) => setIdentifiant(e.target.value)}
                 disabled={loading || isLocked}
-                placeholder={t?.loginIdentifiantPlaceholder || 'Votre identifiant'}
+                placeholder="Votre identifiant"
               />
             </div>
 
             <div className="lr-field">
               <label className="lr-label" htmlFor="password">
-                {t?.loginPassword || 'Mot de passe'}
+                Mot de passe
               </label>
               <div className="lr-password-wrapper">
                 <input
@@ -241,14 +239,14 @@ export default function Login() {
                   onClick={() => setShowPassword((v) => !v)}
                   tabIndex={-1}
                 >
-                  {showPassword ? '\uD83D\uDE48' : '\uD83D\uDC41\uFE0F'}
+                  {showPassword ? '🙈' : '👁'}
                 </button>
               </div>
             </div>
 
             {isLocked && (
               <p className="lr-locked-msg">
-                {t?.loginLockedMsg || `Verrouille — reessayez dans ${remainingSec}s`}
+                Verrouille — reessayez dans {remainingSec}s
               </p>
             )}
 
@@ -260,10 +258,17 @@ export default function Login() {
               {loading ? (
                 <span className="lr-spinner" />
               ) : (
-                t?.loginButton || 'Se connecter'
+                'Se connecter'
               )}
             </button>
           </form>
+        </div>
+
+        {/* Mentions legales */}
+        <div className="lr-legal">
+          <p>Direction Generale du Tresor, de la Cooperation Financiere et Monetaire</p>
+          <p>Plateforme TresorPay Statistiques RNF &copy; {new Date().getFullYear()} — Tous droits reserves</p>
+          <p>Republique du Cameroun — Ministere des Finances</p>
         </div>
       </div>
     </div>

@@ -323,6 +323,44 @@ export async function computeMinistereDetail(ministereId, dateDebut, dateFin) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// COMPARAISON MINISTERE (tendances multi-periodes)
+// ═══════════════════════════════════════════════════════════════
+
+export async function computeMinistereComparison(ministereId, dateDebut, dateFin) {
+  const ministere = await prisma.ministere.findUnique({
+    where: { id: ministereId },
+    select: { id: true, nomFr: true, code: true },
+  });
+  if (!ministere) return null;
+
+  const soumissions = await prisma.soumission.findMany({
+    where: buildSoumissionWhere(dateDebut, dateFin, { ministereId }),
+    select: { montant: true, statutPaiement: true, dateSoumission: true },
+    orderBy: { dateSoumission: 'asc' },
+  });
+
+  const moisMap = {};
+  for (const s of soumissions) {
+    if (!s.dateSoumission) continue;
+    const d = new Date(s.dateSoumission);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!moisMap[key]) {
+      moisMap[key] = { periode: formatMoisLabel(d), cle: key, total: 0, paye: 0, soumissions: 0 };
+    }
+    moisMap[key].total += toNumber(s.montant);
+    moisMap[key].soumissions += 1;
+    if (s.statutPaiement === 'PAID') moisMap[key].paye += toNumber(s.montant);
+  }
+
+  const evolution = Object.values(moisMap).sort((a, b) => a.cle.localeCompare(b.cle));
+
+  return {
+    ministere,
+    evolution,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
 // REPARTITION PAR SERVICES
 // ═══════════════════════════════════════════════════════════════
 
@@ -607,6 +645,69 @@ export async function computeRepartitionOrgUnits(dateDebut, dateFin) {
       };
     })
     .sort((a, b) => b.montant - a.montant);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DETAIL ORG UNIT
+// ═══════════════════════════════════════════════════════════════
+
+export async function computeOrgUnitDetail(orgUnitId, dateDebut, dateFin) {
+  const orgUnit = await prisma.orgUnit.findUnique({
+    where: { id: orgUnitId },
+    select: { id: true, nomFr: true, code: true, type: true },
+  });
+  if (!orgUnit) return null;
+
+  const where = buildSoumissionWhere(dateDebut, dateFin, { orgUnitId });
+
+  const [kpiAgg, payeAgg] = await Promise.all([
+    prisma.soumission.aggregate({ where, _count: true, _sum: { montant: true } }),
+    prisma.soumission.aggregate({ where: { ...where, statutPaiement: 'PAID' }, _count: true, _sum: { montant: true } }),
+  ]);
+
+  // Services dans cette org unit
+  const servicesGroupes = await prisma.soumission.groupBy({
+    by: ['serviceId'],
+    where: { ...where, serviceId: { not: null } },
+    _count: true,
+    _sum: { montant: true },
+  });
+
+  const serviceIds = servicesGroupes.map((g) => g.serviceId).filter(Boolean);
+  const services = await prisma.serviceGouv.findMany({
+    where: { id: { in: serviceIds } },
+    select: { id: true, nomFr: true },
+  });
+  const servicesMap = {};
+  for (const s of services) servicesMap[s.id] = s;
+
+  const servicesDetail = servicesGroupes
+    .map((g) => ({
+      serviceId: g.serviceId,
+      nom: servicesMap[g.serviceId]?.nomFr || 'Inconnu',
+      montant: toNumber(g._sum?.montant),
+      nombreSoumissions: g._count || 0,
+    }))
+    .sort((a, b) => b.montant - a.montant);
+
+  // Sous-unites
+  const children = await prisma.orgUnit.findMany({
+    where: { parentId: orgUnitId, estActif: true },
+    select: { id: true, nomFr: true, code: true, type: true },
+  });
+
+  const totalSoumissions = kpiAgg._count || 0;
+  const soumissionsPayees = payeAgg._count || 0;
+
+  return {
+    orgUnit,
+    totalRevenus: toNumber(payeAgg._sum?.montant),
+    totalSoumissions,
+    soumissionsPayees,
+    tauxPaiement: totalSoumissions > 0 ? Math.round((soumissionsPayees / totalSoumissions) * 10000) / 100 : 0,
+    services: servicesDetail,
+    sousUnites: children,
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -137,9 +137,9 @@
   max-width: 460px;
 }
 .lp-logo-institution {
-  width: 100px;
+  width: 72px;
   height: auto;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.8rem;
   filter: brightness(0) invert(1);
   opacity: 0.85;
 }

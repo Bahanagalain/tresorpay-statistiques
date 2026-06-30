@@ -1,0 +1,79 @@
+# ─────────────────────────────────────────────────────────────
+# TresorPay Statistiques — Docker Compose
+# Usage : docker compose up --build
+# ─────────────────────────────────────────────────────────────
+
+services:
+  # ─── PostgreSQL ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tresorpay_statistiques
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5436:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend (Fastify + Prisma) ────────────────────────────
+  backend:
+    build: ./backend
+    ports:
+      - "${BACKEND_BIND_HOST:-0.0.0.0}:${BACKEND_HOST_PORT:-3002}:3002"
+    volumes:
+      - ./backend/uploads:/app/uploads
+    env_file:
+      - ./backend/.env
+    environment:
+      PORT: 3002
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/tresorpay_statistiques
+      JWT_SECRET: ${JWT_SECRET:-tresorpay-stats-secret-changer-en-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME:-superadmin}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Admin@2026!}
+      SUPER_ADMIN_FULLNAME: ${SUPER_ADMIN_FULLNAME:-Super Administrateur}
+      PP_REMOTE_API_URL: ${PP_REMOTE_API_URL:-http://host.docker.internal:3005}
+      PP_REMOTE_USERNAME: ${PP_REMOTE_USERNAME:-}
+      PP_REMOTE_PASSWORD: ${PP_REMOTE_PASSWORD:-}
+      SYNC_INTERVAL_MS: ${SYNC_INTERVAL_MS:-600000}
+      SYNC_ENABLED: ${SYNC_ENABLED:-true}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:3002/sante | grep -q '\"statut\":\"ok\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─── Frontend (React → Nginx) ──────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3002}
+        VITE_APP_BASE_PATH: ${VITE_APP_BASE_PATH:-/}
+    ports:
+      - "${FRONTEND_BIND_HOST:-0.0.0.0}:${FRONTEND_HOST_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pgdata:

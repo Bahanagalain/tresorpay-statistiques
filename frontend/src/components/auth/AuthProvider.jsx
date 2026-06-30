@@ -96,11 +96,13 @@ export function AuthProvider({ children }) {
       setUser(authData.utilisateur);
     }
 
+    setStatus('authenticated');
+
     try {
       await refreshProfile();
     } catch (error) {
-      resetAuth();
-      throw error;
+      // Profile refresh failed but login succeeded — keep the session
+      console.warn('Profile refresh failed after login:', error?.message);
     }
 
     return response;

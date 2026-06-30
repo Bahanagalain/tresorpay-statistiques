@@ -175,7 +175,7 @@ export default function Login() {
 
         <div className="lp-content">
           <img src="/assets/logo-dgtcfm.png" alt="DGTCFM" className="lp-logo-institution" />
-          <h1 className="lp-title">TresorPay Statistiques RNF</h1>
+          <h1 className="lp-title">TresorPay <span className="lp-title-accent">Statistiques</span> RNF</h1>
           <p className="lp-subtitle">
             Plateforme de suivi et analyse des recettes non fiscales
           </p>

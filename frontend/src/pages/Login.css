@@ -133,8 +133,10 @@
 .lp-content {
   position: relative;
   z-index: 2;
-  text-align: center;
+  text-align: left;
   max-width: 460px;
+  align-self: flex-start;
+  padding-left: 3rem;
 }
 .lp-logo-institution {
   width: 72px;
@@ -150,6 +152,10 @@
   margin-bottom: 0.6rem;
   letter-spacing: -0.5px;
   line-height: 1.15;
+  white-space: nowrap;
+}
+.lp-title-accent {
+  color: #E2B93B;
 }
 .lp-subtitle {
   font-size: 1rem;

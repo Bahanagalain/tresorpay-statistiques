@@ -47,7 +47,6 @@ async function refreshAccessToken() {
   const data = await parseResponse(response);
   const tokenData = data?.datas || data;
   if (!response.ok || !tokenData?.access_token) {
-    clearSession();
     throw new ApiError('Impossible de rafraîchir la session', {
       status: response.status,
       data,

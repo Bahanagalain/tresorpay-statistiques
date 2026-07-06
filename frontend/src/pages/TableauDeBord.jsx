@@ -5,7 +5,7 @@ import {
   ResponsiveContainer, Legend,
 } from 'recharts';
 import CountUp from 'react-countup';
-import { motion } from 'framer-motion';
+// motion remplacé par des div + CSS pour compatibilité React 19
 import {
   TrendingUp, TrendingDown, Banknote, FileText, CheckCircle,
   Clock, AlertTriangle, Download, Maximize2, RefreshCw,
@@ -161,23 +161,11 @@ function TreemapCell({ x, y, width, height, name, value, color }) {
 
 // ─── KPI Card ───────────────────────────────────────────────
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] },
-  }),
-};
-
 function KpiCard({ icon: Icon, label, endValue, suffix, prefix, decimals, variant, trend, sparkData, sparkColor, index }) {
   return (
-    <motion.div
-      className={`kpi-card kpi-card--${variant}`}
-      custom={index}
-      initial="hidden"
-      animate="visible"
-      variants={cardVariants}
+    <div
+      className={`kpi-card kpi-card--${variant} animate-fade-in`}
+      style={{ animationDelay: `${(index || 0) * 100}ms` }}
     >
       <div className="kpi-card__top">
         <div className="kpi-card__icon">
@@ -207,7 +195,7 @@ function KpiCard({ icon: Icon, label, endValue, suffix, prefix, decimals, varian
       <div className="kpi-card__sparkline">
         <Sparkline data={sparkData} color={sparkColor} />
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -547,10 +535,8 @@ export default function TableauDeBord() {
 
       {/* ─── Overview Tab ────────────────────────────────── */}
       {activeTab === 'overview' && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        <div
+          className="animate-fade-in"
           style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
         >
           {/* Row 1: Evolution + Treemap */}
@@ -808,15 +794,13 @@ export default function TableauDeBord() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* ─── Ministeres Tab ──────────────────────────────── */}
       {activeTab === 'ministeres' && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        <div
+          className="animate-fade-in"
           style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
         >
           <div className="dashboard-charts-row dashboard-charts-row--60-40">
@@ -960,15 +944,13 @@ export default function TableauDeBord() {
               </tbody>
             </table>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* ─── Services Tab ────────────────────────────────── */}
       {activeTab === 'services' && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        <div
+          className="animate-fade-in"
           style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
         >
           <div className="dashboard-charts-row dashboard-charts-row--60-40">
@@ -1114,15 +1096,13 @@ export default function TableauDeBord() {
               </tbody>
             </table>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* ─── Domaines Tab ────────────────────────────────── */}
       {activeTab === 'domaines' && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        <div
+          className="animate-fade-in"
           style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
         >
           <div className="dashboard-charts-row dashboard-charts-row--60-40">
@@ -1271,7 +1251,7 @@ export default function TableauDeBord() {
               </tbody>
             </table>
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   );

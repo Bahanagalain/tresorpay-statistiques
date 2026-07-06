@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -121,13 +121,13 @@ export default function PerformanceMinisteres() {
   return (
     <div>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+      <div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
         <div>
           <h2 className="text-headline" style={{ margin: 0 }}>Performance des Ministeres</h2>
           <p className="text-body" style={{ margin: '4px 0 0' }}>Analyse comparative des revenus par ministere</p>
         </div>
         <PeriodSelector state={periodState} setState={setPeriodState} />
-      </motion.div>
+      </div>
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
@@ -137,7 +137,7 @@ export default function PerformanceMinisteres() {
           { label: 'Ministeres', value: ministeres.length, icon: Building2, color: 'var(--accent-dgd)' },
           { label: 'Taux Moyen', value: formatPourcentage(avgTaux), icon: Award, color: '#8B5CF6' },
         ].map((kpi, i) => (
-          <motion.div key={kpi.label} className="card-layer" custom={i} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div key={kpi.label} className="card-layer" custom={i} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ width: 48, height: 48, borderRadius: 12, background: `${kpi.color}15`, display: 'grid', placeItems: 'center' }}>
               <kpi.icon size={22} style={{ color: kpi.color }} />
             </div>
@@ -145,13 +145,13 @@ export default function PerformanceMinisteres() {
               <div className="text-label" style={{ marginBottom: 2 }}>{kpi.label}</div>
               <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>{kpi.value}</div>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
 
       {/* Charts Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-        <motion.div className="card-layer glass-panel" custom={4} variants={fadeUp} initial="hidden" animate="visible">
+        <div className="card-layer glass-panel" custom={4} variants={fadeUp} initial="hidden" animate="visible">
           <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Comparaison des revenus</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={sorted.slice(0, 10)} layout="vertical" margin={{ left: 20 }}>
@@ -162,9 +162,9 @@ export default function PerformanceMinisteres() {
               <Bar dataKey="montant" fill="var(--accent-gold)" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </motion.div>
+        </div>
 
-        <motion.div className="card-layer glass-panel" custom={5} variants={fadeUp} initial="hidden" animate="visible">
+        <div className="card-layer glass-panel" custom={5} variants={fadeUp} initial="hidden" animate="visible">
           <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Repartition des revenus</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -174,11 +174,11 @@ export default function PerformanceMinisteres() {
               <Tooltip formatter={(v) => formatMontant(v)} />
             </PieChart>
           </ResponsiveContainer>
-        </motion.div>
+        </div>
       </div>
 
       {/* Ranking Table */}
-      <motion.div className="card-layer glass-panel" custom={6} variants={fadeUp} initial="hidden" animate="visible">
+      <div className="card-layer glass-panel" custom={6} variants={fadeUp} initial="hidden" animate="visible">
         <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Classement des ministeres</h3>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
@@ -238,17 +238,17 @@ export default function PerformanceMinisteres() {
             </tbody>
           </table>
         </div>
-      </motion.div>
+      </div>
 
       {/* Detail Modal */}
-      <AnimatePresence>
+      <>
         {selectedId && (
-          <motion.div
+          <div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 24 }}
             onClick={() => setSelectedId(null)}
           >
-            <motion.div
+            <div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               className="card-layer glass-panel"
               style={{ maxWidth: 800, width: '100%', maxHeight: '85vh', overflow: 'auto', padding: 32 }}
@@ -325,10 +325,10 @@ export default function PerformanceMinisteres() {
               ) : (
                 <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-tertiary)' }}>Aucune donnee disponible</div>
               )}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
     </div>
   );
 }

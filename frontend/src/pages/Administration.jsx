@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -117,10 +117,10 @@ export default function Administration() {
   return (
     <div>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 24 }}>
+      <div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 24 }}>
         <h2 className="text-headline" style={{ margin: 0 }}>Administration</h2>
         <p className="text-body" style={{ margin: '4px 0 0' }}>Gestion des utilisateurs et synchronisation</p>
-      </motion.div>
+      </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: '2px solid var(--glass-border)' }}>
@@ -157,7 +157,7 @@ export default function Administration() {
               { label: 'Administrateurs', value: adminCount, icon: Shield, color: '#8B5CF6' },
               { label: 'Actifs', value: activeCount, icon: CheckCircle, color: 'var(--accent-dgi)' },
             ].map((kpi, i) => (
-              <motion.div key={kpi.label} className="card-layer" custom={i} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div key={kpi.label} className="card-layer" custom={i} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: `${kpi.color}15`, display: 'grid', placeItems: 'center' }}>
                   <kpi.icon size={18} style={{ color: kpi.color }} />
                 </div>
@@ -165,7 +165,7 @@ export default function Administration() {
                   <div className="text-label" style={{ marginBottom: 2, fontSize: 10 }}>{kpi.label}</div>
                   <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>{kpi.value}</div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
@@ -178,7 +178,7 @@ export default function Administration() {
           </div>
 
           {/* Users Table */}
-          <motion.div className="card-layer glass-panel" custom={3} variants={fadeUp} initial="hidden" animate="visible">
+          <div className="card-layer glass-panel" custom={3} variants={fadeUp} initial="hidden" animate="visible">
             {usersLoading ? (
               <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-tertiary)' }}>Chargement...</div>
             ) : (
@@ -223,12 +223,12 @@ export default function Administration() {
                 </table>
               </div>
             )}
-          </motion.div>
+          </div>
 
           {/* User Modal */}
           {showUserModal && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 24 }} onClick={() => setShowUserModal(false)}>
-              <motion.div
+              <div
                 initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                 className="card-layer glass-panel"
                 style={{ maxWidth: 500, width: '100%', padding: 32 }}
@@ -269,7 +269,7 @@ export default function Administration() {
                     {saving ? 'Enregistrement...' : editingUser ? 'Mettre a jour' : 'Creer'}
                   </button>
                 </form>
-              </motion.div>
+              </div>
             </div>
           )}
         </>
@@ -280,7 +280,7 @@ export default function Administration() {
         <>
           {/* Sync Info */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
-            <motion.div className="card-layer" custom={0} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div className="card-layer" custom={0} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--accent-dgi-dim)', display: 'grid', placeItems: 'center' }}>
                 <Database size={22} style={{ color: 'var(--accent-dgi)' }} />
               </div>
@@ -288,8 +288,8 @@ export default function Administration() {
                 <div className="text-label" style={{ marginBottom: 2 }}>Derniere synchro</div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{formatDate(syncInfo?.derniereSynchro || syncInfo?.last_sync)}</div>
               </div>
-            </motion.div>
-            <motion.div className="card-layer" custom={1} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            </div>
+            <div className="card-layer" custom={1} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--accent-gold-dim)', display: 'grid', placeItems: 'center' }}>
                 {syncInfo?.statut === 'OK' || syncInfo?.status === 'OK'
                   ? <CheckCircle size={22} style={{ color: 'var(--accent-dgi)' }} />
@@ -300,11 +300,11 @@ export default function Administration() {
                 <div className="text-label" style={{ marginBottom: 2 }}>Statut</div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{syncInfo?.statut || syncInfo?.status || 'Inconnu'}</div>
               </div>
-            </motion.div>
+            </div>
           </div>
 
           {/* Trigger button */}
-          <motion.div className="card-layer glass-panel" custom={2} variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="card-layer glass-panel" custom={2} variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
               <h3 className="text-title" style={{ margin: 0 }}>Synchronisation manuelle</h3>
               <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>Declencher une synchronisation avec la plateforme TresorPay</p>
@@ -313,10 +313,10 @@ export default function Administration() {
               <RefreshCw size={16} style={{ animation: syncing ? 'spin 1s linear infinite' : 'none' }} />
               {syncing ? 'Synchronisation...' : 'Synchroniser'}
             </button>
-          </motion.div>
+          </div>
 
           {/* Sync Journal */}
-          <motion.div className="card-layer glass-panel" custom={3} variants={fadeUp} initial="hidden" animate="visible">
+          <div className="card-layer glass-panel" custom={3} variants={fadeUp} initial="hidden" animate="visible">
             <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Journal de synchronisation</h3>
             {syncLoading ? (
               <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-tertiary)' }}>Chargement...</div>
@@ -355,7 +355,7 @@ export default function Administration() {
                 </table>
               </div>
             )}
-          </motion.div>
+          </div>
         </>
       )}
 

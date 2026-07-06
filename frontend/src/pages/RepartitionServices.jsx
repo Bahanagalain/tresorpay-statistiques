@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import {
   PieChart, Pie, Cell, BarChart, Bar, Treemap,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -98,7 +98,7 @@ export default function RepartitionServices() {
   return (
     <div>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+      <div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
         <div>
           <h2 className="text-headline" style={{ margin: 0 }}>Repartition des Services</h2>
           <p className="text-body" style={{ margin: '4px 0 0' }}>Vue detaillee des services et domaines</p>
@@ -114,7 +114,7 @@ export default function RepartitionServices() {
             </button>
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
@@ -124,7 +124,7 @@ export default function RepartitionServices() {
           { label: 'Soumissions', value: totalSoumissions.toLocaleString('fr-FR'), icon: FileText, color: 'var(--accent-dgd)' },
           { label: 'Domaines', value: domaines.length, icon: Layers, color: '#8B5CF6' },
         ].map((kpi, i) => (
-          <motion.div key={kpi.label} className="card-layer" custom={i} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div key={kpi.label} className="card-layer" custom={i} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ width: 44, height: 44, borderRadius: 10, background: `${kpi.color}15`, display: 'grid', placeItems: 'center' }}>
               <kpi.icon size={20} style={{ color: kpi.color }} />
             </div>
@@ -132,7 +132,7 @@ export default function RepartitionServices() {
               <div className="text-label" style={{ marginBottom: 2 }}>{kpi.label}</div>
               <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{kpi.value}</div>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
 
@@ -160,17 +160,17 @@ export default function RepartitionServices() {
       {tab === 'services' ? (
         <>
           {/* Treemap */}
-          <motion.div className="card-layer glass-panel" custom={4} variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 24 }}>
+          <div className="card-layer glass-panel" custom={4} variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 24 }}>
             <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Carte des services par revenus</h3>
             <ResponsiveContainer width="100%" height={350}>
               <Treemap data={treemapData} dataKey="size" nameKey="name" content={<TreemapContent />}>
                 <Tooltip formatter={(v) => formatMontant(v)} />
               </Treemap>
             </ResponsiveContainer>
-          </motion.div>
+          </div>
 
           {/* Top Services Table */}
-          <motion.div className="card-layer glass-panel" custom={5} variants={fadeUp} initial="hidden" animate="visible">
+          <div className="card-layer glass-panel" custom={5} variants={fadeUp} initial="hidden" animate="visible">
             <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Top services</h3>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
@@ -200,12 +200,12 @@ export default function RepartitionServices() {
                 </tbody>
               </table>
             </div>
-          </motion.div>
+          </div>
         </>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {/* Pie */}
-          <motion.div className="card-layer glass-panel" custom={4} variants={fadeUp} initial="hidden" animate="visible">
+          <div className="card-layer glass-panel" custom={4} variants={fadeUp} initial="hidden" animate="visible">
             <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Repartition par domaine</h3>
             <ResponsiveContainer width="100%" height={350}>
               <PieChart>
@@ -216,10 +216,10 @@ export default function RepartitionServices() {
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
-          </motion.div>
+          </div>
 
           {/* Bar */}
-          <motion.div className="card-layer glass-panel" custom={5} variants={fadeUp} initial="hidden" animate="visible">
+          <div className="card-layer glass-panel" custom={5} variants={fadeUp} initial="hidden" animate="visible">
             <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Revenus par domaine</h3>
             <ResponsiveContainer width="100%" height={350}>
               <BarChart data={domaines.sort((a, b) => b.montant - a.montant)}>
@@ -232,19 +232,19 @@ export default function RepartitionServices() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </motion.div>
+          </div>
         </div>
       )}
 
       {/* Service Detail Modal */}
-      <AnimatePresence>
+      <>
         {selectedServiceId && (
-          <motion.div
+          <div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 24 }}
             onClick={() => setSelectedServiceId(null)}
           >
-            <motion.div
+            <div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               className="card-layer glass-panel"
               style={{ maxWidth: 700, width: '100%', maxHeight: '85vh', overflow: 'auto', padding: 32 }}
@@ -294,10 +294,10 @@ export default function RepartitionServices() {
               ) : (
                 <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-tertiary)' }}>Aucune donnee disponible</div>
               )}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
     </div>
   );
 }

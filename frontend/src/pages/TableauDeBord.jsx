@@ -4,8 +4,7 @@ import {
   Treemap, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts';
-import CountUp from 'react-countup';
-// motion remplacé par des div + CSS pour compatibilité React 19
+// CountUp et motion retirés pour compatibilité React 19
 import {
   TrendingUp, TrendingDown, Banknote, FileText, CheckCircle,
   Clock, AlertTriangle, Download, Maximize2, RefreshCw,
@@ -181,15 +180,7 @@ function KpiCard({ icon: Icon, label, endValue, suffix, prefix, decimals, varian
       <div className="kpi-card__body">
         <span className="kpi-card__label">{label}</span>
         <div className="kpi-card__value">
-          {prefix}
-          <CountUp
-            end={endValue}
-            duration={1.8}
-            separator=" "
-            decimals={decimals || 0}
-            suffix={suffix || ''}
-            preserveValue
-          />
+          {prefix}{typeof endValue === 'number' ? endValue.toLocaleString('fr-FR', { minimumFractionDigits: decimals || 0, maximumFractionDigits: decimals || 0 }) : endValue}{suffix || ''}
         </div>
       </div>
       <div className="kpi-card__sparkline">

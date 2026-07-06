@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { Search, Filter, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, FileText, Clock } from 'lucide-react';
 import { fetchSoumissions } from '../api/statistiquesApi';
 import { usePeriodFilter } from '../hooks/usePeriodFilter';
@@ -86,13 +86,13 @@ export default function AnalyseSoumissions() {
   return (
     <div>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 24 }}>
+      <div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 24 }}>
         <h2 className="text-headline" style={{ margin: 0 }}>Analyse des Soumissions</h2>
         <p className="text-body" style={{ margin: '4px 0 0' }}>Recherche et suivi des soumissions de paiement</p>
-      </motion.div>
+      </div>
 
       {/* Search & Filters */}
-      <motion.div className="card-layer glass-panel" variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 24 }}>
+      <div className="card-layer glass-panel" variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 24 }}>
         <form onSubmit={handleSearch} style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 250, position: 'relative' }}>
             <Search size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
@@ -128,7 +128,7 @@ export default function AnalyseSoumissions() {
             </button>
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* Results info */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, color: 'var(--text-tertiary)', fontSize: 13 }}>
@@ -137,7 +137,7 @@ export default function AnalyseSoumissions() {
       </div>
 
       {/* Table */}
-      <motion.div className="card-layer glass-panel" variants={fadeUp} initial="hidden" animate="visible">
+      <div className="card-layer glass-panel" variants={fadeUp} initial="hidden" animate="visible">
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-tertiary)' }}>Chargement des soumissions...</div>
         ) : (
@@ -175,7 +175,7 @@ export default function AnalyseSoumissions() {
                     </tr>
 
                     {expandedId === item.id && (
-                      <motion.tr
+                      <tr
                         key={`detail-${item.id}`}
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
@@ -203,9 +203,9 @@ export default function AnalyseSoumissions() {
                             </div>
                           </div>
                         </td>
-                      </motion.tr>
+                      </tr>
                     )}
-                  </AnimatePresence>
+                  </>
                 ))}
 
                 {data.length === 0 && (
@@ -278,7 +278,7 @@ export default function AnalyseSoumissions() {
             </button>
           </div>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }

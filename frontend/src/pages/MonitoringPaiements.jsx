@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+
 import {
   PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -96,7 +96,7 @@ export default function MonitoringPaiements() {
   return (
     <div>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+      <div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
         <div>
           <h2 className="text-headline" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
             Monitoring Paiements
@@ -118,7 +118,7 @@ export default function MonitoringPaiements() {
             <RefreshCw size={14} style={{ marginRight: 6 }} /> Actualiser
           </button>
         </div>
-      </motion.div>
+      </div>
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
@@ -128,7 +128,7 @@ export default function MonitoringPaiements() {
           { label: 'Echoues', value: totalEchoue.toLocaleString('fr-FR'), icon: XCircle, color: '#ef4444' },
           { label: 'Taux de succes', value: formatPourcentage(resume.tauxReussite), icon: TrendingUp, color: resume.tauxReussite >= 80 ? 'var(--accent-dgi)' : resume.tauxReussite >= 50 ? '#F59E0B' : '#ef4444' },
         ].map((kpi, i) => (
-          <motion.div key={kpi.label} className="card-layer" custom={i} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div key={kpi.label} className="card-layer" custom={i} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ width: 48, height: 48, borderRadius: 12, background: `${kpi.color}15`, display: 'grid', placeItems: 'center' }}>
               <kpi.icon size={22} style={{ color: kpi.color }} />
             </div>
@@ -136,14 +136,14 @@ export default function MonitoringPaiements() {
               <div className="text-label" style={{ marginBottom: 2 }}>{kpi.label}</div>
               <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' }}>{kpi.value}</div>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
 
       {/* Charts Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
         {/* Status Distribution Donut */}
-        <motion.div className="card-layer glass-panel" custom={4} variants={fadeUp} initial="hidden" animate="visible">
+        <div className="card-layer glass-panel" custom={4} variants={fadeUp} initial="hidden" animate="visible">
           <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Repartition par statut</h3>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
@@ -154,10 +154,10 @@ export default function MonitoringPaiements() {
               <Legend />
             </PieChart>
           </ResponsiveContainer>
-        </motion.div>
+        </div>
 
         {/* Daily Activity Chart */}
-        <motion.div className="card-layer glass-panel" custom={5} variants={fadeUp} initial="hidden" animate="visible">
+        <div className="card-layer glass-panel" custom={5} variants={fadeUp} initial="hidden" animate="visible">
           <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Activite journaliere</h3>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data?.evolutionJournaliere || []}>
@@ -171,12 +171,12 @@ export default function MonitoringPaiements() {
               <Bar dataKey="echoue" name="Echoue" fill={STATUT_COLORS.echoue} stackId="a" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </motion.div>
+        </div>
       </div>
 
       {/* Payment methods */}
       {data?.parMethode?.length > 0 && (
-        <motion.div className="card-layer glass-panel" custom={6} variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 24 }}>
+        <div className="card-layer glass-panel" custom={6} variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 24 }}>
           <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Methodes de paiement</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
             {data.parMethode.map((m, i) => (
@@ -193,11 +193,11 @@ export default function MonitoringPaiements() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Recent Transactions Feed */}
-      <motion.div className="card-layer glass-panel" custom={7} variants={fadeUp} initial="hidden" animate="visible">
+      <div className="card-layer glass-panel" custom={7} variants={fadeUp} initial="hidden" animate="visible">
         <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Activity size={18} /> Dernieres transactions
         </h3>
@@ -233,7 +233,7 @@ export default function MonitoringPaiements() {
             </tbody>
           </table>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
+
 import { AlertTriangle, AlertCircle, Info, Bell, RefreshCw, Clock, Shield } from 'lucide-react';
 import { fetchAlertes } from '../api/statistiquesApi';
 import { usePeriodFilter } from '../hooks/usePeriodFilter';
@@ -95,7 +95,7 @@ export default function AlertesAnomalies() {
   return (
     <div>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+      <div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
         <div>
           <h2 className="text-headline" style={{ margin: 0 }}>Alertes & Anomalies</h2>
           <p className="text-body" style={{ margin: '4px 0 0' }}>Surveillance automatique des ecarts et incidents</p>
@@ -111,7 +111,7 @@ export default function AlertesAnomalies() {
             <RefreshCw size={14} style={{ marginRight: 6 }} /> Actualiser
           </button>
         </div>
-      </motion.div>
+      </div>
 
       {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
@@ -125,7 +125,7 @@ export default function AlertesAnomalies() {
           const color = card.config?.color || card.color;
           const isActive = filter === card.filterKey;
           return (
-            <motion.div
+            <div
               key={card.label}
               className="card-layer"
               custom={i}
@@ -147,7 +147,7 @@ export default function AlertesAnomalies() {
                 <div className="text-label" style={{ marginBottom: 2 }}>{card.label}</div>
                 <div style={{ fontSize: 28, fontWeight: 700, color }}>{card.value}</div>
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>
@@ -182,7 +182,7 @@ export default function AlertesAnomalies() {
           const cfg = getSeverityConfig(alerte.severite);
           const Icon = cfg.icon;
           return (
-            <motion.div
+            <div
               key={alerte.id}
               className="card-layer"
               custom={i}
@@ -227,7 +227,7 @@ export default function AlertesAnomalies() {
                   {alerte.seuil > 0 && <span>Seuil : {formatMontant(alerte.seuil)}</span>}
                 </div>
               </div>
-            </motion.div>
+            </div>
           );
         })}
 

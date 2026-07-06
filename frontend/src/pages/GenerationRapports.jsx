@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+
 import { FileText, Download, FileSpreadsheet, FileBarChart, Eye, Calendar, CheckCircle } from 'lucide-react';
 import { fetchDashboard } from '../api/statistiquesApi';
 import { usePeriodFilter } from '../hooks/usePeriodFilter';
@@ -116,16 +116,16 @@ export default function GenerationRapports() {
   return (
     <div>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 24 }}>
+      <div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 24 }}>
         <h2 className="text-headline" style={{ margin: 0 }}>Generation de Rapports</h2>
         <p className="text-body" style={{ margin: '4px 0 0' }}>Exportez vos donnees en PDF, Excel ou CSV</p>
-      </motion.div>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 24 }}>
         {/* Left Panel — Options */}
         <div>
           {/* Period Selection */}
-          <motion.div className="card-layer glass-panel" custom={0} variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 16 }}>
+          <div className="card-layer glass-panel" custom={0} variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 16 }}>
             <h3 className="text-title" style={{ marginTop: 0, marginBottom: 12 }}>Periode</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
@@ -159,10 +159,10 @@ export default function GenerationRapports() {
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
 
           {/* Report Type Selection */}
-          <motion.div className="card-layer glass-panel" custom={1} variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 16 }}>
+          <div className="card-layer glass-panel" custom={1} variants={fadeUp} initial="hidden" animate="visible" style={{ marginBottom: 16 }}>
             <h3 className="text-title" style={{ marginTop: 0, marginBottom: 12 }}>Type de rapport</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {REPORT_TYPES.map((rt) => {
@@ -189,10 +189,10 @@ export default function GenerationRapports() {
                 );
               })}
             </div>
-          </motion.div>
+          </div>
 
           {/* Export Buttons */}
-          <motion.div className="card-layer glass-panel" custom={2} variants={fadeUp} initial="hidden" animate="visible">
+          <div className="card-layer glass-panel" custom={2} variants={fadeUp} initial="hidden" animate="visible">
             <h3 className="text-title" style={{ marginTop: 0, marginBottom: 12 }}>Exporter</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <button className="btn-primary" onClick={handleExportPDF} disabled={loading || !data || exporting === 'pdf'} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -208,11 +208,11 @@ export default function GenerationRapports() {
                 {exporting === 'csv' ? 'Export en cours...' : 'Telecharger CSV'}
               </button>
             </div>
-          </motion.div>
+          </div>
         </div>
 
         {/* Right Panel — Preview */}
-        <motion.div className="card-layer glass-panel" custom={3} variants={fadeUp} initial="hidden" animate="visible">
+        <div className="card-layer glass-panel" custom={3} variants={fadeUp} initial="hidden" animate="visible">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 className="text-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Eye size={18} /> Apercu du rapport
@@ -300,7 +300,7 @@ export default function GenerationRapports() {
               )}
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
     </div>
   );

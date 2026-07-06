@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { MapPin, Target, FileText, TrendingUp, X } from 'lucide-react';
 import { fetchRegionTelemetry, fetchRegionDetail } from '../api/statistiquesApi';
 import { usePeriodFilter } from '../hooks/usePeriodFilter';
@@ -95,7 +95,7 @@ export default function CartographieRegionale() {
   return (
     <div>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+      <div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
         <div>
           <h2 className="text-headline" style={{ margin: 0 }}>Cartographie Regionale</h2>
           <p className="text-body" style={{ margin: '4px 0 0' }}>Performance des 10 regions du Cameroun</p>
@@ -117,7 +117,7 @@ export default function CartographieRegionale() {
             </>
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* Summary KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
@@ -127,7 +127,7 @@ export default function CartographieRegionale() {
           { label: 'Taux Atteinte', value: formatPourcentage(globalPct), icon: MapPin, color: globalPct >= 80 ? 'var(--accent-dgi)' : globalPct >= 50 ? '#F59E0B' : '#ef4444' },
           { label: 'Soumissions', value: totalSoumissions.toLocaleString('fr-FR'), icon: FileText, color: 'var(--accent-dgd)' },
         ].map((kpi, i) => (
-          <motion.div key={kpi.label} className="card-layer" custom={i} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div key={kpi.label} className="card-layer" custom={i} variants={fadeUp} initial="hidden" animate="visible" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ width: 44, height: 44, borderRadius: 10, background: `${kpi.color}15`, display: 'grid', placeItems: 'center' }}>
               <kpi.icon size={20} style={{ color: kpi.color }} />
             </div>
@@ -135,7 +135,7 @@ export default function CartographieRegionale() {
               <div className="text-label" style={{ marginBottom: 2 }}>{kpi.label}</div>
               <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{kpi.value}</div>
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
 
@@ -158,7 +158,7 @@ export default function CartographieRegionale() {
           const status = getStatusColor(region.value, region.target);
           const pct = region.target > 0 ? (region.value / region.target) * 100 : 0;
           return (
-            <motion.div
+            <div
               key={region.id}
               className="card-layer"
               custom={i + 4}
@@ -199,7 +199,7 @@ export default function CartographieRegionale() {
               </div>
 
               <GaugeBar value={region.value} target={region.target} />
-            </motion.div>
+            </div>
           );
         })}
 
@@ -211,14 +211,14 @@ export default function CartographieRegionale() {
       </div>
 
       {/* Detail Modal */}
-      <AnimatePresence>
+      <>
         {selectedRegion && (
-          <motion.div
+          <div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 24 }}
             onClick={() => setSelectedRegion(null)}
           >
-            <motion.div
+            <div
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               className="card-layer glass-panel"
               style={{ maxWidth: 700, width: '100%', maxHeight: '85vh', overflow: 'auto', padding: 32 }}
@@ -291,10 +291,10 @@ export default function CartographieRegionale() {
               ) : (
                 <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-tertiary)' }}>Aucune donnee disponible</div>
               )}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      </>
     </div>
   );
 }

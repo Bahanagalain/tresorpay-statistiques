@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+
 import { User, Mail, Phone, Camera, Save, Sun, Moon, Globe, Bell, Lock, CheckCircle } from 'lucide-react';
 import { useAuth } from '../components/auth/AuthProvider';
 import { useTheme } from '../components/theme/ThemeProvider';
@@ -64,14 +64,14 @@ export default function Parametres() {
   return (
     <div>
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 24 }}>
+      <div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 24 }}>
         <h2 className="text-headline" style={{ margin: 0 }}>Parametres</h2>
         <p className="text-body" style={{ margin: '4px 0 0' }}>Gerez votre profil et vos preferences</p>
-      </motion.div>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         {/* ─── Profile Card ─── */}
-        <motion.div className="card-layer glass-panel" custom={0} variants={fadeUp} initial="hidden" animate="visible" style={{ gridColumn: '1 / -1' }}>
+        <div className="card-layer glass-panel" custom={0} variants={fadeUp} initial="hidden" animate="visible" style={{ gridColumn: '1 / -1' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
             {/* Avatar */}
             <div style={{ position: 'relative' }}>
@@ -127,11 +127,11 @@ export default function Parametres() {
               {editing ? 'Annuler' : 'Modifier le profil'}
             </button>
           </div>
-        </motion.div>
+        </div>
 
         {/* ─── Edit Profile Form ─── */}
         {editing && (
-          <motion.div className="card-layer glass-panel" custom={1} variants={fadeUp} initial="hidden" animate="visible" style={{ gridColumn: '1 / -1' }}>
+          <div className="card-layer glass-panel" custom={1} variants={fadeUp} initial="hidden" animate="visible" style={{ gridColumn: '1 / -1' }}>
             <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <User size={18} /> Modifier le profil
             </h3>
@@ -159,11 +159,11 @@ export default function Parametres() {
                 </button>
               </div>
             </form>
-          </motion.div>
+          </div>
         )}
 
         {/* ─── Theme & Language ─── */}
-        <motion.div className="card-layer glass-panel" custom={2} variants={fadeUp} initial="hidden" animate="visible">
+        <div className="card-layer glass-panel" custom={2} variants={fadeUp} initial="hidden" animate="visible">
           <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Apparence</h3>
 
           {/* Theme */}
@@ -216,10 +216,10 @@ export default function Parametres() {
               {lang === 'fr' ? 'EN' : 'FR'}
             </button>
           </div>
-        </motion.div>
+        </div>
 
         {/* ─── Notifications ─── */}
-        <motion.div className="card-layer glass-panel" custom={3} variants={fadeUp} initial="hidden" animate="visible">
+        <div className="card-layer glass-panel" custom={3} variants={fadeUp} initial="hidden" animate="visible">
           <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16 }}>Notifications</h3>
 
           {/* Email notifications */}
@@ -266,10 +266,10 @@ export default function Parametres() {
               style={{ width: 100, padding: '6px 10px', textAlign: 'center' }}
             />
           </div>
-        </motion.div>
+        </div>
 
         {/* ─── Security (Placeholder) ─── */}
-        <motion.div className="card-layer glass-panel" custom={4} variants={fadeUp} initial="hidden" animate="visible" style={{ gridColumn: '1 / -1' }}>
+        <div className="card-layer glass-panel" custom={4} variants={fadeUp} initial="hidden" animate="visible" style={{ gridColumn: '1 / -1' }}>
           <h3 className="text-title" style={{ marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Lock size={18} /> Securite
           </h3>
@@ -293,7 +293,7 @@ export default function Parametres() {
             </div>
             <CheckCircle size={18} style={{ color: 'var(--accent-dgi)' }} />
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

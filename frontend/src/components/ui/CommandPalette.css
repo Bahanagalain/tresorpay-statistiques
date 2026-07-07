@@ -1,0 +1,201 @@
+/* CommandPalette — Ctrl+K Global Search */
+
+.cp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+}
+
+.cp-modal {
+  width: min(620px, 94vw);
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+
+/* ── Search row ── */
+.cp-search {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.cp-search__icon { color: var(--text-tertiary); flex-shrink: 0; }
+
+.cp-search__input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  outline: none;
+  font-family: var(--font-family);
+}
+
+.cp-search__input::placeholder { color: var(--text-tertiary); }
+
+.cp-search__clear {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  transition: color 0.15s;
+}
+
+.cp-search__clear:hover { color: var(--text-primary); }
+
+.cp-kbd {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: 5px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* ── Results ── */
+.cp-results {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0.5rem;
+}
+
+.cp-group { margin-bottom: 0.5rem; }
+
+.cp-group__label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  padding: 0.4rem 0.6rem 0.2rem;
+}
+
+.cp-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.cp-item--selected {
+  background: var(--accent-dgi-dim);
+}
+
+.cp-item__icon {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  background: var(--bg-surface-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.cp-item--selected .cp-item__icon {
+  background: var(--accent-dgi-dim);
+  color: var(--accent-dgi);
+}
+
+.cp-item__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cp-item__label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-item__sub {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-item__chevron {
+  color: var(--text-tertiary);
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.cp-item--selected .cp-item__chevron { opacity: 1; color: var(--accent-dgi); }
+
+/* ── Empty state ── */
+.cp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 2.5rem;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.cp-empty svg { opacity: 0.25; }
+.cp-empty p   { margin: 0; font-size: 0.85rem; }
+
+/* ── Footer keyboard hints ── */
+.cp-footer {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.55rem 1rem;
+  border-top: 1px solid var(--glass-border);
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  background: var(--bg-surface-elevated);
+}
+
+.cp-footer kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-family: var(--font-family);
+  margin-right: 3px;
+}

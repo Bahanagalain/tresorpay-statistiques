@@ -1,0 +1,332 @@
+.topnav-vault {
+  height: 52px;
+  background: transparent;
+  border-bottom: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  position: relative;
+  z-index: 50;
+  width: 100%;
+}
+
+.topnav-left {
+  display: flex;
+  align-items: center;
+}
+
+/* Back to statistics button (shown on non-DGI pages) */
+.topnav-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.22s var(--ease-premium);
+  white-space: nowrap;
+}
+
+.topnav-back-btn:hover {
+  background: var(--accent-gold-dim);
+  border-color: var(--accent-gold-glow);
+  color: var(--accent-gold);
+  transform: translateX(-2px);
+  box-shadow: 0 2px 12px var(--accent-gold-glow);
+}
+
+.topnav-back-btn:active {
+  transform: scale(0.97);
+}
+
+
+/* ── Yaoundé Clock — centered ── */
+.yde-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.yde-clock__time {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  color: var(--accent-dgi);
+}
+.yde-clock__h,
+.yde-clock__m { color: var(--accent-dgi); }
+.yde-clock__s { color: var(--text-tertiary); font-size: 1rem; font-weight: 600; }
+.yde-clock__sep { color: var(--text-tertiary); margin: 0 1px; }
+.yde-clock__sep--blink { animation: clockBlink 1s step-end infinite; }
+@keyframes clockBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.yde-clock__label {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.topnav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Language toggle */
+.lang-toggle-btn {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 0.7rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+  letter-spacing: 0.02em;
+}
+.lang-toggle-btn:hover {
+  border-color: var(--accent-dgi);
+  color: var(--accent-dgi);
+  background: var(--accent-dgi-dim);
+}
+
+.icon-btn-vault {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.icon-btn-vault:hover {
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  border-color: var(--text-tertiary);
+}
+
+.theme-toggle-btn.is-active {
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+  border-color: rgba(184, 134, 11, 0.28);
+}
+
+.notif-dot {
+  position: absolute;
+  top: 8px; right: 10px;
+  width: 6px; height: 6px;
+  background: var(--accent-dgi);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-dgi-glow);
+}
+
+/* Admin settings button — subtle gold accent for superadmin */
+.admin-settings-btn {
+  color: var(--accent-gold);
+  border-color: rgba(184, 134, 11, 0.25);
+}
+.admin-settings-btn:hover {
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+  border-color: rgba(184, 134, 11, 0.4);
+  box-shadow: 0 0 12px rgba(184, 134, 11, 0.15);
+}
+
+.user-profile-vault {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  cursor: pointer;
+  padding: var(--spacing-2) var(--spacing-4);
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  transition: all 0.3s;
+}
+
+.user-profile-vault:hover {
+  background: var(--accent-gold-dim);
+  border-color: rgba(184, 134, 11, 0.2);
+}
+
+.user-avatar-wrapper {
+  position: relative;
+}
+
+.avatar-vault {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FFF, #F0F0F0);
+  border: 1px solid var(--accent-gold);
+  color: var(--accent-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
+.status-indicator {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 10px; height: 10px;
+  background: var(--accent-dgi);
+  border-radius: 50%;
+  border: 2px solid var(--bg-surface);
+}
+
+.logout-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 22, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: lo-fadeIn 0.2s ease;
+}
+
+.logout-modal {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  padding: 2rem 1.75rem 1.5rem;
+  border-radius: 16px;
+  width: 420px;
+  max-width: calc(100vw - 2rem);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.22), 0 0 0 1px rgba(255,255,255,0.05);
+  text-align: center;
+  animation: lo-popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.logout-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+.logout-close:hover {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+}
+
+.logout-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #DC2626;
+  margin: 0 auto 1.1rem;
+  box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.05);
+}
+
+.logout-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.015em;
+}
+
+.logout-message {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0 0 1.5rem;
+  line-height: 1.55;
+}
+
+.logout-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--glass-border);
+}
+.logout-actions .lo-btn { flex: 1; max-width: 170px; }
+
+@keyframes lo-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes lo-popIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.lo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border: 1px solid transparent;
+}
+
+.lo-btn--cancel {
+  background: var(--bg-surface-elevated);
+  border-color: var(--glass-border);
+  color: var(--text-secondary);
+}
+.lo-btn--cancel:hover {
+  background: var(--bg-dark);
+  color: var(--text-primary);
+}
+
+.lo-btn--confirm {
+  background: #DC2626;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(220,38,38,0.3);
+}
+.lo-btn--confirm:hover {
+  background: #b91c1c;
+  box-shadow: 0 6px 20px rgba(220,38,38,0.4);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .search-palette:focus-within {
+  box-shadow: 0 0 18px rgba(226, 185, 59, 0.14);
+}
+
+[data-theme="dark"] .logout-modal {
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255,255,255,0.04);
+}

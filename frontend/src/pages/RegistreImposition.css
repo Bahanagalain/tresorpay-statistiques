@@ -1,0 +1,17 @@
+.registre-kpi-bar {
+  display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+}
+.registre-kpi-item {
+  flex: 1; min-width: 140px;
+  background: var(--bg-surface); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md); padding: 0.8rem 1rem; text-align: center;
+}
+.registre-kpi-item.success { border-left: 3px solid #059669; }
+.registre-kpi-item.warning { border-left: 3px solid #D97706; }
+.registre-kpi-item.danger { border-left: 3px solid #DC2626; }
+.registre-kpi-num { display: block; font-size: 1.2rem; font-weight: 800; color: var(--text-primary); }
+.registre-kpi-label { display: block; font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-top: 0.2rem; }
+
+.registre-controls {
+  display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center;
+}

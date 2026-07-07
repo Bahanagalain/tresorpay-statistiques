@@ -1,0 +1,80 @@
+/* ── Weave Spinner ─────────────────────────────────────────── */
+.weave-spinner-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.weave-spinner-msg {
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+  margin: 0;
+  animation: weaveTextPulse 1.6s ease-in-out infinite;
+}
+
+.weave-spinner-container {
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: 1200px;
+}
+
+/* Central glowing node — uses accent-dgi green */
+.weave-node {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: var(--accent-dgi, #059669);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow:
+    0 0 20px var(--accent-dgi, #059669),
+    0 0 40px rgba(5, 150, 105, 0.5);
+  animation: weaveNodePulse 1.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+}
+
+/* Weaving threads */
+.weave-thread {
+  position: absolute;
+  background: linear-gradient(90deg, transparent, var(--accent-dgi, #059669), transparent);
+  box-shadow: 0 0 8px rgba(5, 150, 105, 0.4);
+  transform-origin: center;
+}
+
+.wt1 { width: 100%; height: 2px; top: 30%; left: 0; animation: weaveH1 2s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
+.wt2 { width: 2px; height: 100%; top: 0; left: 70%; animation: weaveV2 2.2s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite; }
+.wt3 { width: 100%; height: 2px; bottom: 30%; left: 0; animation: weaveH3 2.4s cubic-bezier(0.23, 1, 0.32, 1) infinite; }
+.wt4 { width: 2px; height: 100%; top: 0; left: 30%; animation: weaveV4 2.6s cubic-bezier(0.36, 0, 0.66, -0.56) infinite; }
+
+@keyframes weaveNodePulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 20px var(--accent-dgi, #059669), 0 0 40px rgba(5, 150, 105, 0.5); }
+  50% { transform: translate(-50%, -50%) scale(1.4); box-shadow: 0 0 30px var(--accent-dgi, #059669), 0 0 60px rgba(5, 150, 105, 0.7); }
+}
+
+@keyframes weaveH1 {
+  0%, 100% { transform: translateY(0) rotateX(0deg) rotateZ(0deg); opacity: 0.7; }
+  50% { transform: translateY(30px) rotateX(60deg) rotateZ(20deg); opacity: 1; }
+}
+
+@keyframes weaveV2 {
+  0%, 100% { transform: translateX(0) rotateY(0deg) rotateZ(0deg); opacity: 0.7; }
+  50% { transform: translateX(-30px) rotateY(60deg) rotateZ(-20deg); opacity: 1; }
+}
+
+@keyframes weaveH3 {
+  0%, 100% { transform: translateY(0) rotateX(0deg) rotateZ(0deg); opacity: 0.7; }
+  50% { transform: translateY(-30px) rotateX(-60deg) rotateZ(15deg); opacity: 1; }
+}
+
+@keyframes weaveV4 {
+  0%, 100% { transform: translateX(0) rotateY(0deg) rotateZ(0deg); opacity: 0.7; }
+  50% { transform: translateX(30px) rotateY(-60deg) rotateZ(-15deg); opacity: 1; }
+}
+
+@keyframes weaveTextPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}

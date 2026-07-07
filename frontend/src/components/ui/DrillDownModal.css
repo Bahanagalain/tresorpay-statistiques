@@ -1,0 +1,274 @@
+/* ================================================================
+   DrillDownModal — CDI Detail Slide-In Panel
+   ================================================================ */
+
+.ddm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ddm-panel {
+  width: min(600px, 100vw);
+  height: 100%;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes slideFromRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.animate-slide-from-right {
+  animation: slideFromRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Header ── */
+.ddm-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--glass-border);
+  background: linear-gradient(135deg, var(--accent-dgi-dim) 0%, transparent 100%);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.ddm-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: var(--accent-dgi);
+}
+
+.ddm-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.ddm-sub {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  margin: 0.15rem 0 0;
+}
+
+.ddm-close {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: var(--bg-surface-elevated);
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.ddm-close:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: #DC2626;
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+/* ── KPI strip ── */
+.ddm-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.ddm-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1rem 1.25rem;
+  border-right: 1px solid var(--glass-border);
+}
+
+.ddm-kpi:last-child { border-right: none; }
+
+.ddm-kpi__label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-tertiary);
+}
+
+.ddm-kpi__value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+/* ── Status cards ── */
+.ddm-status-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.ddm-status-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--glass-border);
+  border-top: 3px solid transparent;
+  border-radius: 10px;
+  padding: 0.75rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  transition: transform 0.2s;
+}
+
+.ddm-status-card:hover { transform: translateY(-2px); }
+
+.ddm-status-card__icon {
+  padding-top: 2px;
+}
+
+.ddm-status-card__label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.ddm-status-card__count {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0.1rem 0;
+}
+
+.ddm-status-card__amount {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+/* ── Charts ── */
+.ddm-charts {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 0;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.ddm-chart-block {
+  padding: 1rem 1.25rem;
+}
+
+.ddm-chart-block + .ddm-chart-block {
+  border-left: 1px solid var(--glass-border);
+}
+
+.ddm-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Avis table ── */
+.ddm-avis-section {
+  padding: 1rem 1.25rem;
+  flex: 1;
+}
+
+.ddm-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+}
+
+.ddm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.ddm-table thead th {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-tertiary);
+  background: var(--bg-surface-elevated);
+  border-bottom: 1px solid var(--glass-border);
+  white-space: nowrap;
+  text-align: left;
+}
+
+.ddm-row td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--glass-border);
+  vertical-align: middle;
+}
+
+.ddm-row:hover td { background: var(--bg-surface-elevated); }
+.ddm-row:last-child td { border-bottom: none; }
+
+.ddm-numero {
+  font-family: 'Courier New', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-dgi);
+  background: var(--accent-dgi-dim);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.ddm-contribuable { font-weight: 600; color: var(--text-primary); }
+.ddm-nui          { font-size: 0.68rem; color: var(--text-tertiary); }
+.ddm-montant      { font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+.ddm-date         { font-size: 0.68rem; color: var(--text-tertiary); white-space: nowrap; }
+.text-right       { text-align: right; }
+
+.ddm-statut {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 20px;
+  font-size: 0.67rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── Dark mode ── */
+[data-theme="dark"] .ddm-panel {
+  background: var(--bg-surface);
+  border-left-color: var(--glass-border);
+}
+
+[data-theme="dark"] .ddm-table thead th {
+  background: var(--bg-surface-elevated);
+}

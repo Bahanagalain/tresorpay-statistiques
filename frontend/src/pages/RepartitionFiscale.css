@@ -1,0 +1,26 @@
+/* ── Répartition Fiscale ──────────────────────────────────── */
+.fiscal-tabs {
+  display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;
+}
+.fiscal-tab {
+  padding: 0.4rem 1rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border); background: var(--bg-surface);
+  color: var(--text-secondary); font-size: 0.78rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.fiscal-tab:hover { border-color: var(--accent-dgi); color: var(--accent-dgi); }
+.fiscal-tab.active { background: var(--accent-dgi); color: #fff; border-color: var(--accent-dgi); }
+.fiscal-tab-total { margin-left: auto; font-size: 0.78rem; font-weight: 700; color: var(--text-primary); }
+
+.code-fiscal {
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.72rem;
+  background: var(--bg-surface-elevated); padding: 2px 6px; border-radius: 3px;
+  color: var(--accent-dgi);
+}
+
+.centre-badge-sm {
+  font-size: 0.68rem; font-weight: 600;
+  padding: 2px 6px; border-radius: var(--radius-sm);
+  background: var(--accent-dgi-dim); color: var(--accent-dgi);
+  white-space: nowrap;
+}

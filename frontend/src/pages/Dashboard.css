@@ -1,0 +1,301 @@
+/* ============================================================
+   Dashboard v2 — Global, léger
+   ============================================================ */
+
+.dashboard-v2 {
+  padding: 2rem 2.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── En-tête ─────────────────────────────────────────────── */
+.dash-header-v2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.dash-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dash-sub {
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  margin: 0.2rem 0 0;
+}
+
+/* ── Filtre période ──────────────────────────────────────── */
+.periode-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 0.4rem 0.75rem;
+}
+
+.periode-icon {
+  color: var(--text-tertiary);
+  margin-right: 0.25rem;
+  flex-shrink: 0;
+}
+
+.periode-btn {
+  padding: 0.3rem 0.7rem;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.periode-btn:hover {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+}
+
+.periode-btn.active {
+  background: var(--text-primary);
+  color: var(--bg-surface);
+}
+
+.periode-label {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  margin-left: 0.4rem;
+  padding-left: 0.6rem;
+  border-left: 1px solid var(--glass-border);
+  white-space: nowrap;
+}
+
+/* ── KPI Grid ────────────────────────────────────────────── */
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.dash-kpi {
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow-ambient);
+  position: relative;
+  overflow: hidden;
+}
+
+.dash-kpi::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--kpi-color);
+  border-radius: 12px 12px 0 0;
+}
+
+.dash-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-premium);
+}
+
+.dash-kpi__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--kpi-bg);
+  color: var(--kpi-color);
+  flex-shrink: 0;
+}
+
+.dash-kpi__label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.dash-kpi__value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin: 0.1rem 0 0;
+}
+
+/* ── Chart card ──────────────────────────────────────────── */
+.dash-chart-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-ambient);
+}
+
+.dash-chart-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.dash-chart-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.dash-chart-sub {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin: 0.2rem 0 0;
+}
+
+.dash-chart-legend {
+  display: flex;
+  align-items: center;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  gap: 0.4rem;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* ── Taux de recouvrement ────────────────────────────────── */
+.dash-taux-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow-ambient);
+}
+
+.dash-taux-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.9rem;
+}
+
+.dash-taux-val {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #059669;
+}
+
+.dash-taux-track {
+  height: 12px;
+  background: var(--bg-surface-elevated);
+  border-radius: 99px;
+  position: relative;
+  overflow: visible;
+}
+
+.dash-taux-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #059669, #34D399);
+  border-radius: 99px;
+  transition: width 0.8s ease;
+}
+
+.dash-taux-target {
+  position: absolute;
+  top: -18px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.target-label {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.dash-taux-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.85rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.text-muted { color: var(--text-tertiary); }
+
+/* ── Tooltip ─────────────────────────────────────────────── */
+.dash-tooltip {
+  background: #1F2937;
+  border: 1px solid #374151;
+  border-radius: 10px;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.8rem;
+  color: #F3F4F6;
+}
+
+.dash-tooltip__label {
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  color: #fff;
+}
+
+[data-theme="dark"] .dash-kpi,
+[data-theme="dark"] .dash-chart-card,
+[data-theme="dark"] .dash-taux-card {
+  background: linear-gradient(145deg, rgba(255,255,255,0.02) 0%, transparent 100%), var(--bg-surface);
+}
+
+/* ── Animation ───────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.5s ease forwards; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .dashboard-v2       { padding: 1rem; }
+  .dash-header-v2     { flex-direction: column; }
+  .dash-kpis          { grid-template-columns: repeat(2, 1fr); }
+  .dash-chart-card__header { flex-direction: column; }
+}
+
+@media (max-width: 480px) {
+  .dash-kpis { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,216 @@
+/* ══════════════════════════════════════════════════════════════
+   ChartBuilder v2 — Toggle Card Grid for Visualization Step
+   ══════════════════════════════════════════════════════════════ */
+.cb-container { margin-bottom: 1rem; }
+
+.cb-header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.cb-header-title {
+  font-size: 0.82rem; font-weight: 700; color: var(--text-primary);
+}
+.cb-header-badge {
+  font-size: 0.68rem; font-weight: 700; padding: 3px 10px;
+  border-radius: var(--radius-full); background: var(--accent-dgi-dim);
+  color: var(--accent-dgi);
+}
+
+/* ── Toggle Grid ─────────────────────────────────────────── */
+.cb-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.cb-toggle-wrapper {
+  display: flex; flex-direction: column;
+}
+.cb-toggle-wrapper.expanded {
+  grid-column: 1 / -1;
+}
+
+/* ── Toggle Card ─────────────────────────────────────────── */
+.cb-toggle-card {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem;
+  transition: all 0.2s var(--ease-premium);
+  cursor: default;
+}
+.cb-toggle-card:hover { border-color: rgba(5, 150, 105, 0.25); }
+.cb-toggle-card.active {
+  border-color: var(--accent-dgi);
+  background: var(--accent-dgi-dim);
+}
+
+.cb-toggle-header {
+  display: flex; align-items: flex-start; gap: 0.65rem;
+}
+.cb-toggle-icon {
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  background: var(--bg-surface-elevated);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary); flex-shrink: 0;
+  transition: all 0.2s;
+}
+.cb-toggle-card.active .cb-toggle-icon {
+  background: var(--accent-dgi);
+  color: #fff;
+}
+.cb-toggle-info {
+  flex: 1; min-width: 0;
+}
+.cb-toggle-info strong {
+  display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-primary);
+  margin-bottom: 0.15rem;
+}
+.cb-toggle-info span {
+  display: block; font-size: 0.65rem; color: var(--text-tertiary); line-height: 1.35;
+}
+
+/* ── Switch Toggle ───────────────────────────────────────── */
+.cb-switch {
+  position: relative; display: inline-block;
+  width: 36px; height: 20px; flex-shrink: 0;
+  cursor: pointer;
+}
+.cb-switch input { opacity: 0; width: 0; height: 0; }
+.cb-switch-slider {
+  position: absolute; inset: 0;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+.cb-switch-slider::before {
+  content: '';
+  position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--text-tertiary);
+  transition: all 0.2s;
+}
+.cb-switch input:checked + .cb-switch-slider {
+  background: var(--accent-dgi);
+  border-color: var(--accent-dgi);
+}
+.cb-switch input:checked + .cb-switch-slider::before {
+  transform: translateX(16px);
+  background: #fff;
+}
+
+/* ── Configure Button ────────────────────────────────────── */
+.cb-configure-btn {
+  display: flex; align-items: center; gap: 0.35rem;
+  margin-top: 0.65rem; padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-surface-elevated);
+  color: var(--text-secondary); font-size: 0.68rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+  width: 100%;
+  justify-content: center;
+}
+.cb-configure-btn:hover {
+  border-color: var(--accent-dgi);
+  color: var(--accent-dgi);
+}
+
+/* ── Config Panel (expanded) ─────────────────────────────── */
+.cb-config-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  padding: 1rem;
+  animation: cbSlideDown 0.25s var(--ease-premium);
+}
+
+@keyframes cbSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cb-config-axes {
+  display: flex; gap: 0.75rem; margin-bottom: 0.75rem;
+}
+.cb-config-field { flex: 1; }
+.cb-config-field-sm { flex: 0 0 110px; }
+
+.cb-label {
+  display: block; font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 0.3rem;
+}
+
+.cb-select {
+  width: 100%; padding: 0.4rem 0.6rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--glass-border); background: var(--bg-surface-elevated);
+  color: var(--text-primary); font-size: 0.75rem; font-family: inherit;
+}
+.cb-select:focus { outline: none; border-color: var(--accent-dgi); }
+
+/* ── Preview ─────────────────────────────────────────────── */
+.cb-preview { margin-top: 0.5rem; }
+.cb-preview-box {
+  background: var(--bg-body); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm); padding: 0.75rem;
+  min-height: 200px;
+}
+.cb-no-data {
+  font-size: 0.78rem; color: var(--text-tertiary); text-align: center;
+  padding: 2rem; font-style: italic;
+}
+
+/* ── KPI Cards ───────────────────────────────────────────── */
+.cb-kpi-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem; padding: 0.5rem;
+}
+.cb-kpi-card {
+  background: var(--bg-surface); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md); padding: 1rem;
+  text-align: center;
+}
+.cb-kpi-label {
+  display: block; font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 0.3rem;
+}
+.cb-kpi-value {
+  display: block; font-size: 1.1rem; font-weight: 800; color: var(--accent-dgi);
+}
+
+/* ── Heatmap ─────────────────────────────────────────────── */
+.cb-heatmap-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 4px; padding: 0.5rem;
+}
+.cb-heatmap-cell {
+  border-radius: var(--radius-sm); padding: 0.5rem;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.15rem; min-height: 50px; justify-content: center;
+}
+.cb-hm-name {
+  font-size: 0.58rem; font-weight: 600; color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.cb-hm-val {
+  font-size: 0.72rem; font-weight: 800; color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* ── Empty Hint ──────────────────────────────────────────── */
+.cb-empty-hint {
+  font-size: 0.78rem; color: var(--text-tertiary); font-style: italic;
+  text-align: center; padding: 1.5rem;
+  background: var(--bg-surface); border: 1px dashed var(--glass-border);
+  border-radius: var(--radius-md); margin-top: 0.75rem;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .cb-toggle-grid { grid-template-columns: 1fr; }
+  .cb-config-axes { flex-direction: column; }
+  .cb-config-field-sm { flex: 1; }
+}

@@ -12,9 +12,11 @@ function getRuntimeOrigin() {
 export function resolveApiUrl(path = '') {
   if (!path) return API_BASE_URL;
   if (/^https?:\/\//i.test(path)) return path;
+
   const normalizedBase = /^https?:\/\//i.test(API_BASE_URL)
     ? API_BASE_URL
     : `${getRuntimeOrigin()}${API_BASE_URL.startsWith('/') ? '' : '/'}${API_BASE_URL}`;
+
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${normalizedBase}${normalizedPath}`;
 }

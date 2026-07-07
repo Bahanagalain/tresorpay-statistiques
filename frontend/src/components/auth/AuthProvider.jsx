@@ -55,23 +55,10 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    // On a un token — on considère l'utilisateur authentifié immédiatement
-    // (avec les données stockées) puis on rafraîchit le profil en arrière-plan.
-    const storedUser = getStoredUser();
-    if (storedUser) {
-      setUser(storedUser);
-      setAccessModel(getStoredAccessModel());
-      setStatus('authenticated');
-    }
-
     refreshProfile().catch(() => {
-      // Le refresh a échoué mais on a déjà un user stocké → on garde la session.
-      // On ne déconnecte que s'il n'y a vraiment aucun user en localStorage.
-      if (!getStoredUser()) {
-        resetAuth();
-      }
+      resetAuth();
     });
-  }, []);
+  }, [refreshProfile, resetAuth]);
 
   useEffect(() => {
     const syncFromSession = () => {
@@ -82,12 +69,10 @@ export function AuthProvider({ children }) {
     };
 
     window.addEventListener('auth:session-cleared', syncFromSession);
-    window.addEventListener('auth:session-updated', syncFromSession);
     window.addEventListener('storage', syncFromSession);
 
     return () => {
       window.removeEventListener('auth:session-cleared', syncFromSession);
-      window.removeEventListener('auth:session-updated', syncFromSession);
       window.removeEventListener('storage', syncFromSession);
     };
   }, []);
@@ -97,7 +82,7 @@ export function AuthProvider({ children }) {
     const authData = response?.datas;
 
     if (!authData?.access_token) {
-      throw new Error(response?.message || 'Réponse d\'authentification invalide');
+      throw new Error(response?.message || 'Réponse d’authentification invalide');
     }
 
     storeTokens({
@@ -111,13 +96,11 @@ export function AuthProvider({ children }) {
       setUser(authData.utilisateur);
     }
 
-    setStatus('authenticated');
-
     try {
       await refreshProfile();
     } catch (error) {
-      // Profile refresh failed but login succeeded — keep the session
-      console.warn('Profile refresh failed after login:', error?.message);
+      resetAuth();
+      throw error;
     }
 
     return response;

@@ -1,0 +1,90 @@
+/* ══════════════════════════════════════════════════════════════
+   Spotlight Card Effect — cursor-following glow on hover
+   ══════════════════════════════════════════════════════════════ */
+
+/* Applied to any element with [data-glow] attribute */
+[data-glow] {
+  --glow-hue: var(--user-glow-hue, 150);
+  --glow-spread: 80;
+  --glow-size: var(--user-glow-size, 250px);
+  --glow-intensity-mul: var(--user-glow-intensity-mul, 1);
+  --glow-border-radius: var(--radius-md);
+  --glow-border-width: 1px;
+  --glow-intensity: 0;
+  position: relative;
+  transition: --glow-intensity 0.4s ease;
+}
+
+[data-glow]:hover {
+  --glow-intensity: 1;
+}
+
+/* Disable spotlight entirely when user opted out */
+:root[data-glow-enabled="false"] [data-glow]::before,
+:root[data-glow-enabled="false"] [data-glow]::after {
+  display: none;
+}
+
+/* Spotlight background glow (soft, inside the card) */
+[data-glow]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  opacity: calc(var(--glow-intensity) * 0.08 * var(--glow-intensity-mul));
+  background: radial-gradient(
+    var(--glow-size) var(--glow-size) at
+      calc(var(--mouse-x, 50%) * 1px) calc(var(--mouse-y, 50%) * 1px),
+    hsl(var(--glow-hue) 80% 65%),
+    transparent 100%
+  );
+  transition: opacity 0.4s ease;
+}
+
+/* Spotlight border glow (bright, on the border) */
+[data-glow]::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--glow-border-width) * -1);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  opacity: calc(var(--glow-intensity) * 0.5 * var(--glow-intensity-mul));
+  border: var(--glow-border-width) solid transparent;
+  background: radial-gradient(
+    calc(var(--glow-size) * 0.6) calc(var(--glow-size) * 0.6) at
+      calc(var(--mouse-x, 50%) * 1px) calc(var(--mouse-y, 50%) * 1px),
+    hsl(var(--glow-hue) 90% 60% / 0.6),
+    transparent 100%
+  );
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  transition: opacity 0.4s ease;
+}
+
+/* Ensure card content stays above the glow */
+[data-glow] > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Color variants via data attribute ── */
+[data-glow="green"]  { --glow-hue: 150; }
+[data-glow="blue"]   { --glow-hue: 220; }
+[data-glow="purple"] { --glow-hue: 280; }
+[data-glow="orange"] { --glow-hue: 30; }
+[data-glow="red"]    { --glow-hue: 0; }
+[data-glow="gold"]   { --glow-hue: 40; }
+[data-glow="teal"]   { --glow-hue: 175; }
+
+/* Dark mode: slightly brighter glow */
+[data-theme="dark"] [data-glow]::before {
+  opacity: calc(var(--glow-intensity) * 0.12);
+}
+[data-theme="dark"] [data-glow]::after {
+  opacity: calc(var(--glow-intensity) * 0.7);
+}

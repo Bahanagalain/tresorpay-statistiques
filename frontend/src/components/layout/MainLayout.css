@@ -1,0 +1,272 @@
+/* ─── MainLayout — Sidebar full-height, content to the right ─── */
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-body);
+}
+
+/* Right side: TopNav + scrollable main */
+.content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* TopNav sits at top of content area */
+.topnav-vault {
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+/* Only the main content area scrolls */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.main-content::-webkit-scrollbar { width: 5px; }
+.main-content::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 99px;
+}
+
+/* ─── Presentation Mode ─── */
+.app-container.presentation-mode .sidebar-vault { display: none; }
+.app-container.presentation-mode .sidebar-expand-btn { display: none; }
+.app-container.presentation-mode .topnav-vault { display: none; }
+.app-container.presentation-mode .content-wrapper { width: 100%; }
+.app-container.presentation-mode .dgi-page { max-width: 100%; padding: 1.5rem 2.5rem; }
+.app-container.presentation-mode .page-container { padding: 1.5rem 2.5rem; }
+.app-container.presentation-mode .kpi-card__value { font-size: 1.5rem; }
+.app-container.presentation-mode .chart-title { font-size: 1.05rem; }
+
+/* Fade transitions for slide changes */
+.pres-fade-in {
+  animation: presFadeIn 0.5s ease forwards;
+}
+.pres-fade-out {
+  animation: presFadeOut 0.35s ease forwards;
+}
+@keyframes presFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes presFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* ── Presentation Clock (floating overlay) ── */
+.pres-clock {
+  position: fixed;
+  top: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+}
+.pres-clock__time {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  color: #22c55e;
+}
+.pres-clock__h,
+.pres-clock__m { color: #22c55e; }
+.pres-clock__s { color: rgba(255,255,255,0.5); font-size: 1.1rem; font-weight: 600; }
+.pres-clock__sep { color: rgba(255,255,255,0.4); margin: 0 1px; }
+.pres-clock__sep--blink { animation: clockBlink 1s step-end infinite; }
+@keyframes clockBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.pres-clock__label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Slide indicator (bottom center) ── */
+.pres-indicator {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+.pres-indicator__dots {
+  display: flex;
+  gap: 0.35rem;
+}
+.pres-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  transition: all 0.3s;
+}
+.pres-dot.active {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34,197,94,0.5);
+  width: 20px;
+  border-radius: 4px;
+}
+.pres-indicator__label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.pres-progress {
+  width: 120px;
+  height: 2px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.pres-progress__fill {
+  height: 100%;
+  background: #22c55e;
+  border-radius: 2px;
+  transition: width 0.2s linear;
+}
+
+/* ── Exit button (top-right) ── */
+.pres-exit-btn {
+  position: fixed;
+  top: 1.2rem;
+  right: 1.5rem;
+  z-index: 9000;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(8px);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.04em;
+}
+.pres-exit-btn:hover {
+  background: rgba(220,38,38,0.6);
+  color: #fff;
+  border-color: rgba(220,38,38,0.4);
+}
+
+.pres-dot-more {
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.3);
+  font-weight: 600;
+}
+
+/* ── Countdown overlay (last 60s before slideshow) ── */
+.pres-countdown {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.5rem 1.2rem;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(10px);
+  animation: presFadeIn 0.5s ease;
+}
+.pres-countdown__label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.pres-countdown__num {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #22c55e;
+  font-variant-numeric: tabular-nums;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* ─── Horizontal Tabs Navigation ─── */
+.module-tabs-wrapper {
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--glass-border);
+  z-index: 50;
+  background: var(--bg-body);
+  flex-shrink: 0;
+}
+
+.module-tabs {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.module-tabs::-webkit-scrollbar { display: none; }
+
+.module-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.45rem 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.module-tab:hover { color: var(--text-primary); }
+.module-tab.active { color: var(--accent-gold); border-bottom-color: var(--accent-gold); }
+
+.tab-pane {
+  animation: slideUp 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.tab-content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

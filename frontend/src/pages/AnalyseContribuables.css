@@ -1,0 +1,11 @@
+.contrib-name { font-weight: 600; color: var(--text-primary); }
+.taux-badge { padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.72rem; font-weight: 700; }
+.taux-badge.good { background: rgba(5,150,105,0.1); color: #059669; }
+.taux-badge.mid { background: rgba(217,119,6,0.1); color: #D97706; }
+.taux-badge.bad { background: rgba(220,38,38,0.1); color: #DC2626; }
+.contrib-statuts { display: flex; gap: 4px; }
+.mini-badge { padding: 1px 6px; border-radius: var(--radius-sm); font-size: 0.65rem; font-weight: 700; }
+.mini-badge.paid { background: rgba(5,150,105,0.1); color: #059669; }
+.mini-badge.pending { background: rgba(217,119,6,0.1); color: #D97706; }
+.mini-badge.overdue { background: rgba(220,38,38,0.1); color: #DC2626; }
+.page-info { font-size: 0.78rem; color: var(--text-secondary); padding: 0 0.5rem; }

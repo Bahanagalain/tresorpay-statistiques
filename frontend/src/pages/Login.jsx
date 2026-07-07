@@ -1,274 +1,228 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import toast, { Toaster } from 'react-hot-toast';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Lock, User, ArrowRight, MoonStar, SunMedium, Languages } from 'lucide-react';
 import { useTheme } from '../components/theme/ThemeProvider';
 import { useAuth } from '../components/auth/AuthProvider';
-import { useLanguage } from '../components/i18n/LanguageProvider';
+import { useTranslation } from '../i18n/LanguageProvider';
+import toast, { Toaster } from 'react-hot-toast';
 import tresorPayLogo from '../assets/logo-tresorpay.png';
 import './Login.css';
 
-/* ── rate-limiter ── */
+// ── Rate limiting (frontend) ─────────────────────────────────
 const MAX_ATTEMPTS = 5;
-const LOCKOUT_MS = 60_000;
+const LOCKOUT_SECONDS = 60;
 
-/* ── FlowingLines canvas ── */
-function FlowingLines({ width, height }) {
+function useLoginRateLimit() {
+  const [attempts, setAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(0);
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    if (lockedUntil <= Date.now()) { setCountdown(0); return; }
+    const interval = setInterval(() => {
+      const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (remaining <= 0) { setCountdown(0); setAttempts(0); setLockedUntil(0); clearInterval(interval); }
+      else setCountdown(remaining);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lockedUntil]);
+
+  const recordFailure = () => {
+    const next = attempts + 1;
+    setAttempts(next);
+    if (next >= MAX_ATTEMPTS) {
+      setLockedUntil(Date.now() + LOCKOUT_SECONDS * 1000);
+    }
+  };
+
+  const isLocked = lockedUntil > Date.now();
+  return { recordFailure, isLocked, countdown, attemptsLeft: MAX_ATTEMPTS - attempts };
+}
+
+/* ── Animated flowing lines canvas ──────────────────────────── */
+function FlowingLines() {
   const canvasRef = useRef(null);
-  const linesRef = useRef([]);
-  const rafRef = useRef(null);
-
-  const COLORS = ['#b8860b', '#228b22', '#c0392b'];
-
-  const createLine = useCallback(
-    (w, h) => ({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      len: 80 + Math.random() * 120,
-      speed: 0.3 + Math.random() * 0.7,
-      angle: Math.random() * Math.PI * 2,
-      da: (Math.random() - 0.5) * 0.02,
-      color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      alpha: 0.12 + Math.random() * 0.18,
-      width: 1 + Math.random() * 2,
-    }),
-    [],
-  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const w = width || canvas.parentElement.clientWidth;
-    const h = height || canvas.parentElement.clientHeight;
-    canvas.width = w;
-    canvas.height = h;
 
-    if (!linesRef.current.length) {
-      linesRef.current = Array.from({ length: 35 }, () => createLine(w, h));
-    }
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+    resize();
+    window.addEventListener('resize', resize);
 
+    const LINES = [
+      { color: '#16a34a', speed: 0.7,  amplitude: 22, phase: 0,   yBase: 0.30, width: 2.2, dashLen: 18, gapLen: 10 },
+      { color: '#dc2626', speed: 0.50, amplitude: 18, phase: 2.1, yBase: 0.50, width: 2.0, dashLen: 22, gapLen: 14 },
+      { color: '#D97706', speed: 0.65, amplitude: 25, phase: 4.2, yBase: 0.70, width: 1.8, dashLen: 14, gapLen: 8  },
+      { color: '#16a34a', speed: 0.40, amplitude: 12, phase: 1.0, yBase: 0.18, width: 1.4, dashLen: 8,  gapLen: 18 },
+      { color: '#dc2626', speed: 0.85, amplitude: 16, phase: 3.3, yBase: 0.85, width: 1.3, dashLen: 20, gapLen: 12 },
+      { color: '#fbbf24', speed: 0.55, amplitude: 20, phase: 5.1, yBase: 0.60, width: 2.0, dashLen: 16, gapLen: 9  },
+    ];
+
+    let t = 0, raf;
     const draw = () => {
-      ctx.clearRect(0, 0, w, h);
-      linesRef.current.forEach((l) => {
-        l.angle += l.da;
-        l.x += Math.cos(l.angle) * l.speed;
-        l.y += Math.sin(l.angle) * l.speed;
-
-        if (l.x < -l.len) l.x = w + l.len;
-        if (l.x > w + l.len) l.x = -l.len;
-        if (l.y < -l.len) l.y = h + l.len;
-        if (l.y > h + l.len) l.y = -l.len;
-
-        const ex = l.x + Math.cos(l.angle) * l.len;
-        const ey = l.y + Math.sin(l.angle) * l.len;
-
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+      LINES.forEach(line => {
         ctx.beginPath();
-        ctx.moveTo(l.x, l.y);
-        ctx.lineTo(ex, ey);
-        ctx.strokeStyle = l.color;
-        ctx.globalAlpha = l.alpha;
-        ctx.lineWidth = l.width;
-        ctx.lineCap = 'round';
+        ctx.setLineDash([line.dashLen, line.gapLen]);
+        ctx.lineWidth = line.width;
+        ctx.strokeStyle = line.color + 'a0';
+        const steps = 120;
+        for (let i = 0; i <= steps; i++) {
+          const x = (i / steps) * W;
+          const y = line.yBase * H
+            + Math.sin((i / steps) * Math.PI * 3.5 + t * line.speed + line.phase) * line.amplitude
+            + Math.sin((i / steps) * Math.PI * 6 + t * line.speed * 0.5 + line.phase) * (line.amplitude * 0.3);
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
         ctx.stroke();
-        ctx.globalAlpha = 1;
+        const dotX = ((t * line.speed * 55 + LINES.indexOf(line) * 100) % (W + 30)) - 15;
+        const pr = (dotX + 15) / (W + 30);
+        const dotY = line.yBase * H
+          + Math.sin(pr * Math.PI * 3.5 + t * line.speed + line.phase) * line.amplitude
+          + Math.sin(pr * Math.PI * 6 + t * line.speed * 0.5 + line.phase) * (line.amplitude * 0.3);
+        const grad = ctx.createRadialGradient(dotX, dotY, 0, dotX, dotY, 9);
+        grad.addColorStop(0, line.color + 'dd');
+        grad.addColorStop(1, line.color + '00');
+        ctx.beginPath();
+        ctx.setLineDash([]);
+        ctx.fillStyle = grad;
+        ctx.arc(dotX, dotY, 9, 0, Math.PI * 2);
+        ctx.fill();
       });
-      rafRef.current = requestAnimationFrame(draw);
+      t += 0.012;
+      raf = requestAnimationFrame(draw);
     };
     draw();
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [width, height, createLine]);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
+  }, []);
 
-  return <canvas ref={canvasRef} className="lp-flowing-canvas" />;
+  return <div className="lp-canvas-wrapper"><canvas ref={canvasRef} className="lp-canvas" /></div>;
 }
 
-/* ── Login page ── */
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const { toggleTheme, isDark } = useTheme();
-  const { lang, setLang } = useLanguage();
-
-  const [identifiant, setIdentifiant] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const location = useLocation();
+  const { isDark, toggleTheme } = useTheme();
+  const { login: signIn, isAuthenticated, status } = useAuth();
+  const { t, lang, setLang } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [attempts, setAttempts] = useState(0);
-  const [lockedUntil, setLockedUntil] = useState(null);
+  const [loginValue, setLoginValue] = useState('');
+  const [password, setPassword] = useState('');
+  const [focused, setFocused] = useState(null);
+  const { recordFailure, isLocked, countdown } = useLoginRateLimit();
+  const redirectTo = location.state?.from?.pathname || '/dgi';
 
-  /* lock countdown */
   useEffect(() => {
-    if (!lockedUntil) return;
-    const id = setInterval(() => {
-      if (Date.now() >= lockedUntil) {
-        setLockedUntil(null);
-        setAttempts(0);
-        clearInterval(id);
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [lockedUntil]);
+    if (status === 'authenticated' || isAuthenticated) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [isAuthenticated, navigate, redirectTo, status]);
 
-  const isLocked = lockedUntil && Date.now() < lockedUntil;
-  const remainingSec = isLocked ? Math.ceil((lockedUntil - Date.now()) / 1000) : 0;
-
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (isLocked) {
-      toast.error(`Compte verrouille. Reessayez dans ${remainingSec}s`);
-      return;
-    }
-    if (!identifiant.trim() || !password.trim()) {
-      toast.error('Veuillez remplir tous les champs');
-      return;
-    }
-
+    if (isLocked) return;
     setLoading(true);
+    const toastId = toast.loading(t('login.connecting'));
+
     try {
-      await login({ username: identifiant.trim(), password });
-      toast.success('Connexion reussie');
-      navigate('/tableau-de-bord');
-    } catch (err) {
-      const next = attempts + 1;
-      setAttempts(next);
-      if (next >= MAX_ATTEMPTS) {
-        setLockedUntil(Date.now() + LOCKOUT_MS);
-        toast.error('Trop de tentatives. Verrouille pendant 60 secondes.');
-      } else {
-        toast.error(err?.message || 'Identifiants incorrects');
-      }
+      await signIn({ username: loginValue, password });
+      toast.success(t('login.success'), { id: toastId });
+      navigate(redirectTo, { replace: true });
+    } catch (error) {
+      recordFailure();
+      toast.error(error?.message || t('login.failure'), { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
+  const toggleLang = () => setLang(lang === 'fr' ? 'en' : 'fr');
+
   return (
     <div className="login-root">
       <Toaster position="top-right" toastOptions={{ style: { fontSize: '0.82rem', borderRadius: '10px' } }} />
 
-      {/* ── top bar ── */}
+      {/* Top bar: theme + language */}
       <div className="login-top-bar">
-        <button
-          className="ltb-btn"
-          onClick={toggleTheme}
-          title={isDark ? 'Mode clair' : 'Mode sombre'}
-        >
-          {isDark ? '☀' : '☽'}
+        <button className="login-lang-btn" onClick={toggleLang} type="button">
+          <Languages size={14} />
+          <span>{lang === 'fr' ? 'EN' : 'FR'}</span>
         </button>
         <button
-          className="ltb-btn"
-          onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')}
-          title="Langue"
+          className={`login-theme-btn${isDark ? ' is-active' : ''}`}
+          onClick={toggleTheme}
+          type="button"
         >
-          {lang === 'fr' ? 'EN' : 'FR'}
+          {isDark ? <SunMedium size={16} /> : <MoonStar size={16} />}
+          <span>{isDark ? t('login.lightMode') : t('login.darkMode')}</span>
         </button>
       </div>
 
-      {/* ── left panel ── */}
-      <div className="login-panel login-panel--left">
-        <div className="login-orb login-orb--1" />
-        <div className="login-orb login-orb--2" />
-        <div className="login-orb login-orb--3" />
+      {/* Ambient orbs */}
+      <div className="login-orb login-orb--1" />
+      <div className="login-orb login-orb--2" />
+      <div className="login-orb login-orb--3" />
 
-        <div className="lp-canvas-wrapper">
+      {/* Left panel */}
+      <div className="login-panel login-panel--left">
+        <div className="lp-inner">
+          <div className="lp-hero">
+            <h1 className="lp-title">{t('login.title')}<br /><span className="lp-accent">{t('login.accent')}</span></h1>
+            <p className="lp-desc">{t('login.desc')}</p>
+          </div>
           <FlowingLines />
         </div>
 
-        <div className="lp-content">
-          <img src="/assets/logo-dgtcfm.png" alt="DGTCFM" className="lp-logo-institution" />
-          <h1 className="lp-title">TresorPay <span className="lp-title-accent">Statistiques</span> RNF</h1>
-          <p className="lp-subtitle">
-            Plateforme de suivi et analyse des recettes non fiscales
-          </p>
-        </div>
-
-        <div className="lp-partners">
-          <img src="/assets/logo-cameroun.png" alt="Cameroun" className="lp-partner-logo" />
-          <div className="lp-partner-texts">
-            <span className="lp-partner-text">Republique du Cameroun</span>
-            <span className="lp-partner-sep">|</span>
-            <span className="lp-partner-text">Ministere des Finances</span>
+        {/* Partner logos — bottom left */}
+        <div className="lp-partners-block">
+          <span className="lp-partners-label">Projet porté par :</span>
+          <div className="lp-partners">
+            <img src="/images/logo-cameroun.png" alt="Cameroun" title="République du Cameroun" />
+            <img src="/images/Logo_DGI_Cameroun.png" alt="DGI" title="Direction Générale des Impôts" />
+            <img src="/images/logo-dgtcfm.png" alt="DGTCFM" title="Direction Générale du Trésor" />
+            <img src="/images/logo douane.png" alt="DGD" title="Direction Générale des Douanes" />
           </div>
         </div>
+
+        <div className="lp-grid" aria-hidden />
       </div>
 
-      {/* ── right panel ── */}
+      {/* Right panel */}
       <div className="login-panel login-panel--right">
         <div className="lr-card">
           <img src={tresorPayLogo} alt="TresorPay" className="lr-logo" />
+          <p className="lr-sub">{t('login.accessRestricted')}</p>
 
-          <h2 className="lr-title">Connexion</h2>
-          <p className="lr-desc">
-            Accedez a votre espace de statistiques
-          </p>
-
-          <form className="lr-form" onSubmit={handleSubmit}>
-            <div className="lr-field">
-              <label className="lr-label" htmlFor="identifiant">
-                Identifiant
-              </label>
-              <input
-                id="identifiant"
-                className="lr-input"
-                type="text"
-                autoComplete="username"
-                value={identifiant}
-                onChange={(e) => setIdentifiant(e.target.value)}
-                disabled={loading || isLocked}
-                placeholder="Votre identifiant"
-              />
+          <form onSubmit={handleLogin} className="lr-form">
+            <div className={`lr-field ${focused === 'login' ? 'lr-field--active' : ''}`}>
+              <User size={16} className="lr-field-icon" />
+              <input type="text" placeholder={t('login.loginPlaceholder')} value={loginValue} onChange={e => setLoginValue(e.target.value)} onFocus={() => setFocused('login')} onBlur={() => setFocused(null)} className="lr-input" required autoComplete="username" />
             </div>
 
-            <div className="lr-field">
-              <label className="lr-label" htmlFor="password">
-                Mot de passe
-              </label>
-              <div className="lr-password-wrapper">
-                <input
-                  id="password"
-                  className="lr-input"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading || isLocked}
-                  placeholder="********"
-                />
-                <button
-                  type="button"
-                  className="lr-toggle-pw"
-                  onClick={() => setShowPassword((v) => !v)}
-                  tabIndex={-1}
-                >
-                  {showPassword ? '🙈' : '👁'}
-                </button>
-              </div>
+            <div className={`lr-field ${focused === 'pw' ? 'lr-field--active' : ''}`}>
+              <Lock size={16} className="lr-field-icon" />
+              <input type="password" placeholder={t('login.passwordPlaceholder')} value={password} onChange={e => setPassword(e.target.value)} onFocus={() => setFocused('pw')} onBlur={() => setFocused(null)} className="lr-input" required autoComplete="current-password" />
             </div>
 
             {isLocked && (
-              <p className="lr-locked-msg">
-                Verrouille — reessayez dans {remainingSec}s
-              </p>
+              <div className="lr-lockout">
+                {t('login.tooManyAttempts')} <strong>{countdown}</strong> {t('login.seconds')}
+              </div>
             )}
 
-            <button
-              type="submit"
-              className="lr-btn"
-              disabled={loading || isLocked}
-            >
-              {loading ? (
-                <span className="lr-spinner" />
-              ) : (
-                'Se connecter'
-              )}
+            <button type="submit" className="lr-btn" disabled={loading || isLocked}>
+              {loading
+                ? <span className="lr-spinner" />
+                : <><span>{t('login.submit')}</span><ArrowRight size={16} /></>
+              }
             </button>
           </form>
-        </div>
 
-        {/* Mentions legales */}
-        <div className="lr-legal">
-          <p>Direction Generale du Tresor, de la Cooperation Financiere et Monetaire</p>
-          <p>Plateforme TresorPay Statistiques RNF &copy; {new Date().getFullYear()} — Tous droits reserves</p>
-          <p>Republique du Cameroun — Ministere des Finances</p>
+          <p className="lr-footer">{t('login.footer')}</p>
         </div>
       </div>
     </div>

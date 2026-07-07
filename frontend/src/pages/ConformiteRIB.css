@@ -1,0 +1,76 @@
+/* ── Conformite RIB Page ─────────────────────────────────── */
+.rib-kpi-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.rib-kpi-card {
+  background: var(--bg-surface); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md); padding: 1rem 1.2rem;
+  display: flex; align-items: center; gap: 0.8rem;
+}
+.rib-kpi-val { display: block; font-size: 1.1rem; font-weight: 800; color: var(--text-primary); }
+.rib-kpi-label { display: block; font-size: 0.72rem; color: var(--text-tertiary); margin-top: 0.1rem; }
+
+/* Tabs */
+.rib-tabs {
+  display: flex; gap: 0.3rem; margin-bottom: 1rem;
+  border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;
+}
+.rib-tab {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.45rem 0.9rem; border-radius: 8px 8px 0 0;
+  border: 1px solid transparent; background: transparent;
+  color: var(--text-secondary); font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.rib-tab:hover { color: var(--text-primary); background: var(--bg-surface-elevated); }
+.rib-tab.active { color: #059669; border-color: var(--glass-border); border-bottom-color: var(--bg-base); background: var(--bg-surface); }
+
+/* Blocages */
+.rib-blocages { display: flex; flex-direction: column; gap: 0.75rem; }
+.blocage-card {
+  background: var(--bg-surface); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md); overflow: hidden;
+}
+.blocage-card.blocage-critique { border-left: 4px solid #DC2626; }
+.blocage-card.blocage-attention { border-left: 4px solid #D97706; }
+
+.blocage-header {
+  padding: 1rem 1.2rem; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  transition: background 0.15s;
+}
+.blocage-header:hover { background: var(--bg-surface-elevated); }
+.blocage-header-left { display: flex; align-items: center; gap: 0.8rem; }
+.blocage-header-right { display: flex; align-items: center; gap: 1rem; flex-shrink: 0; }
+
+.blocage-titre { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+.blocage-desc { font-size: 0.75rem; color: var(--text-tertiary); margin: 0.15rem 0 0; }
+.blocage-stat { font-size: 0.78rem; color: var(--text-secondary); }
+.blocage-stat strong { color: var(--text-primary); }
+
+.blocage-badge {
+  padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.68rem;
+  font-weight: 700; text-transform: uppercase;
+}
+.blocage-badge.critique { background: rgba(220,38,38,0.1); color: #DC2626; }
+.blocage-badge.attention { background: rgba(217,119,6,0.1); color: #D97706; }
+
+.blocage-details {
+  padding: 0 1.2rem 1rem; border-top: 1px solid var(--glass-border);
+}
+
+/* RIB codes */
+.rib-code {
+  display: inline-block; padding: 0.15rem 0.4rem; border-radius: 4px;
+  background: var(--bg-surface-elevated); color: var(--text-primary);
+  font-size: 0.72rem; font-family: 'JetBrains Mono', monospace;
+  margin: 0.1rem 0.2rem 0.1rem 0;
+}
+.rib-list { display: flex; flex-wrap: wrap; gap: 0.2rem; align-items: center; }
+
+@media (max-width: 768px) {
+  .rib-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .blocage-header { flex-direction: column; align-items: flex-start; }
+  .blocage-header-right { flex-wrap: wrap; }
+}

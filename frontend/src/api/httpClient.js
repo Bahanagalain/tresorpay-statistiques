@@ -1,15 +1,6 @@
 import { resolveApiUrl } from './apiConfig';
+import { ApiError } from './errors';
 import { clearSession, getStoredTokens, storeTokens } from './session';
-
-export class ApiError extends Error {
-  constructor(message, { status = 500, data = null, response = null } = {}) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.data = data;
-    this.response = response;
-  }
-}
 
 let refreshPromise = null;
 
@@ -47,6 +38,7 @@ async function refreshAccessToken() {
   const data = await parseResponse(response);
   const tokenData = data?.datas || data;
   if (!response.ok || !tokenData?.access_token) {
+    clearSession();
     throw new ApiError('Impossible de rafraîchir la session', {
       status: response.status,
       data,

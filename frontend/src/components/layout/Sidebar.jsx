@@ -1,230 +1,128 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Building2,
-  PieChart,
-  Map,
-  FileText,
-  Activity,
-  AlertTriangle,
-  FileBarChart,
-  Settings,
-  Shield,
-  ChevronLeft,
-  ChevronRight,
+  Landmark, Building2, ChevronRight, Settings, Shield,
+  PieChart, Map, Users, Activity, AlertTriangle, FileBarChart,
+  ChevronsLeft, ChevronsRight,
 } from 'lucide-react';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../auth/AuthProvider';
+import { useSidebar } from './MainLayout';
+import { useTranslation } from '../../i18n/LanguageProvider';
+import { resolveApiUrl } from '../../api/apiConfig';
+import tresorPayLogo from '../../assets/logo-tresorpay.png';
+import './Sidebar.css';
 
-const APP_VERSION = '0.1.0';
+function resolvePhotoUrl(url) {
+  if (!url) return null;
+  return resolveApiUrl(url);
+}
 
-const navItems = [
-  { to: '/tableau-de-bord',         label: 'Tableau de bord',        icon: LayoutDashboard },
-  { to: '/performance-ministeres',  label: 'Performance Ministères', icon: Building2 },
-  { to: '/repartition-services',    label: 'Répartition Services',   icon: PieChart },
-  { to: '/cartographie',            label: 'Cartographie',           icon: Map },
-  { to: '/soumissions',             label: 'Soumissions',            icon: FileText },
-  { to: '/monitoring-paiements',    label: 'Monitoring Paiements',   icon: Activity },
-  { to: '/alertes',                 label: 'Alertes',                icon: AlertTriangle },
-  { to: '/rapports',                label: 'Rapports',               icon: FileBarChart },
-];
+function getInitials(user) {
+  if (!user?.nom_complet) return '?';
+  const parts = user.nom_complet.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return parts[0].slice(0, 2).toUpperCase();
+}
 
-const bottomItems = [
-  { to: '/parametres',     label: 'Paramètres',     icon: Settings },
-  { to: '/administration', label: 'Administration', icon: Shield, adminOnly: true },
-];
-
-/* ---------- styles ---------- */
-
-const sidebarBase = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  height: '100vh',
-  display: 'flex',
-  flexDirection: 'column',
-  background: 'var(--sidebar-bg, #0f1117)',
-  borderRight: '1px solid var(--border-glass, rgba(255,255,255,0.08))',
-  backdropFilter: 'blur(16px)',
-  WebkitBackdropFilter: 'blur(16px)',
-  zIndex: 40,
-  transition: 'width 0.3s cubic-bezier(.4,0,.2,1)',
-  overflow: 'hidden',
-  userSelect: 'none',
-};
-
-const brandBlock = {
-  padding: '20px 16px 12px',
-  borderBottom: '1px solid var(--border-glass, rgba(255,255,255,0.08))',
-  flexShrink: 0,
-};
-
-const brandTitle = {
-  fontWeight: 700,
-  fontSize: 20,
-  letterSpacing: '-0.02em',
-  color: 'var(--gold, #d4a843)',
-  lineHeight: 1.1,
-  whiteSpace: 'nowrap',
-};
-
-const brandSub = {
-  fontSize: 11,
-  fontWeight: 500,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-  color: 'var(--text-muted, rgba(255,255,255,0.45))',
-  marginTop: 2,
-  whiteSpace: 'nowrap',
-};
-
-const navSection = {
-  flex: 1,
-  overflowY: 'auto',
-  overflowX: 'hidden',
-  padding: '8px 0',
-};
-
-const separatorStyle = {
-  height: 1,
-  margin: '8px 16px',
-  background: 'var(--border-glass, rgba(255,255,255,0.08))',
-};
-
-const linkBase = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  padding: '10px 16px',
-  margin: '2px 8px',
-  borderRadius: 8,
-  textDecoration: 'none',
-  fontSize: 14,
-  fontWeight: 500,
-  color: 'var(--text-secondary, rgba(255,255,255,0.6))',
-  transition: 'all 0.2s ease',
-  whiteSpace: 'nowrap',
-  borderLeft: '3px solid transparent',
-  cursor: 'pointer',
-  position: 'relative',
-};
-
-const linkActive = {
-  color: 'var(--gold, #d4a843)',
-  background: 'var(--gold-bg, rgba(212,168,67,0.08))',
-  borderLeftColor: 'var(--gold, #d4a843)',
-};
-
-const linkHover = {
-  background: 'var(--hover-bg, rgba(255,255,255,0.04))',
-  color: 'var(--text-primary, rgba(255,255,255,0.85))',
-};
-
-const toggleBtn = {
-  position: 'absolute',
-  top: 20,
-  right: -14,
-  width: 28,
-  height: 28,
-  borderRadius: '50%',
-  border: '1px solid var(--border-glass, rgba(255,255,255,0.12))',
-  background: 'var(--sidebar-bg, #0f1117)',
-  color: 'var(--text-muted, rgba(255,255,255,0.45))',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  zIndex: 50,
-  transition: 'all 0.2s ease',
-};
-
-const versionStyle = {
-  padding: '12px 16px',
-  fontSize: 11,
-  color: 'var(--text-muted, rgba(255,255,255,0.3))',
-  borderTop: '1px solid var(--border-glass, rgba(255,255,255,0.08))',
-  textAlign: 'center',
-  whiteSpace: 'nowrap',
-  flexShrink: 0,
-};
-
-/* ---------- component ---------- */
-
-export default function Sidebar({ isOpen, onToggle }) {
-  const location = useLocation();
+export default function Sidebar() {
   const { user } = useAuth();
-  const [hoveredPath, setHoveredPath] = React.useState(null);
+  const { collapsed, toggleSidebar } = useSidebar();
+  const { t } = useTranslation();
+  const isSuperAdmin = user?.est_super_admin;
+  const photoUrl = resolvePhotoUrl(user?.photo_url);
 
-  const width = isOpen ? 260 : 72;
-
-  const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
-
-  const renderLink = ({ to, label, icon: Icon }) => {
-    const active = isActive(to);
-    const hovered = hoveredPath === to && !active;
-
-    return (
-      <NavLink
-        key={to}
-        to={to}
-        style={{
-          ...linkBase,
-          ...(active ? linkActive : {}),
-          ...(hovered ? linkHover : {}),
-          justifyContent: isOpen ? 'flex-start' : 'center',
-          padding: isOpen ? '10px 16px' : '10px 0',
-          gap: isOpen ? 12 : 0,
-        }}
-        onMouseEnter={() => setHoveredPath(to)}
-        onMouseLeave={() => setHoveredPath(null)}
-        title={!isOpen ? label : undefined}
-      >
-        <Icon size={20} style={{ flexShrink: 0 }} />
-        {isOpen && <span>{label}</span>}
-      </NavLink>
-    );
-  };
-
-  const visibleBottomItems = bottomItems.filter(
-    (item) => !item.adminOnly || user?.est_super_admin
-  );
+  const navItems = [
+    {
+      section: null,
+      links: [
+        { to: '/dgi', icon: Landmark, label: t('sidebar.dashboard'), iconColor: '#059669' },
+      ],
+    },
+    {
+      section: t('sidebar.analysis'),
+      links: [
+        { to: '/performance-cdi', icon: Building2, label: t('sidebar.perfCdi'), iconColor: '#2563EB' },
+        { to: '/repartition-fiscale', icon: PieChart, label: t('sidebar.fiscalDist'), iconColor: '#8B5CF6' },
+        { to: '/cartographie', icon: Map, label: t('sidebar.cartography'), iconColor: '#14B8A6' },
+        { to: '/contribuables', icon: Users, label: t('sidebar.taxpayers'), iconColor: '#EC4899' },
+      ],
+    },
+    {
+      section: t('sidebar.operations'),
+      links: [
+        { to: '/conformite-rib', icon: Shield, label: 'Conformite RIB', iconColor: '#DC2626' },
+        { to: '/monitoring-otp', icon: Activity, label: t('sidebar.monitoringOtp'), iconColor: '#6366F1' },
+        { to: '/alertes', icon: AlertTriangle, label: t('sidebar.alerts'), iconColor: '#D97706' },
+      ],
+    },
+    {
+      section: t('sidebar.reports'),
+      links: [
+        { to: '/rapports', icon: FileBarChart, label: t('sidebar.generation'), iconColor: '#F97316' },
+      ],
+    },
+    {
+      section: t('sidebar.governance'),
+      links: [
+        { to: '/parametres', icon: Settings, label: 'Paramètres', iconColor: '#64748B' },
+      ],
+    },
+  ];
 
   return (
-    <aside style={{ ...sidebarBase, width }}>
-      {/* Toggle button */}
-      <button
-        onClick={onToggle}
-        style={toggleBtn}
-        aria-label={isOpen ? 'Réduire le menu' : 'Étendre le menu'}
-      >
-        {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-      </button>
+    <>
+      {collapsed && (
+        <button className="sidebar-expand-btn" onClick={toggleSidebar} title={t('sidebar.openMenu')}>
+          <ChevronsRight size={16} />
+        </button>
+      )}
 
-      {/* Brand */}
-      <div style={{ ...brandBlock, textAlign: isOpen ? 'left' : 'center', padding: isOpen ? '20px 16px 12px' : '20px 8px 12px' }}>
-        {isOpen ? (
-          <>
-            <div style={brandTitle}>TresorPay</div>
-            <div style={brandSub}>Statistiques</div>
-          </>
-        ) : (
-          <div style={{ ...brandTitle, fontSize: 16 }}>TP</div>
-        )}
-      </div>
+      <aside className={`sidebar-vault ${collapsed ? 'hidden' : ''}`}>
+        <button className="sidebar-collapse-pill" onClick={toggleSidebar} title={t('sidebar.closeMenu')}>
+          <ChevronsLeft size={14} />
+        </button>
 
-      {/* Main nav */}
-      <nav style={navSection}>
-        {navItems.map(renderLink)}
+        <div className="sidebar-brand">
+          <img src={tresorPayLogo} alt="TresorPay" className="sidebar-brand-logo" />
+          <span className="sidebar-brand-text">Analytics</span>
+        </div>
 
-        <div style={separatorStyle} />
+        <div className="sidebar-profile-section">
+          <div className="sidebar-avatar-link" aria-hidden="true">
+            <div className="sb-avatar-ring">
+              {photoUrl ? (
+                <img src={photoUrl} alt="" className="sb-avatar-img" />
+              ) : (
+                <div className="sb-avatar-initials">{getInitials(user)}</div>
+              )}
+            </div>
+            <span className="sb-avatar-status" />
+          </div>
+          <span className="sb-user-greeting">{t('sidebar.greeting')}, {user?.nom_complet?.split(' ')[0] || 'User'}</span>
+        </div>
 
-        {visibleBottomItems.map(renderLink)}
-      </nav>
-
-      {/* Version */}
-      <div style={versionStyle}>
-        {isOpen ? `v${APP_VERSION}` : `v${APP_VERSION.split('.')[0]}`}
-      </div>
-    </aside>
+        <div className="sidebar-nav-area">
+          {navItems.filter(s => s.links.length > 0).map(({ section, links }) => (
+            <div className="nav-section" key={section || 'main'}>
+              {section && <span className="nav-label">{section}</span>}
+              <nav className="vault-nav">
+                {links.map(({ to, icon: Icon, label, iconColor }, idx) => (
+                  <NavLink key={to} to={to} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                    {links.length > 1 && (
+                      <span className="nav-tree-line" data-last={idx === links.length - 1 ? 'true' : undefined} />
+                    )}
+                    <span className="nav-icon-wrap" style={{ '--icon-color': iconColor }}>
+                      <Icon size={16} />
+                    </span>
+                    <span className="link-text">{label}</span>
+                    <ChevronRight size={13} className="nav-chevron" />
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+          ))}
+        </div>
+      </aside>
+    </>
   );
 }

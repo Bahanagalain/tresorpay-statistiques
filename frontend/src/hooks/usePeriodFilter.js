@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
 const STORAGE_KEY = 'period_filter_state';
+
 const DEFAULT_STATE = { preset: 'all', customStart: '', customEnd: '' };
 
 function loadInitial() {
@@ -9,7 +10,9 @@ function loadInitial() {
     if (!raw) return DEFAULT_STATE;
     const parsed = JSON.parse(raw);
     return { ...DEFAULT_STATE, ...parsed };
-  } catch { return DEFAULT_STATE; }
+  } catch {
+    return DEFAULT_STATE;
+  }
 }
 
 let current = loadInitial();
@@ -20,8 +23,14 @@ function notify() {
   listeners.forEach((fn) => fn());
 }
 
-function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
-function getSnapshot() { return current; }
+function subscribe(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+function getSnapshot() {
+  return current;
+}
 
 export function setPeriodState(partial) {
   current = { ...current, ...partial };
@@ -40,10 +49,15 @@ export function computeRange(state = current) {
   }
 }
 
-export function getCurrentPeriodRange() { return computeRange(current); }
+export function getCurrentPeriodRange() {
+  return computeRange(current);
+}
 
 export function usePeriodFilter() {
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const range = useMemo(() => computeRange(state), [state.preset, state.customStart, state.customEnd]);
+  const range = useMemo(
+    () => computeRange(state),
+    [state.preset, state.customStart, state.customEnd],
+  );
   return { state, setState: setPeriodState, range };
 }

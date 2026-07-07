@@ -205,7 +205,7 @@ export default function AnalyseSoumissions() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </AnimatePresence>
                 ))}
 
                 {data.length === 0 && (

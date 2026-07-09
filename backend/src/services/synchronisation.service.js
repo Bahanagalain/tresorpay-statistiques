@@ -43,7 +43,7 @@ async function authentifierPP() {
     const response = await fetch(`${PP_API_URL}${authEndpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: username, password }),
+      body: JSON.stringify({ email: username, username, password }),
     });
 
     if (!response.ok) {

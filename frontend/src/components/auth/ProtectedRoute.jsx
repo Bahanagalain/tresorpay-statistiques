@@ -33,7 +33,7 @@ export function SuperAdminRoute({ children }) {
   }
 
   if (!user?.est_super_admin) {
-    return <Navigate to="/dgi" replace />;
+    return <Navigate to="/tableau-de-bord" replace />;
   }
 
   return children;

@@ -41,7 +41,7 @@ export default function TopNav() {
   const location = useLocation();
 
   const isSuperAdmin = user?.est_super_admin;
-  const isOnDgi = location.pathname === '/dgi' || location.pathname === '/';
+  const isOnDgi = location.pathname === '/tableau-de-bord' || location.pathname === '/';
 
   const confirmLogout = async () => {
     setShowLogout(false);

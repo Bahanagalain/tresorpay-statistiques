@@ -132,3 +132,7 @@ export function apiGet(path, params, options = {}) {
 export function apiPost(path, body, options = {}) {
   return apiFetch(path, { ...options, method: 'POST', body });
 }
+
+export function apiPut(path, body, options = {}) {
+  return apiFetch(path, { ...options, method: 'PUT', body });
+}

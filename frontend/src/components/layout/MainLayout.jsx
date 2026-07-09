@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, createContext, useContext, useCallb
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import TopNav from './TopNav';
 import Sidebar from './Sidebar';
-import { fetchDgiCdi } from '../../api/dgiAnalyticsApi';
+import { fetchRepartitionMinisteres } from '../../api/analyticsApi';
 import './MainLayout.css';
 
 // ── Contexts ─────────────────────────────────────────────────
@@ -165,7 +165,7 @@ export default function MainLayout() {
       setSlideIndex(0);
       setSlideProgress(0);
       setSlideshowDateRange(effectiveDateRange);
-      navigate('/dgi', { replace: true });
+      navigate('/tableau-de-bord', { replace: true });
       setDgiTabOverride('overview');
       setSlideshowCdi(null);
     } catch (err) {
@@ -174,7 +174,7 @@ export default function MainLayout() {
       setSlideshowActive(true);
       setSlideIndex(0);
       setSlideshowDateRange(null);
-      navigate('/dgi', { replace: true });
+      navigate('/tableau-de-bord', { replace: true });
       setDgiTabOverride('overview');
     }
   }, [navigate]);
@@ -188,7 +188,7 @@ export default function MainLayout() {
     setTransitioning(true);
     setTimeout(() => {
       if (slide.type === 'overview') {
-        navigate('/dgi', { replace: true });
+        navigate('/tableau-de-bord', { replace: true });
         setDgiTabOverride('overview');
         setSlideshowCdi(null);
       } else if (slide.type === 'cdi-detail') {

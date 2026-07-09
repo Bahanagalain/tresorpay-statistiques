@@ -1341,3 +1341,253 @@ export async function computeRapport(periodes = []) {
     genereA: new Date(),
   };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PARTENAIRES
+// ═══════════════════════════════════════════════════════════════
+
+export async function computePartenaires(dateDebut, dateFin) {
+  const plateformes = await prisma.plateformePartenaire.findMany({
+    where: { estActif: true },
+    include: { ministere: { select: { id: true, nomFr: true, couleur: true } } },
+  });
+
+  const results = [];
+  for (const pf of plateformes) {
+    const where = { plateformeId: pf.id };
+    if (dateDebut || dateFin) {
+      where.creeLe = buildDateFilter(dateDebut, dateFin);
+    }
+
+    const [totalAgg, paidAgg, failedAgg] = await Promise.all([
+      prisma.demandePartenaire.aggregate({ where, _count: true, _sum: { montant: true } }),
+      prisma.demandePartenaire.aggregate({ where: { ...where, statut: 'PAID' }, _count: true, _sum: { montantPaye: true } }),
+      prisma.demandePartenaire.aggregate({ where: { ...where, statut: 'FAILED' }, _count: true }),
+    ]);
+
+    const totalDemandes = totalAgg._count || 0;
+    const demandesPayees = paidAgg._count || 0;
+    const demandesEchouees = failedAgg._count || 0;
+
+    results.push({
+      plateformeId: pf.id,
+      code: pf.code,
+      nom: pf.nom,
+      statut: pf.statut,
+      ministere: pf.ministere,
+      totalDemandes,
+      demandesPayees,
+      demandesEchouees,
+      montantTotal: toNumber(totalAgg._sum?.montant),
+      montantPaye: toNumber(paidAgg._sum?.montantPaye),
+      tauxSucces: totalDemandes > 0 ? Math.round((demandesPayees / totalDemandes) * 10000) / 100 : 0,
+    });
+  }
+
+  return results.sort((a, b) => b.montantTotal - a.montantTotal);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DETAIL PARTENAIRE
+// ═══════════════════════════════════════════════════════════════
+
+export async function computePartenaireDetail(plateformeId, dateDebut, dateFin) {
+  const plateforme = await prisma.plateformePartenaire.findUnique({
+    where: { id: plateformeId },
+    include: { ministere: { select: { id: true, nomFr: true } } },
+  });
+  if (!plateforme) return null;
+
+  const where = { plateformeId };
+  const dateFilter = buildDateFilter(dateDebut, dateFin);
+  if (dateFilter) where.creeLe = dateFilter;
+
+  // Aggregations par statut
+  const statutGroupes = await prisma.demandePartenaire.groupBy({
+    by: ['statut'],
+    where,
+    _count: true,
+    _sum: { montant: true, montantPaye: true },
+  });
+
+  const repartitionStatuts = statutGroupes.map(g => ({
+    statut: g.statut,
+    nombre: g._count || 0,
+    montant: toNumber(g._sum?.montant),
+    montantPaye: toNumber(g._sum?.montantPaye),
+  }));
+
+  // Méthodes de paiement
+  const methodesGroupes = await prisma.demandePartenaire.groupBy({
+    by: ['methodePaiement'],
+    where: { ...where, methodePaiement: { not: null } },
+    _count: true,
+    _sum: { montantPaye: true },
+  });
+
+  const methodesPaiement = methodesGroupes.map(g => ({
+    methode: g.methodePaiement || 'Inconnu',
+    nombre: g._count || 0,
+    montant: toNumber(g._sum?.montantPaye),
+  })).sort((a, b) => b.montant - a.montant);
+
+  // Dernières demandes
+  const recentes = await prisma.demandePartenaire.findMany({
+    where,
+    orderBy: { creeLe: 'desc' },
+    take: 20,
+    select: {
+      id: true, platformReference: true, uniqueCode: true,
+      montant: true, montantPaye: true, statut: true,
+      methodePaiement: true, operateurPaiement: true,
+      payeurNom: true, raisonEchec: true, payeLe: true, creeLe: true,
+    },
+  });
+
+  // Evolution mensuelle
+  const demandes = await prisma.demandePartenaire.findMany({
+    where,
+    select: { montant: true, montantPaye: true, statut: true, creeLe: true },
+    orderBy: { creeLe: 'asc' },
+  });
+
+  const moisMap = {};
+  for (const d of demandes) {
+    const date = new Date(d.creeLe);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    if (!moisMap[key]) {
+      moisMap[key] = { periode: formatMoisLabel(date), cle: key, total: 0, paye: 0, echoue: 0, nombre: 0 };
+    }
+    moisMap[key].nombre++;
+    moisMap[key].total += toNumber(d.montant);
+    if (d.statut === 'PAID') moisMap[key].paye += toNumber(d.montantPaye);
+    if (d.statut === 'FAILED') moisMap[key].echoue += toNumber(d.montant);
+  }
+
+  const [totalAgg, paidAgg] = await Promise.all([
+    prisma.demandePartenaire.aggregate({ where, _count: true, _sum: { montant: true } }),
+    prisma.demandePartenaire.aggregate({ where: { ...where, statut: 'PAID' }, _count: true, _sum: { montantPaye: true } }),
+  ]);
+
+  return {
+    plateforme: { id: plateforme.id, code: plateforme.code, nom: plateforme.nom, statut: plateforme.statut, ministere: plateforme.ministere },
+    totalDemandes: totalAgg._count || 0,
+    demandesPayees: paidAgg._count || 0,
+    montantTotal: toNumber(totalAgg._sum?.montant),
+    montantPaye: toNumber(paidAgg._sum?.montantPaye),
+    tauxSucces: (totalAgg._count || 0) > 0 ? Math.round((paidAgg._count / totalAgg._count) * 10000) / 100 : 0,
+    repartitionStatuts,
+    methodesPaiement,
+    recentes: recentes.map(d => ({ ...d, montant: toNumber(d.montant), montantPaye: toNumber(d.montantPaye) })),
+    evolution: Object.values(moisMap).sort((a, b) => a.cle.localeCompare(b.cle)),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CITOYENS
+// ═══════════════════════════════════════════════════════════════
+
+export async function computeCitoyens(dateDebut, dateFin) {
+  const where = {};
+  const dateFilter = buildDateFilter(dateDebut, dateFin);
+  if (dateFilter) where.creeLe = dateFilter;
+
+  const [total, verifies, actifs] = await Promise.all([
+    prisma.utilisateurCitoyen.count({ where }),
+    prisma.utilisateurCitoyen.count({ where: { ...where, estVerifie: true } }),
+    prisma.utilisateurCitoyen.count({ where: { ...where, estActif: true } }),
+  ]);
+
+  // Evolution inscriptions par mois
+  const citoyens = await prisma.utilisateurCitoyen.findMany({
+    where,
+    select: { creeLe: true, estVerifie: true },
+    orderBy: { creeLe: 'asc' },
+  });
+
+  const moisMap = {};
+  for (const c of citoyens) {
+    const d = new Date(c.creeLe);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!moisMap[key]) {
+      moisMap[key] = { periode: formatMoisLabel(d), cle: key, inscriptions: 0, verifies: 0 };
+    }
+    moisMap[key].inscriptions++;
+    if (c.estVerifie) moisMap[key].verifies++;
+  }
+
+  return {
+    total,
+    verifies,
+    actifs,
+    tauxVerification: total > 0 ? Math.round((verifies / total) * 10000) / 100 : 0,
+    evolution: Object.values(moisMap).sort((a, b) => a.cle.localeCompare(b.cle)),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIT
+// ═══════════════════════════════════════════════════════════════
+
+export async function computeAudit(dateDebut, dateFin) {
+  const where = {};
+  const dateFilter = buildDateFilter(dateDebut, dateFin);
+  if (dateFilter) where.executeLe = dateFilter;
+
+  const total = await prisma.journalAudit.count({ where });
+
+  // Par action
+  const actionGroupes = await prisma.journalAudit.groupBy({
+    by: ['action'],
+    where,
+    _count: true,
+  });
+  const parAction = actionGroupes.map(g => ({ action: g.action, nombre: g._count })).sort((a, b) => b.nombre - a.nombre);
+
+  // Par type d'entité
+  const entiteGroupes = await prisma.journalAudit.groupBy({
+    by: ['typeEntite'],
+    where: { ...where, typeEntite: { not: null } },
+    _count: true,
+  });
+  const parEntite = entiteGroupes.map(g => ({ typeEntite: g.typeEntite, nombre: g._count })).sort((a, b) => b.nombre - a.nombre);
+
+  // Top acteurs
+  const acteurGroupes = await prisma.journalAudit.groupBy({
+    by: ['acteurEmail'],
+    where: { ...where, acteurEmail: { not: null } },
+    _count: true,
+  });
+  const topActeurs = acteurGroupes.map(g => ({ email: g.acteurEmail, nombre: g._count })).sort((a, b) => b.nombre - a.nombre).slice(0, 20);
+
+  // Evolution par jour
+  const logs = await prisma.journalAudit.findMany({
+    where,
+    select: { action: true, executeLe: true },
+    orderBy: { executeLe: 'asc' },
+  });
+
+  const jourMap = {};
+  for (const l of logs) {
+    const d = new Date(l.executeLe);
+    const key = d.toISOString().slice(0, 10);
+    if (!jourMap[key]) jourMap[key] = { date: key, nombre: 0 };
+    jourMap[key].nombre++;
+  }
+
+  // Dernières actions
+  const recentes = await prisma.journalAudit.findMany({
+    where,
+    orderBy: { executeLe: 'desc' },
+    take: 30,
+  });
+
+  return {
+    total,
+    parAction,
+    parEntite,
+    topActeurs,
+    evolution: Object.values(jourMap).sort((a, b) => a.date.localeCompare(b.date)),
+    recentes,
+  };
+}

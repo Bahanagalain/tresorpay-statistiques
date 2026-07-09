@@ -18,6 +18,10 @@ import {
   computeMonitoring,
   computeDashboard,
   computeRapport,
+  computePartenaires,
+  computePartenaireDetail,
+  computeCitoyens,
+  computeAudit,
 } from '../services/computation.service.js';
 
 export default async function analyticsRoutes(fastify) {
@@ -463,5 +467,34 @@ export default async function analyticsRoutes(fastify) {
     }
     const data = await computeRapport(periodes);
     return { datas: data, message: 'Rapport généré avec succès' };
+  });
+
+  // ─── Partenaires ────────────────────────────────────
+  fastify.get('/partenaires', { schema: { tags: ['Analytics'], summary: 'Statistiques plateformes partenaires', security: [{ bearerAuth: [] }], querystring: { type: 'object', properties: { date_debut: { type: 'string', format: 'date' }, date_fin: { type: 'string', format: 'date' } } } } }, async (request) => {
+    const { date_debut, date_fin } = request.query;
+    const data = await computePartenaires(date_debut || null, date_fin || null);
+    return { datas: data, message: 'Partenaires récupérés' };
+  });
+
+  fastify.get('/partenaires/:id', { schema: { tags: ['Analytics'], summary: 'Détail plateforme partenaire', security: [{ bearerAuth: [] }], params: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }, querystring: { type: 'object', properties: { date_debut: { type: 'string', format: 'date' }, date_fin: { type: 'string', format: 'date' } } } } }, async (request, reply) => {
+    const { id } = request.params;
+    const { date_debut, date_fin } = request.query;
+    const data = await computePartenaireDetail(id, date_debut || null, date_fin || null);
+    if (!data) return reply.code(404).send({ error: 'Plateforme introuvable' });
+    return { datas: data, message: 'Détail partenaire récupéré' };
+  });
+
+  // ─── Citoyens ───────────────────────────────────────
+  fastify.get('/citoyens', { schema: { tags: ['Analytics'], summary: 'Statistiques citoyens', security: [{ bearerAuth: [] }], querystring: { type: 'object', properties: { date_debut: { type: 'string', format: 'date' }, date_fin: { type: 'string', format: 'date' } } } } }, async (request) => {
+    const { date_debut, date_fin } = request.query;
+    const data = await computeCitoyens(date_debut || null, date_fin || null);
+    return { datas: data, message: 'Citoyens récupérés' };
+  });
+
+  // ─── Audit ──────────────────────────────────────────
+  fastify.get('/audit', { schema: { tags: ['Analytics'], summary: 'Statistiques audit', security: [{ bearerAuth: [] }], querystring: { type: 'object', properties: { date_debut: { type: 'string', format: 'date' }, date_fin: { type: 'string', format: 'date' } } } } }, async (request) => {
+    const { date_debut, date_fin } = request.query;
+    const data = await computeAudit(date_debut || null, date_fin || null);
+    return { datas: data, message: 'Audit récupéré' };
   });
 }

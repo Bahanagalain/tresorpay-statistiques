@@ -4,10 +4,10 @@ import * as XLSX from 'xlsx';
 import tresorPayLogo from '../assets/logo-tresorpay.png';
 import logoCameroun from '/images/logo-cameroun.png';
 import {
-  fetchDgiKpi, fetchDgiEvolution, fetchDgiCdi, fetchDgiTaxes,
-  fetchDgiCommunes, fetchDgiRegionTelemetry, fetchDgiAvis,
-  fetchContribuables,
-} from '../api/dgiAnalyticsApi';
+  fetchKpi, fetchEvolution, fetchRepartitionMinisteres, fetchRepartitionServices,
+  fetchRepartitionDomaines, fetchTelemetrieRegions, fetchSoumissions,
+  fetchCitoyens,
+} from '../api/analyticsApi';
 
 const loadImage = (src) => new Promise((resolve, reject) => {
   const img = new Image();
@@ -23,7 +23,7 @@ const fmtAmount = (n) => {
   return str + ' FCFA';
 };
 
-// ─── Institutional Header — Cameroon / DGI ─────────────────
+// ─── Institutional Header — Cameroon / TresorPay ─────────────────
 function drawHeader(pdf, w, logoImg, coatImg) {
   // Top green bar
   pdf.setFillColor(5, 100, 70);
@@ -45,7 +45,7 @@ function drawHeader(pdf, w, logoImg, coatImg) {
   pdf.setFontSize(7.5); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
   pdf.text('MINISTERE DES FINANCES', leftX, topY + 9, { align: 'center' });
   pdf.setFontSize(7); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(70, 70, 70);
-  pdf.text('Direction Générale des Impôts', leftX, topY + 13, { align: 'center' });
+  pdf.text('TresorPay', leftX, topY + 13, { align: 'center' });
 
   // Right: Republic of Cameroon (English) — centered text alignment
   pdf.setFontSize(9); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(15, 30, 45);
@@ -55,7 +55,7 @@ function drawHeader(pdf, w, logoImg, coatImg) {
   pdf.setFontSize(7.5); pdf.setFont('helvetica', 'bold'); pdf.setTextColor(50, 50, 50);
   pdf.text('MINISTRY OF FINANCE', rightX, topY + 9, { align: 'center' });
   pdf.setFontSize(7); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(70, 70, 70);
-  pdf.text('General Directorate of Taxes', rightX, topY + 13, { align: 'center' });
+  pdf.text('TresorPay', rightX, topY + 13, { align: 'center' });
 
   // Separator line
   pdf.setDrawColor(180, 180, 180); pdf.setLineWidth(0.3);
@@ -79,24 +79,24 @@ function drawHeader(pdf, w, logoImg, coatImg) {
 export async function fetchSubjectData(subjectId, config) {
   const range = { startDate: config.startDate, endDate: config.endDate };
   switch (subjectId) {
-    case 'cdis': return fetchDgiCdi(range);
-    case 'regions': return fetchDgiRegionTelemetry(range);
-    case 'taxes': return fetchDgiTaxes(range);
-    case 'communes': return fetchDgiCommunes(range);
-    case 'contribuables': {
+    case 'ministeres': return fetchRepartitionMinisteres(range);
+    case 'regions': return fetchTelemetrieRegions(range);
+    case 'services': return fetchRepartitionServices(range);
+    case 'domaines': return fetchRepartitionDomaines(range);
+    case 'citoyens': {
       let all = [], page = 1, hasMore = true;
       while (hasMore) {
-        const res = await fetchContribuables({ ...range, page, limit: 200 });
+        const res = await fetchCitoyens({ ...range, page, limit: 200 });
         all.push(...res.data);
         hasMore = page < res.meta.totalPages;
         page++;
       }
       return all;
     }
-    case 'avis': {
+    case 'soumissions': {
       let all = [], page = 1, hasMore = true;
       while (hasMore) {
-        const res = await fetchDgiAvis({ ...range, page, limit: 200, statut: config.statutFilter && config.statutFilter !== 'TOUS' ? config.statutFilter : undefined });
+        const res = await fetchSoumissions({ ...range, page, limit: 200, statut: config.statutFilter && config.statutFilter !== 'TOUS' ? config.statutFilter : undefined });
         all.push(...res.data);
         hasMore = page < res.meta.totalPages;
         page++;
@@ -169,13 +169,13 @@ function generateExcel(rows, columns, subject, config) {
     }
   }
 
-  // Sheet 3: Pivot par CDI (if applicable)
-  if (sheets.pivot && subject.id === 'cdis') {
-    const pivotHeader = ['Centre CDI', 'Montant Total', 'Montant Recouvré', 'Taux (%)'];
+  // Sheet 3: Pivot par Ministère (if applicable)
+  if (sheets.pivot && subject.id === 'ministeres') {
+    const pivotHeader = ['Ministère', 'Montant', 'Soumissions', 'Taux Paiement (%)'];
     const pivotData = [pivotHeader, ...rows.map(r => [
-      r.centre, r.montant || 0, r.montantRecouvre || 0, r.tauxRecouvrement || 0,
+      r.nom, r.montant || 0, r.nombreSoumissions || 0, r.tauxPaiement || 0,
     ])];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pivotData), 'Pivot par CDI');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pivotData), 'Pivot par Ministère');
   }
 
   return wb;

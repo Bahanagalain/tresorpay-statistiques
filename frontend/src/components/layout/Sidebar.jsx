@@ -1,13 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
-  Landmark, Building2, ChevronRight, Settings, Shield,
+  LayoutDashboard, Building2, ChevronRight, Settings, Shield,
   PieChart, Map, Users, Activity, AlertTriangle, FileBarChart,
-  ChevronsLeft, ChevronsRight,
+  ChevronsLeft, ChevronsRight, Handshake, RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { useSidebar } from './MainLayout';
-import { useTranslation } from '../../i18n/LanguageProvider';
 import { resolveApiUrl } from '../../api/apiConfig';
 import tresorPayLogo from '../../assets/logo-tresorpay.png';
 import './Sidebar.css';
@@ -27,7 +26,6 @@ function getInitials(user) {
 export default function Sidebar() {
   const { user } = useAuth();
   const { collapsed, toggleSidebar } = useSidebar();
-  const { t } = useTranslation();
   const isSuperAdmin = user?.est_super_admin;
   const photoUrl = resolvePhotoUrl(user?.photo_url);
 
@@ -35,35 +33,39 @@ export default function Sidebar() {
     {
       section: null,
       links: [
-        { to: '/dgi', icon: Landmark, label: t('sidebar.dashboard'), iconColor: '#059669' },
+        { to: '/tableau-de-bord', icon: LayoutDashboard, label: 'Tableau de Bord', iconColor: '#059669' },
       ],
     },
     {
-      section: t('sidebar.analysis'),
+      section: 'ANALYSE',
       links: [
-        { to: '/performance-cdi', icon: Building2, label: t('sidebar.perfCdi'), iconColor: '#2563EB' },
-        { to: '/repartition-fiscale', icon: PieChart, label: t('sidebar.fiscalDist'), iconColor: '#8B5CF6' },
-        { to: '/cartographie', icon: Map, label: t('sidebar.cartography'), iconColor: '#14B8A6' },
-        { to: '/contribuables', icon: Users, label: t('sidebar.taxpayers'), iconColor: '#EC4899' },
+        { to: '/performance-ministeres', icon: Building2, label: 'Performance Ministères', iconColor: '#2563EB' },
+        { to: '/repartition-recettes', icon: PieChart, label: 'Répartition Recettes', iconColor: '#8B5CF6' },
+        { to: '/cartographie', icon: Map, label: 'Cartographie', iconColor: '#14B8A6' },
+        { to: '/activite-citoyens', icon: Users, label: 'Activité Citoyens', iconColor: '#EC4899' },
       ],
     },
     {
-      section: t('sidebar.operations'),
+      section: 'OPÉRATIONS',
       links: [
-        { to: '/conformite-rib', icon: Shield, label: 'Conformite RIB', iconColor: '#DC2626' },
-        { to: '/monitoring-otp', icon: Activity, label: t('sidebar.monitoringOtp'), iconColor: '#6366F1' },
-        { to: '/alertes', icon: AlertTriangle, label: t('sidebar.alerts'), iconColor: '#D97706' },
+        { to: '/plateformes-partenaires', icon: Handshake, label: 'Plateformes Partenaires', iconColor: '#6366F1' },
+        { to: '/monitoring-paiements', icon: Activity, label: 'Monitoring Paiements', iconColor: '#0EA5E9' },
+        { to: '/alertes', icon: AlertTriangle, label: 'Alertes & Anomalies', iconColor: '#D97706' },
       ],
     },
     {
-      section: t('sidebar.reports'),
+      section: 'RAPPORTS',
       links: [
-        { to: '/rapports', icon: FileBarChart, label: t('sidebar.generation'), iconColor: '#F97316' },
+        { to: '/rapports', icon: FileBarChart, label: 'Génération Rapports', iconColor: '#F97316' },
       ],
     },
     {
-      section: t('sidebar.governance'),
+      section: 'GOUVERNANCE',
       links: [
+        ...(isSuperAdmin ? [
+          { to: '/synchronisation', icon: RefreshCw, label: 'Synchronisation', iconColor: '#0EA5E9' },
+          { to: '/audit', icon: Shield, label: 'Audit & Activité', iconColor: '#8B5CF6' },
+        ] : []),
         { to: '/parametres', icon: Settings, label: 'Paramètres', iconColor: '#64748B' },
       ],
     },
@@ -72,13 +74,13 @@ export default function Sidebar() {
   return (
     <>
       {collapsed && (
-        <button className="sidebar-expand-btn" onClick={toggleSidebar} title={t('sidebar.openMenu')}>
+        <button className="sidebar-expand-btn" onClick={toggleSidebar} title="Ouvrir le menu">
           <ChevronsRight size={16} />
         </button>
       )}
 
       <aside className={`sidebar-vault ${collapsed ? 'hidden' : ''}`}>
-        <button className="sidebar-collapse-pill" onClick={toggleSidebar} title={t('sidebar.closeMenu')}>
+        <button className="sidebar-collapse-pill" onClick={toggleSidebar} title="Fermer le menu">
           <ChevronsLeft size={14} />
         </button>
 
@@ -98,7 +100,7 @@ export default function Sidebar() {
             </div>
             <span className="sb-avatar-status" />
           </div>
-          <span className="sb-user-greeting">{t('sidebar.greeting')}, {user?.nom_complet?.split(' ')[0] || 'User'}</span>
+          <span className="sb-user-greeting">Bonjour, {user?.nom_complet?.split(' ')[0] || 'Utilisateur'}</span>
         </div>
 
         <div className="sidebar-nav-area">

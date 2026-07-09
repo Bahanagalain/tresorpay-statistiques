@@ -114,7 +114,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [focused, setFocused] = useState(null);
   const { recordFailure, isLocked, countdown } = useLoginRateLimit();
-  const redirectTo = location.state?.from?.pathname || '/dgi';
+  const redirectTo = location.state?.from?.pathname || '/tableau-de-bord';
 
   useEffect(() => {
     if (status === 'authenticated' || isAuthenticated) {

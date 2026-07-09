@@ -93,13 +93,15 @@ await app.register(synchronisationRoutes,  { prefix: '/sync' });
 app.get('/sante', {
   schema: { tags: ['Systeme'], summary: 'Etat de sante du serveur' },
 }, async () => {
-  const [utilisateurs, ministeres, services, domaines, orgUnits, soumissions] = await Promise.all([
+  const [utilisateurs, ministeres, services, domaines, orgUnits, soumissions, plateformes, citoyens] = await Promise.all([
     prisma.utilisateur.count(),
     prisma.ministere.count(),
     prisma.serviceGouv.count(),
     prisma.domaine.count(),
     prisma.orgUnit.count(),
     prisma.soumission.count(),
+    prisma.plateformePartenaire.count().catch(() => 0),
+    prisma.utilisateurCitoyen.count().catch(() => 0),
   ]);
 
   const dernierSync = await prisma.journalSync.findFirst({
@@ -109,10 +111,10 @@ app.get('/sante', {
 
   return {
     statut: 'ok',
-    version: '1.0.0',
+    version: '1.1.0',
     payment_platform: PP_API_URL,
     derniere_sync: dernierSync?.executeLe || null,
-    compteurs: { utilisateurs, ministeres, services, domaines, org_units: orgUnits, soumissions },
+    compteurs: { utilisateurs, ministeres, services, domaines, org_units: orgUnits, soumissions, plateformes, citoyens },
   };
 });
 

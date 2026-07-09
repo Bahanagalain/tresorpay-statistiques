@@ -5,10 +5,11 @@ import { formatMontant } from '../../utils/format';
 import './CommandPalette.css';
 
 const COMMANDS = [
-  { id: 'nav-dash',  label: 'Aperçu Stratégique — Dashboard',  icon: LayoutDashboard, action: 'nav', path: '/dashboard', group: 'Navigation' },
-  { id: 'nav-dgi',   label: 'DGI — Impôts & Recouvrement',     icon: Landmark,        action: 'nav', path: '/dgi',       group: 'Navigation' },
-  { id: 'nav-dgd',   label: 'DGD — Douanes & Déclarations',    icon: Building2,       action: 'nav', path: '/dgd',       group: 'Navigation' },
-  { id: 'nav-users', label: 'Audits & Accès — Gouvernance',    icon: Shield,          action: 'nav', path: '/users',     group: 'Navigation' },
+  { id: 'nav-dash',     label: 'Tableau de Bord',            icon: LayoutDashboard, action: 'nav', path: '/tableau-de-bord',         group: 'Navigation' },
+  { id: 'nav-perf',     label: 'Performance Ministères',     icon: Building2,       action: 'nav', path: '/performance-ministeres',  group: 'Navigation' },
+  { id: 'nav-recettes', label: 'Répartition Recettes',       icon: Landmark,        action: 'nav', path: '/repartition-recettes',    group: 'Navigation' },
+  { id: 'nav-carto',    label: 'Cartographie',               icon: Building2,       action: 'nav', path: '/cartographie',            group: 'Navigation' },
+  { id: 'nav-alertes',  label: 'Alertes & Anomalies',        icon: Shield,          action: 'nav', path: '/alertes',                 group: 'Navigation' },
 ];
 
 const formatCompactAmount = (value) => {
@@ -36,36 +37,7 @@ export default function CommandPalette({ open, onClose, avisItems = [], cdiItems
   const results = useMemo(() => {
     const q = query.toLowerCase();
     const cmds = COMMANDS.filter(c => !q || c.label.toLowerCase().includes(q));
-    const avisResults = avisItems
-      .filter((a) => {
-        if (!q) return true;
-        return [a.contribuable, a.numero, a.nui]
-          .filter(Boolean)
-          .some((value) => value.toLowerCase().includes(q));
-      })
-      .slice(0, 4)
-      .map(a => ({
-        id: a.numero,
-        label: `${a.contribuable} — ${a.numero}`,
-        sub: `${a.centre} · ${formatCompactAmount(a.montantTotal)}`,
-        icon: Landmark,
-        action: 'nav',
-        path: '/dgi',
-        group: 'Avis DGI',
-      }));
-    const cdiResults = cdiItems
-      .filter(c => !q || c.centre.toLowerCase().includes(q))
-      .slice(0, 3)
-      .map(c => ({
-        id: c.centre,
-        label: c.centre,
-        sub: `${formatCompactAmount(c.montant)}`,
-        icon: Building2,
-        action: 'nav',
-        path: '/dgi',
-        group: 'Centres CDI',
-      }));
-    return [...cmds, ...cdiResults, ...avisResults];
+    return cmds;
   }, [avisItems, cdiItems, query]);
 
   useEffect(() => {

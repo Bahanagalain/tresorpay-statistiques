@@ -1,41 +1,44 @@
 import WeaveSpinner from '../components/ui/WeaveSpinner';
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, AlertCircle, Activity, Shield, TrendingDown, DollarSign } from 'lucide-react';
-import { fetchAlertes } from '../api/dgiAnalyticsApi';
+import { AlertTriangle, AlertCircle, Activity, Shield, TrendingDown, DollarSign, RefreshCw } from 'lucide-react';
+import { fetchAlertes } from '../api/analyticsApi';
 import { formatEntier } from '../utils/format';
 import ExportButtons from '../components/ui/ExportButtons';
 import './AlertesAnomalies.css';
 
 const CATEGORIE_ICONS = {
-  performance_cdi: TrendingDown,
-  montant_eleve: DollarSign,
-  sync: Activity,
+  paiement_echoue: AlertTriangle,
+  service_inactif: Activity,
+  taux_echec_eleve: TrendingDown,
+  anomalie_montant: DollarSign,
+  sync_echouee: RefreshCw,
 };
 
 const CATEGORIE_LABELS = {
-  performance_cdi: 'Performance CDI',
-  montant_eleve: 'Montant \u00e9lev\u00e9 en retard',
-  sync: 'Synchronisation',
+  paiement_echoue: 'Paiements échoués',
+  service_inactif: 'Services inactifs',
+  taux_echec_eleve: "Taux d'échec élevé",
+  anomalie_montant: 'Anomalie de montant',
+  sync_echouee: 'Synchronisation échouée',
 };
 
 export default function AlertesAnomalies() {
   const [alertes, setAlertes] = useState([]);
-  const [resume, setResume] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchAlertes()
-      .then(({ alertes, resume }) => { setAlertes(alertes); setResume(resume); })
+      .then(data => setAlertes(data))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  const critiques = alertes.filter(a => a.type === 'critical');
-  const warnings = alertes.filter(a => a.type === 'warning');
+  const critiques = alertes.filter(a => a.type === 'danger');
+  const warnings = alertes.filter(a => a.type === 'attention');
 
   const getExportData = useCallback(() => ({
-    headers: ['Type', 'Catégorie', 'Message', 'Valeur', 'Seuil'],
-    rows: alertes.map(a => [a.type === 'critical' ? 'CRITIQUE' : 'AVERTISSEMENT', CATEGORIE_LABELS[a.categorie] || a.categorie, a.message, a.valeur, a.seuil]),
+    headers: ['Type', 'Catégorie', 'Titre', 'Description', 'Valeur', 'Date'],
+    rows: alertes.map(a => [a.type === 'danger' ? 'CRITIQUE' : 'AVERTISSEMENT', CATEGORIE_LABELS[a.categorie] || a.categorie, a.titre, a.description, a.valeur, a.date]),
     sheetName: 'Alertes',
     subtitle: `${alertes.length} alertes`,
   }), [alertes]);
@@ -49,39 +52,32 @@ export default function AlertesAnomalies() {
       <div className="page-header-row">
         <div className="page-header">
           <h1 className="page-title"><AlertTriangle size={24} /> Alertes & Anomalies</h1>
-          <p className="page-subtitle">Suivi des situations critiques et des anomalies d\u00e9tect\u00e9es</p>
+          <p className="page-subtitle">Suivi des situations critiques et des anomalies détectées</p>
         </div>
         <ExportButtons getData={getExportData} title="Alertes & Anomalies" filenameBase="Alertes" />
       </div>
 
-      {/* Summary cards */}
+      {/* Summary cards — computed from alertes array */}
       <div className="alertes-summary">
         <div className="alerte-summary-card critical">
           <AlertCircle size={24} />
           <div>
-            <span className="alerte-summary-num">{resume.nombreAlertesCritiques || 0}</span>
+            <span className="alerte-summary-num">{critiques.length}</span>
             <span className="alerte-summary-label">Alertes Critiques</span>
           </div>
         </div>
         <div className="alerte-summary-card warning">
           <AlertTriangle size={24} />
           <div>
-            <span className="alerte-summary-num">{resume.nombreAlertesWarning || 0}</span>
+            <span className="alerte-summary-num">{warnings.length}</span>
             <span className="alerte-summary-label">Avertissements</span>
           </div>
         </div>
         <div className="alerte-summary-card info">
           <Shield size={24} />
           <div>
-            <span className="alerte-summary-num">{formatEntier(resume.totalEnRetard)}</span>
-            <span className="alerte-summary-label">Avis en Retard</span>
-          </div>
-        </div>
-        <div className="alerte-summary-card info">
-          <DollarSign size={24} />
-          <div>
-            <span className="alerte-summary-num">{formatEntier(resume.montantEnRetard)}</span>
-            <span className="alerte-summary-label">Montant en Retard (FCFA)</span>
+            <span className="alerte-summary-num">{alertes.length}</span>
+            <span className="alerte-summary-label">Total alertes</span>
           </div>
         </div>
       </div>
@@ -97,8 +93,8 @@ export default function AlertesAnomalies() {
                 <div key={i} className="alerte-item critical">
                   <Icon size={18} />
                   <div className="alerte-content">
-                    <span className="alerte-cat">{CATEGORIE_LABELS[a.categorie] || a.categorie}</span>
-                    <span className="alerte-msg">{a.message}</span>
+                    <span className="alerte-cat">{a.titre}</span>
+                    <span className="alerte-msg">{a.description}</span>
                   </div>
                 </div>
               );
@@ -118,8 +114,8 @@ export default function AlertesAnomalies() {
                 <div key={i} className="alerte-item warning">
                   <Icon size={18} />
                   <div className="alerte-content">
-                    <span className="alerte-cat">{CATEGORIE_LABELS[a.categorie] || a.categorie}</span>
-                    <span className="alerte-msg">{a.message}</span>
+                    <span className="alerte-cat">{a.titre}</span>
+                    <span className="alerte-msg">{a.description}</span>
                   </div>
                 </div>
               );

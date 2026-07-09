@@ -40,6 +40,35 @@ enum TypeOrgUnit {
   ARRONDISSEMENT
 }
 
+enum StatutPartenaire {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum StatutDemandePartenaire {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  FAILED
+  EXPIRED
+  CALLBACK_SENT
+  CALLBACK_FAILED
+}
+
+enum ActionAudit {
+  CREATE
+  UPDATE
+  DELETE
+  SUBMIT
+  PUBLISH
+  APPROVE
+  REJECT
+  LOGIN
+  ACTIVATE
+  DEACTIVATE
+}
+
 // ═══════════════════════════════════════════════════════════════
 // REFERENTIEL (synchronise depuis payment-platform)
 // ═══════════════════════════════════════════════════════════════
@@ -55,10 +84,13 @@ model Ministere {
   estActif  Boolean @default(true) @map("est_actif")
   sortIndex Int     @default(0) @map("sort_index")
 
-  services     ServiceGouv[]
-  orgUnits     OrgUnit[]
-  soumissions  Soumission[]
-  utilisateurs Utilisateur[]
+  services              ServiceGouv[]
+  orgUnits              OrgUnit[]
+  soumissions           Soumission[]
+  utilisateurs          Utilisateur[]
+  groupesRevenu         GroupeRevenu[]
+  plateformesPartenaire PlateformePartenaire[]
+  structures            Structure[]
 
   synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
 
@@ -99,9 +131,11 @@ model OrgUnit {
   children     OrgUnit[]   @relation("OrgUnitHierarchy")
   ministere    Ministere?  @relation(fields: [ministereId], references: [id])
 
-  services     ServiceGouv[]
-  soumissions  Soumission[]
-  utilisateurs Utilisateur[]
+  services       ServiceGouv[]
+  soumissions    Soumission[]
+  utilisateurs   Utilisateur[]
+  structures     Structure[]
+  postesComptable PosteComptable[]
 
   synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
 
@@ -112,26 +146,293 @@ model OrgUnit {
 }
 
 model ServiceGouv {
-  id          String  @id @default(uuid())
-  nomFr       String  @map("nom_fr") @db.VarChar(300)
-  nomEn       String? @map("nom_en") @db.VarChar(300)
-  montant     Decimal @default(0) @db.Decimal(12, 2)
-  ministereId String? @map("ministere_id")
-  domaineId   String? @map("domaine_id")
-  orgUnitId   String? @map("org_unit_id")
-  estActif    Boolean @default(true) @map("est_actif")
+  id              String  @id @default(uuid())
+  nomFr           String  @map("nom_fr") @db.VarChar(300)
+  nomEn           String? @map("nom_en") @db.VarChar(300)
+  montant         Decimal @default(0) @db.Decimal(12, 2)
+  ministereId     String? @map("ministere_id")
+  domaineId       String? @map("domaine_id")
+  orgUnitId       String? @map("org_unit_id")
+  groupeRevenuId  String? @map("groupe_revenu_id")
+  serviceCode     String? @map("service_code") @db.VarChar(50)
+  estActif        Boolean @default(true) @map("est_actif")
 
-  ministere   Ministere? @relation(fields: [ministereId], references: [id])
-  domaine     Domaine?   @relation(fields: [domaineId], references: [id])
-  orgUnit     OrgUnit?   @relation(fields: [orgUnitId], references: [id])
+  ministere    Ministere?    @relation(fields: [ministereId], references: [id])
+  domaine      Domaine?      @relation(fields: [domaineId], references: [id])
+  orgUnit      OrgUnit?      @relation(fields: [orgUnitId], references: [id])
+  groupeRevenu GroupeRevenu? @relation(fields: [groupeRevenuId], references: [id])
 
-  soumissions Soumission[]
+  soumissions         Soumission[]
+  serviceBeneficiaire ServiceBeneficiaire[]
 
   synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
 
   @@index([ministereId])
   @@index([domaineId])
+  @@index([groupeRevenuId])
   @@map("services_gouv")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REVENUS & BENEFICIAIRES
+// ═══════════════════════════════════════════════════════════════
+
+model GroupeRevenu {
+  id          String  @id @default(uuid())
+  nomFr       String  @map("nom_fr") @db.VarChar(200)
+  nomEn       String? @map("nom_en") @db.VarChar(200)
+  ministereId String? @map("ministere_id")
+  estActif    Boolean @default(true) @map("est_actif")
+
+  ministere Ministere?    @relation(fields: [ministereId], references: [id])
+  services  ServiceGouv[]
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@index([ministereId])
+  @@map("groupes_revenu")
+}
+
+model Beneficiaire {
+  id       String  @id @default(uuid())
+  code     String  @unique @db.VarChar(50)
+  nom      String  @db.VarChar(200)
+  rib      String? @db.VarChar(50)
+  estActif Boolean @default(true) @map("est_actif")
+
+  serviceBeneficiaire ServiceBeneficiaire[]
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@map("beneficiaires")
+}
+
+model ServiceBeneficiaire {
+  id              Int     @id @default(autoincrement())
+  serviceId       String  @map("service_id")
+  beneficiaireId  String  @map("beneficiaire_id")
+  pourcentage     Decimal @default(0) @db.Decimal(6, 3)
+
+  service      ServiceGouv  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  beneficiaire Beneficiaire @relation(fields: [beneficiaireId], references: [id], onDelete: Cascade)
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@unique([serviceId, beneficiaireId])
+  @@map("service_beneficiaires")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESEAU COMPTABLE
+// ═══════════════════════════════════════════════════════════════
+
+model DistrictFinancier {
+  id        String  @id @default(uuid())
+  code      String  @unique @db.VarChar(30)
+  nomFr     String  @map("nom_fr") @db.VarChar(200)
+  nomEn     String? @map("nom_en") @db.VarChar(200)
+  type      String? @db.VarChar(10)
+  codePoste String? @map("code_poste") @db.VarChar(20)
+  estActif  Boolean @default(true) @map("est_actif")
+
+  postesComptable PosteComptable[]
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@map("districts_financiers")
+}
+
+model PosteComptable {
+  id                  String  @id @default(uuid())
+  code                String  @unique @db.VarChar(30)
+  nomFr               String  @map("nom_fr") @db.VarChar(200)
+  nomEn               String? @map("nom_en") @db.VarChar(200)
+  districtFinancierId String? @map("district_financier_id")
+  orgUnitId           String? @map("org_unit_id")
+  estActif            Boolean @default(true) @map("est_actif")
+
+  districtFinancier DistrictFinancier? @relation(fields: [districtFinancierId], references: [id])
+  orgUnit           OrgUnit?           @relation(fields: [orgUnitId], references: [id])
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@index([districtFinancierId])
+  @@index([orgUnitId])
+  @@map("postes_comptables")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STRUCTURES
+// ═══════════════════════════════════════════════════════════════
+
+model TypeStructure {
+  id          String  @id @default(uuid())
+  nomFr       String  @map("nom_fr") @db.VarChar(200)
+  nomEn       String? @map("nom_en") @db.VarChar(200)
+  description String?
+  estActif    Boolean @default(true) @map("est_actif")
+
+  structures Structure[]
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@map("types_structure")
+}
+
+model Structure {
+  id              String  @id @default(uuid())
+  code            String  @unique @db.VarChar(50)
+  nomFr           String  @map("nom_fr") @db.VarChar(200)
+  nomEn           String? @map("nom_en") @db.VarChar(200)
+  typeStructureId String? @map("type_structure_id")
+  ministereId     String? @map("ministere_id")
+  orgUnitId       String? @map("org_unit_id")
+  latitude        Float?
+  longitude       Float?
+  estActif        Boolean @default(true) @map("est_actif")
+
+  typeStructure TypeStructure? @relation(fields: [typeStructureId], references: [id])
+  ministere     Ministere?     @relation(fields: [ministereId], references: [id])
+  orgUnit       OrgUnit?       @relation(fields: [orgUnitId], references: [id])
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@index([typeStructureId])
+  @@index([ministereId])
+  @@index([orgUnitId])
+  @@map("structures")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PLATEFORMES PARTENAIRES
+// ═══════════════════════════════════════════════════════════════
+
+model PlateformePartenaire {
+  id                 String            @id @default(uuid())
+  code               String            @unique @db.VarChar(50)
+  nom                String            @db.VarChar(200)
+  ministereId        String?           @map("ministere_id")
+  contactEmail       String?           @map("contact_email") @db.VarChar(200)
+  logoUrl            String?           @map("logo_url") @db.VarChar(500)
+  statut             StatutPartenaire  @default(ACTIVE)
+  callbackUrl        String?           @map("callback_url") @db.VarChar(500)
+  callbackRetries    Int               @default(3) @map("callback_retries")
+  estActif           Boolean           @default(true) @map("est_actif")
+
+  ministere Ministere? @relation(fields: [ministereId], references: [id])
+  demandes  DemandePartenaire[]
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@index([ministereId])
+  @@map("plateformes_partenaire")
+}
+
+model DemandePartenaire {
+  id                   Int                      @id @default(autoincrement())
+  externalId           String?                  @unique @map("external_id") @db.VarChar(60)
+  plateformeId         String                   @map("plateforme_id")
+  platformReference    String?                  @map("platform_reference") @db.VarChar(100)
+  serviceId            String?                  @map("service_id") @db.VarChar(60)
+  uniqueCode           String?                  @map("unique_code") @db.VarChar(30)
+  montant              Decimal                  @default(0) @db.Decimal(10, 2)
+  montantPaye          Decimal                  @default(0) @map("montant_paye") @db.Decimal(10, 2)
+  statut               StatutDemandePartenaire  @default(PENDING)
+  methodePaiement      String?                  @map("methode_paiement") @db.VarChar(50)
+  operateurPaiement    String?                  @map("operateur_paiement") @db.VarChar(50)
+  payeurNom            String?                  @map("payeur_nom") @db.VarChar(200)
+  raisonEchec          String?                  @map("raison_echec") @db.VarChar(500)
+  callbackStatutHttp   Int?                     @map("callback_statut_http")
+  callbackTentatives   Int                      @default(0) @map("callback_tentatives")
+  payeLe               DateTime?                @map("paye_le") @db.Timestamptz()
+  creeLe               DateTime                 @default(now()) @map("cree_le") @db.Timestamptz()
+
+  plateforme    PlateformePartenaire   @relation(fields: [plateformeId], references: [id])
+  transactions  TransactionPartenaire[]
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@index([plateformeId])
+  @@index([statut])
+  @@index([creeLe])
+  @@map("demandes_partenaire")
+}
+
+model TransactionPartenaire {
+  id            Int      @id @default(autoincrement())
+  externalId    String?  @unique @map("external_id") @db.VarChar(60)
+  demandeId     Int      @map("demande_id")
+  montant       Decimal  @default(0) @db.Decimal(10, 2)
+  statut        String   @default("PENDING") @db.VarChar(20)
+  corebankRef   String?  @map("corebank_ref") @db.VarChar(100)
+  payeLe        DateTime? @map("paye_le") @db.Timestamptz()
+  creeLe        DateTime @default(now()) @map("cree_le") @db.Timestamptz()
+
+  demande DemandePartenaire @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@index([demandeId])
+  @@map("transactions_partenaire")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CITOYENS
+// ═══════════════════════════════════════════════════════════════
+
+model UtilisateurCitoyen {
+  id                Int      @id @default(autoincrement())
+  externalId        String?  @unique @map("external_id") @db.VarChar(60)
+  email             String?  @db.VarChar(200)
+  telephone         String?  @db.VarChar(30)
+  prenom            String?  @db.VarChar(100)
+  nom               String?  @db.VarChar(100)
+  estVerifie        Boolean  @default(false) @map("est_verifie")
+  estActif          Boolean  @default(true) @map("est_actif")
+  creeLe            DateTime @default(now()) @map("cree_le") @db.Timestamptz()
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@map("utilisateurs_citoyen")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// JOURNAL D'AUDIT
+// ═══════════════════════════════════════════════════════════════
+
+model JournalAudit {
+  id            Int         @id @default(autoincrement())
+  externalId    String?     @unique @map("external_id") @db.VarChar(60)
+  acteurEmail   String?     @map("acteur_email") @db.VarChar(200)
+  acteurNom     String?     @map("acteur_nom") @db.VarChar(200)
+  action        ActionAudit
+  typeEntite    String?     @map("type_entite") @db.VarChar(60)
+  entiteId      String?     @map("entite_id") @db.VarChar(60)
+  methodeHttp   String?     @map("methode_http") @db.VarChar(10)
+  cheminRoute   String?     @map("chemin_route") @db.VarChar(300)
+  metadata      Json?
+  executeLe     DateTime    @default(now()) @map("execute_le") @db.Timestamptz()
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@index([executeLe])
+  @@index([action])
+  @@index([typeEntite])
+  @@map("journal_audit")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIGURATION SYNC
+// ═══════════════════════════════════════════════════════════════
+
+model ConfigSync {
+  id                 Int      @id @default(1)
+  intervalleMs       Int      @default(600000) @map("intervalle_ms")
+  estActive          Boolean  @default(true) @map("est_active")
+  derniereSyncComplete DateTime? @map("derniere_sync_complete") @db.Timestamptz()
+  modifieLe          DateTime @default(now()) @updatedAt @map("modifie_le") @db.Timestamptz()
+
+  @@map("config_sync")
 }
 
 // ═══════════════════════════════════════════════════════════════

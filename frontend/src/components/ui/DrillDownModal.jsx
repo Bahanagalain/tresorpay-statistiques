@@ -3,13 +3,13 @@ import { X, CheckCircle, Clock, AlertTriangle, Building2, RotateCcw } from 'luci
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
 } from 'recharts';
-import { fetchDgiAvis } from '../../api/dgiAnalyticsApi';
+import { fetchSoumissions } from '../../api/analyticsApi';
 import { formatEntier, formatMontant } from '../../utils/format';
 import './DrillDownModal.css';
 
-const STATUS_COLORS = { PAID: '#059669', PENDING: '#D97706', OVERDUE: '#DC2626' };
-const STATUS_LABELS = { PAID: 'Payé', PENDING: 'En attente', OVERDUE: 'En retard' };
-const STATUS_ICONS = { PAID: CheckCircle, PENDING: Clock, OVERDUE: AlertTriangle };
+const STATUS_COLORS = { PAID: '#059669', PENDING: '#D97706', PARTIAL: '#2563EB', FAILED: '#DC2626' };
+const STATUS_LABELS = { PAID: 'Payé', PENDING: 'En attente', PARTIAL: 'Partiel', FAILED: 'Échoué' };
+const STATUS_ICONS = { PAID: CheckCircle, PENDING: Clock, PARTIAL: Clock, FAILED: AlertTriangle };
 
 const fmt = (n) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)} M`
@@ -19,7 +19,7 @@ const fmt = (n) =>
 const fmtFull = (n) => formatMontant(n);
 
 async function loadAllAvisForCdi({ cdi, dateRange, signal }) {
-  const firstPage = await fetchDgiAvis({
+  const firstPage = await fetchSoumissions({
     ...dateRange,
     cdi,
     page: 1,
@@ -30,7 +30,7 @@ async function loadAllAvisForCdi({ cdi, dateRange, signal }) {
   const pageCount = Math.max(firstPage.meta.totalPages || 1, 1);
 
   for (let page = 2; page <= pageCount; page += 1) {
-    const nextPage = await fetchDgiAvis({
+    const nextPage = await fetchSoumissions({
       ...dateRange,
       cdi,
       page,

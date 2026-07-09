@@ -50,8 +50,8 @@ export function mergeRegionTelemetry(staticRegions, telemetry = []) {
   const telemetryByName = new Map();
 
   telemetry.forEach((item) => {
-    telemetryById.set(normalizeRegionKey(item.id), item);
-    telemetryByName.set(normalizeRegionKey(item.name), item);
+    telemetryById.set(normalizeRegionKey(item.id || item.orgUnitId), item);
+    telemetryByName.set(normalizeRegionKey(item.name || item.nom), item);
   });
 
   return staticRegions.map((region) => {
@@ -63,9 +63,9 @@ export function mergeRegionTelemetry(staticRegions, telemetry = []) {
 
     return {
       ...region,
-      status: telemetryItem.status || region.status,
-      value: formatRegionAmount(telemetryItem.value),
-      target: formatRegionAmount(telemetryItem.target),
+      status: telemetryItem.status || telemetryItem.statut || region.status,
+      value: formatRegionAmount(telemetryItem.value || telemetryItem.valeur || 0),
+      target: formatRegionAmount(telemetryItem.target || telemetryItem.objectif || 0),
     };
   });
 }

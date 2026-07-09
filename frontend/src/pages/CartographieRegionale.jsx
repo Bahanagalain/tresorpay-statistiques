@@ -5,10 +5,10 @@ import {
   CheckCircle, Target, DollarSign, Users, FileText, ArrowUpRight, ArrowDownRight,
   LayoutDashboard,
 } from 'lucide-react';
-import DGICartographie from '../components/dgi/DGICartographie';
+import CarteCameroun from '../components/carte/CarteCameroun';
 import DatePresetFilter from '../components/ui/DatePresetFilter';
 import { getCurrentPeriodRange } from '../hooks/usePeriodFilter';
-import { fetchDgiRegionTelemetry, fetchRegionDetail } from '../api/dgiAnalyticsApi';
+import { fetchTelemetrieRegions, fetchRegionDetail } from '../api/analyticsApi';
 import { formatMontant } from '../utils/format';
 import ExportButtons from '../components/ui/ExportButtons';
 import './CartographieRegionale.css';
@@ -18,7 +18,7 @@ const fmt = (n) => n >= 1e9 ? `${(n/1e9).toFixed(2)} Mrd` : n >= 1e6 ? `${(n/1e6
 
 const DETAIL_VIEWS = [
   { id: 'overview', label: "Vue d'ensemble", icon: LayoutDashboard },
-  { id: 'cdis', label: 'CDIs de la région', icon: Building2 },
+  { id: 'departements', label: 'Départements', icon: Building2 },
   { id: 'classement', label: 'Classement national', icon: TrendingUp },
 ];
 
@@ -33,7 +33,7 @@ export default function CartographieRegionale() {
 
   useEffect(() => {
     setLoading(true);
-    fetchDgiRegionTelemetry(dateRange)
+    fetchTelemetrieRegions(dateRange)
       .then(setTelemetry)
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -50,17 +50,17 @@ export default function CartographieRegionale() {
   }, [selectedRegion, dateRange]);
 
   const getExportData = useCallback(() => {
-    if (regionDetail && regionDetail.cdis) {
+    if (regionDetail && regionDetail.departements) {
       return {
-        headers: ['Centre CDI', 'Montant', 'Recouvré', 'Nb Avis', 'Payés', 'Retard', 'Taux (%)'],
-        rows: regionDetail.cdis.map(c => [c.centre, fmtFull(c.montant), fmtFull(c.montantRecouvre), c.nombreAvis, c.avisPaies, c.avisEnRetard, `${c.tauxRecouvrement}%`]),
-        sheetName: regionDetail.nom || 'Région',
-        subtitle: `Région ${regionDetail.nom} — ${regionDetail.cdis.length} CDIs`,
+        headers: ['Département', 'Montant', 'Revenus', 'Nb Soumissions', 'Payées', 'Échouées', 'Taux (%)'],
+        rows: regionDetail.departements.map(c => [c.nom, fmtFull(c.montant), fmtFull(c.revenus), c.nombreSoumissions, c.soumissionsPayees, c.soumissionsEchouees, `${c.tauxPaiement}%`]),
+        sheetName: regionDetail.region || 'Région',
+        subtitle: `Région ${regionDetail.region} — ${regionDetail.departements.length} départements`,
       };
     }
     return {
-      headers: ['Région', 'Montant Recouvré', 'Montant Total', 'Nb CDIs', 'Nb Avis', 'Taux (%)'],
-      rows: telemetry.map(r => [r.name, fmtFull(r.value), fmtFull(r.target), r.nbCdis, r.nbAvis, `${r.tauxRecouvrement}%`]),
+      headers: ['Région', 'Revenus', 'Objectif', 'Nb Soumissions', 'Taux (%)'],
+      rows: telemetry.map(r => [r.nom, fmtFull(r.valeur), fmtFull(r.objectif), r.nombreSoumissions, `${r.tauxPaiement || 0}%`]),
       sheetName: 'Régions',
       subtitle: `${telemetry.length} régions`,
     };
@@ -90,7 +90,7 @@ export default function CartographieRegionale() {
       <div className="carto-layout">
         {/* Map */}
         <div className={`carto-map-area ${selectedRegion ? 'with-detail' : ''}`}>
-          <DGICartographie regionTelemetry={telemetry} selectedRegionId={selectedRegion} onSelectRegion={setSelectedRegion} />
+          <CarteCameroun regionTelemetry={telemetry} selectedRegionId={selectedRegion} onSelectRegion={setSelectedRegion} />
         </div>
 
         {/* Detail panel — below the map, scrolls internally */}
@@ -104,8 +104,8 @@ export default function CartographieRegionale() {
                   <div className="carto-detail-header-left">
                     <div className="carto-region-icon"><Map size={18} /></div>
                     <div>
-                      <h2 className="carto-region-name">{d.nom}</h2>
-                      <p className="carto-region-sub">{d.nbCdis} CDIs · {d.nbContribuables} contribuables · {d.nbAvis} avis</p>
+                      <h2 className="carto-region-name">{d.region}</h2>
+                      <p className="carto-region-sub">{(d.departements || []).length} départements · {d.totalSoumissions} soumissions</p>
                     </div>
                   </div>
                   <div className="carto-detail-nav">
@@ -122,50 +122,42 @@ export default function CartographieRegionale() {
                   {detailView === 'overview' && (
                     <>
                       <div className="cdi-detail-kpis" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-                        <div className="cdi-dkpi" data-glow="green"><DollarSign size={16} className="text-dgi" /><div><span className="cdi-dkpi-val">{fmtFull(d.montant)}</span><span className="cdi-dkpi-label">Total</span></div></div>
-                        <div className="cdi-dkpi" data-glow="green"><CheckCircle size={16} className="text-success" /><div><span className="cdi-dkpi-val">{fmtFull(d.montantRecouvre)}</span><span className="cdi-dkpi-label">Recouvré</span></div></div>
-                        <div className="cdi-dkpi" data-glow="green"><AlertTriangle size={16} className="text-danger" /><div><span className="cdi-dkpi-val">{fmtFull(d.montantRestant)}</span><span className="cdi-dkpi-label">Reste</span></div></div>
-                        <div className="cdi-dkpi" data-glow="green"><FileText size={16} className="text-info" /><div><span className="cdi-dkpi-val">{d.nbAvis}</span><span className="cdi-dkpi-label">Avis</span></div></div>
+                        <div className="cdi-dkpi" data-glow="green"><DollarSign size={16} className="text-dgi" /><div><span className="cdi-dkpi-val">{fmtFull(d.totalRevenus)}</span><span className="cdi-dkpi-label">Revenus</span></div></div>
+                        <div className="cdi-dkpi" data-glow="green"><CheckCircle size={16} className="text-success" /><div><span className="cdi-dkpi-val">{d.soumissionsPayees}</span><span className="cdi-dkpi-label">Payées</span></div></div>
+                        <div className="cdi-dkpi" data-glow="green"><FileText size={16} className="text-info" /><div><span className="cdi-dkpi-val">{d.totalSoumissions}</span><span className="cdi-dkpi-label">Soumissions</span></div></div>
+                        <div className="cdi-dkpi" data-glow="green"><Building2 size={16} className="text-info" /><div><span className="cdi-dkpi-val">{(d.departements || []).length}</span><span className="cdi-dkpi-label">Départements</span></div></div>
                         <div className="cdi-dkpi" data-glow="green">
-                          <div className={`taux-circle ${d.tauxRecouvrement >= 50 ? 'good' : d.tauxRecouvrement >= 25 ? 'mid' : 'bad'}`}>{d.tauxRecouvrement}%</div>
-                          <div><span className="cdi-dkpi-val">{d.avisPaies} / {d.nbAvis}</span><span className="cdi-dkpi-label">Taux</span></div>
+                          <div className={`taux-circle ${d.tauxPaiement >= 50 ? 'good' : d.tauxPaiement >= 25 ? 'mid' : 'bad'}`}>{d.tauxPaiement}%</div>
+                          <div><span className="cdi-dkpi-val">{d.soumissionsPayees} / {d.totalSoumissions}</span><span className="cdi-dkpi-label">Taux</span></div>
                         </div>
                       </div>
-                      {d.indicateurs && (
+                      {d.services && d.services.length > 0 && (
                         <div className="carto-indicators">
-                          <div className="carto-ind-item"><DollarSign size={14} className="text-dgi" /><span className="carto-ind-val">{fmtFull(d.indicateurs.montantMoyenParCdi)}</span><span className="carto-ind-label">Moy. / CDI</span></div>
-                          {d.indicateurs.bestCdi && <div className="carto-ind-item"><TrendingUp size={14} className="text-success" /><span className="carto-ind-val">{d.indicateurs.bestCdi.centre}</span><span className="carto-ind-label">Meilleur ({d.indicateurs.bestCdi.taux}%)</span></div>}
-                          {d.indicateurs.worstCdi && <div className="carto-ind-item"><TrendingDown size={14} className="text-danger" /><span className="carto-ind-val">{d.indicateurs.worstCdi.centre}</span><span className="carto-ind-label">En alerte ({d.indicateurs.worstCdi.taux}%)</span></div>}
-                          <div className="carto-ind-item">
-                            {d.indicateurs.tauxVsMoyenne >= 0 ? <ArrowUpRight size={14} className="text-success" /> : <ArrowDownRight size={14} className="text-danger" />}
-                            <span className="carto-ind-val" style={{ color: d.indicateurs.tauxVsMoyenne >= 0 ? '#059669' : '#DC2626' }}>{d.indicateurs.tauxVsMoyenne >= 0 ? '+' : ''}{d.indicateurs.tauxVsMoyenne}%</span>
-                            <span className="carto-ind-label">vs moy. ({d.indicateurs.moyenneNationale}%)</span>
-                          </div>
-                          <div className="carto-ind-item"><Target size={14} className="text-info" /><span className="carto-ind-val">{d.indicateurs.concentration}%</span><span className="carto-ind-label">du national</span></div>
+                          {d.services.slice(0, 3).map((s, i) => (
+                            <div key={i} className="carto-ind-item"><Activity size={14} className="text-dgi" /><span className="carto-ind-val">{s.nom || s.nomFr}</span><span className="carto-ind-label">{s.nombreSoumissions} soumissions</span></div>
+                          ))}
                         </div>
                       )}
                     </>
                   )}
 
-                  {/* CDIs table */}
-                  {detailView === 'cdis' && (
+                  {/* Départements table */}
+                  {detailView === 'departements' && (
                     <div className="carto-table-scroll">
                       <table className="cdi-detail-table">
-                        <thead><tr><th>#</th><th>Centre CDI</th><th className="text-right">Montant</th><th className="text-right">Recouvré</th><th className="text-center">Avis</th><th className="text-center">Payés</th><th className="text-center">Retard</th><th className="text-center">Taux</th><th>Perf.</th></tr></thead>
+                        <thead><tr><th>#</th><th>Département</th><th className="text-right">Revenus</th><th className="text-center">Soumissions</th><th className="text-center">Payées</th><th className="text-center">Taux</th><th>Perf.</th></tr></thead>
                         <tbody>
-                          {(d.cdis || []).length === 0 ? (
-                            <tr><td colSpan={9} className="empty-row"><div className="empty-state-sm"><p>Aucun CDI dans cette région.</p></div></td></tr>
-                          ) : (d.cdis || []).map((c, i) => (
+                          {(d.departements || []).length === 0 ? (
+                            <tr><td colSpan={7} className="empty-row"><div className="empty-state-sm"><p>Aucun département dans cette région.</p></div></td></tr>
+                          ) : (d.departements || []).map((c, i) => (
                             <tr key={i} className="cdi-perf-row">
                               <td className="col-index">{i + 1}</td>
-                              <td className="cdi-name-cell"><Building2 size={14} className="cdi-row-icon" />{c.centre}</td>
-                              <td className="text-right montant-cell">{fmtFull(c.montant)}</td>
-                              <td className="text-right montant-recouvre-cell">{fmtFull(c.montantRecouvre)}</td>
-                              <td className="text-center">{c.nombreAvis}</td>
-                              <td className="text-center"><span className="mini-badge paid">{c.avisPaies}</span></td>
-                              <td className="text-center">{c.avisEnRetard > 0 ? <span className="mini-badge overdue">{c.avisEnRetard}</span> : <span className="mini-badge paid">0</span>}</td>
-                              <td className="text-center"><span className={`taux-badge ${c.tauxRecouvrement >= 50 ? 'good' : c.tauxRecouvrement >= 25 ? 'mid' : 'bad'}`}>{c.tauxRecouvrement}%</span></td>
-                              <td><div className="perf-bar-bg"><div className="perf-bar-fill" style={{ width: `${Math.max(2, (c.montant / ((d.cdis || [])[0]?.montant || 1)) * 100)}%` }} /></div></td>
+                              <td className="cdi-name-cell"><Building2 size={14} className="cdi-row-icon" />{c.nom}</td>
+                              <td className="text-right montant-recouvre-cell">{fmtFull(c.revenus)}</td>
+                              <td className="text-center">{c.nombreSoumissions}</td>
+                              <td className="text-center"><span className="mini-badge paid">{c.soumissionsPayees}</span></td>
+                              <td className="text-center"><span className={`taux-badge ${c.tauxPaiement >= 50 ? 'good' : c.tauxPaiement >= 25 ? 'mid' : 'bad'}`}>{c.tauxPaiement}%</span></td>
+                              <td><div className="perf-bar-bg"><div className="perf-bar-fill" style={{ width: `${Math.max(2, (c.revenus / ((d.departements || [])[0]?.revenus || 1)) * 100)}%` }} /></div></td>
                             </tr>
                           ))}
                         </tbody>
@@ -177,20 +169,19 @@ export default function CartographieRegionale() {
                   {detailView === 'classement' && d.classement && (
                     <div className="carto-table-scroll">
                       <table className="cdi-detail-table">
-                        <thead><tr><th>#</th><th>Région</th><th className="text-right">Montant</th><th className="text-right">Recouvré</th><th className="text-center">CDIs</th><th className="text-center">Avis</th><th className="text-center">Taux</th><th>Perf.</th></tr></thead>
+                        <thead><tr><th>#</th><th>Région</th><th className="text-right">Revenus</th><th className="text-right">Objectif</th><th className="text-center">Soumissions</th><th className="text-center">Taux</th><th>Perf.</th></tr></thead>
                         <tbody>
                           {d.classement.map((r, i) => {
-                            const isSelected = r.id === d.code;
+                            const isSelected = r.orgUnitId === selectedRegion || r.code === d.code;
                             return (
-                              <tr key={i} className={`cdi-perf-row ${isSelected ? 'selected-row' : ''}`} onClick={() => setSelectedRegion(r.id)} style={{ cursor: 'pointer' }}>
+                              <tr key={i} className={`cdi-perf-row ${isSelected ? 'selected-row' : ''}`} onClick={() => setSelectedRegion(r.orgUnitId || r.id)} style={{ cursor: 'pointer' }}>
                                 <td className="col-index">{i + 1}</td>
-                                <td className="contrib-name">{r.name} {isSelected && <span className="mini-badge paid" style={{ marginLeft: '0.3rem' }}>Sélectionnée</span>}</td>
-                                <td className="text-right">{fmtFull(r.target)}</td>
-                                <td className="text-right montant-recouvre-cell">{fmtFull(r.value)}</td>
-                                <td className="text-center">{r.nbCdis}</td>
-                                <td className="text-center">{r.nbAvis}</td>
-                                <td className="text-center"><span className={`taux-badge ${r.tauxRecouvrement >= 50 ? 'good' : r.tauxRecouvrement >= 25 ? 'mid' : 'bad'}`}>{r.tauxRecouvrement}%</span></td>
-                                <td><div className="perf-bar-bg"><div className="perf-bar-fill" style={{ width: `${Math.max(2, (r.target / (d.classement[0]?.target || 1)) * 100)}%`, background: isSelected ? '#059669' : 'var(--text-tertiary)' }} /></div></td>
+                                <td className="contrib-name">{r.nom} {isSelected && <span className="mini-badge paid" style={{ marginLeft: '0.3rem' }}>Sélectionnée</span>}</td>
+                                <td className="text-right montant-recouvre-cell">{fmtFull(r.valeur)}</td>
+                                <td className="text-right">{fmtFull(r.objectif)}</td>
+                                <td className="text-center">{r.nombreSoumissions}</td>
+                                <td className="text-center"><span className={`taux-badge ${r.tauxPaiement >= 50 ? 'good' : r.tauxPaiement >= 25 ? 'mid' : 'bad'}`}>{r.tauxPaiement}%</span></td>
+                                <td><div className="perf-bar-bg"><div className="perf-bar-fill" style={{ width: `${Math.max(2, (r.objectif / (d.classement[0]?.objectif || 1)) * 100)}%`, background: isSelected ? '#059669' : 'var(--text-tertiary)' }} /></div></td>
                               </tr>
                             );
                           })}

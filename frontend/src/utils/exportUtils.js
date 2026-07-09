@@ -212,7 +212,7 @@ export async function exportChartPNG(elementId, filename = 'chart.png') {
   link.click();
 }
 
-// ─── CSV export (already in DGIStatistiques, kept for compatibility) ──
+// ─── CSV export ──
 export function exportToCSV(data, filename = 'export.csv') {
   if (!data.length) return;
   const headers = Object.keys(data[0]);

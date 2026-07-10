@@ -213,11 +213,13 @@ async function syncEntite(nom, endpoint, processItem) {
 
 async function syncMinisteres() {
   return syncEntiteAuto('Ministeres', '/ministries', '/ministries/public', async (m) => {
+    // Générer un code unique si absent — utilise le shortName ou les 30 premiers chars de l'ID
+    const code = m.code || m.shortName || m.id.substring(0, 30);
     await prisma.ministere.upsert({
       where: { id: m.id },
       create: {
         id: m.id,
-        code: m.code || m.id.substring(0, 30),
+        code,
         nomFr: m.nameFr || m.name || '',
         nomEn: m.nameEn || null,
         shortName: m.shortName || null,
@@ -228,7 +230,7 @@ async function syncMinisteres() {
         synchroniseLe: new Date(),
       },
       update: {
-        code: m.code || undefined,
+        code,
         nomFr: m.nameFr || m.name || undefined,
         nomEn: m.nameEn || null,
         shortName: m.shortName || null,
@@ -352,7 +354,7 @@ async function syncGroupesRevenu() {
 }
 
 async function syncServices() {
-  return syncEntite('Services', '/services', async (s) => {
+  return syncEntite('Services', '/services?limit=0', async (s) => {
     let ministereId = s.ministryId || null;
     if (ministereId && !(await existeLocalement('ministere', ministereId))) ministereId = null;
     let domaineId = s.domainId || null;
@@ -844,7 +846,7 @@ async function syncCitoyens() {
 }
 
 async function syncAuditLogs() {
-  return syncEntite('AuditLogs', '/audit-logs', async (a) => {
+  return syncEntite('AuditLogs', '/audit-logs?limit=0', async (a) => {
     await prisma.journalAudit.upsert({
       where: { externalId: String(a.id) },
       create: {

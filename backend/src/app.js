@@ -18,6 +18,7 @@ import utilisateursRoutes from './routes/utilisateurs.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import referentielRoutes from './routes/referentiel.routes.js';
 import synchronisationRoutes from './routes/synchronisation.routes.js';
+import explorerRoutes from './routes/explorer.routes.js';
 
 import prisma from './config/prisma.js';
 import { lancerSynchronisationComplete, PP_API_URL } from './services/synchronisation.service.js';
@@ -89,6 +90,7 @@ await app.register(utilisateursRoutes,     { prefix: '/utilisateurs' });
 await app.register(analyticsRoutes,        { prefix: '/analytics' });
 await app.register(referentielRoutes,      { prefix: '/referentiel' });
 await app.register(synchronisationRoutes,  { prefix: '/sync' });
+await app.register(explorerRoutes,         { prefix: '/analytics/explorer' });
 
 app.get('/sante', {
   schema: { tags: ['Systeme'], summary: 'Etat de sante du serveur' },

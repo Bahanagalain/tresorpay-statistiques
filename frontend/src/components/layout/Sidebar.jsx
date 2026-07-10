@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, ChevronRight, Settings, Shield,
   PieChart, Map, Users, Activity, AlertTriangle, FileBarChart,
-  ChevronsLeft, ChevronsRight, Handshake, RefreshCw,
+  ChevronsLeft, ChevronsRight, Handshake, RefreshCw, Search,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { useSidebar } from './MainLayout';
@@ -43,6 +43,7 @@ export default function Sidebar() {
         { to: '/repartition-recettes', icon: PieChart, label: 'Répartition Recettes', iconColor: '#8B5CF6' },
         { to: '/cartographie', icon: Map, label: 'Cartographie', iconColor: '#14B8A6' },
         { to: '/activite-citoyens', icon: Users, label: 'Activité Citoyens', iconColor: '#EC4899' },
+        { to: '/explorateur', icon: Search, label: 'Explorateur Données', iconColor: '#F59E0B' },
       ],
     },
     {

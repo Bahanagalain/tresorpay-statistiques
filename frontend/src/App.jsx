@@ -16,6 +16,7 @@ import Synchronisation from './pages/Synchronisation';
 import AuditActivite from './pages/AuditActivite';
 import Administration from './pages/Administration';
 import Parametres from './pages/Parametres';
+import ExplorateurDonnees from './pages/ExplorateurDonnees';
 
 function getRouterBasename() {
   const rawBasePath = import.meta.env.VITE_APP_BASE_PATH || '/';
@@ -36,6 +37,7 @@ function App() {
           <Route path="repartition-recettes" element={<RepartitionFiscale />} />
           <Route path="cartographie" element={<CartographieRegionale />} />
           <Route path="activite-citoyens" element={<AnalyseContribuables />} />
+          <Route path="explorateur" element={<ExplorateurDonnees />} />
 
           <Route path="plateformes-partenaires" element={<ConformiteRIB />} />
           <Route path="monitoring-paiements" element={<MonitoringOTP />} />

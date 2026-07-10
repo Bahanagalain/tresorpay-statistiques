@@ -69,6 +69,14 @@ enum ActionAudit {
   DEACTIVATE
 }
 
+enum TypeChamp {
+  SELECT
+  MULTI_SELECT
+  TEXT
+  NUMBER
+  BOOLEAN
+}
+
 // ═══════════════════════════════════════════════════════════════
 // REFERENTIEL (synchronise depuis payment-platform)
 // ═══════════════════════════════════════════════════════════════
@@ -164,6 +172,7 @@ model ServiceGouv {
 
   soumissions         Soumission[]
   serviceBeneficiaire ServiceBeneficiaire[]
+  champsFormulaire    ChampFormulaire[]
 
   synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
 
@@ -535,6 +544,8 @@ model Soumission {
   domaine   Domaine?     @relation(fields: [domaineId], references: [id])
   orgUnit   OrgUnit?     @relation(fields: [orgUnitId], references: [id])
 
+  valeursChamps ValeurSoumission[]
+
   @@index([statutPaiement])
   @@index([serviceId])
   @@index([ministereId])
@@ -543,6 +554,50 @@ model Soumission {
   @@index([dateSoumission])
   @@index([datePaiement])
   @@map("soumissions")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXPLORATEUR — CHAMPS FORMULAIRE & VALEURS EXTRAITES
+// ═══════════════════════════════════════════════════════════════
+
+model ChampFormulaire {
+  id                 Int        @id @default(autoincrement())
+  formulaireId       String     @map("formulaire_id") @db.VarChar(60)
+  serviceId          String?    @map("service_id")
+  cleChamp           String     @map("cle_champ") @db.VarChar(200)
+  libelleChamp       String     @map("libelle_champ") @db.VarChar(300)
+  libelleChampEn     String?    @map("libelle_champ_en") @db.VarChar(300)
+  typeChamp          TypeChamp  @default(TEXT) @map("type_champ")
+  estDimension       Boolean    @default(false) @map("est_dimension")
+  estChampPaiement   Boolean    @default(false) @map("est_champ_paiement")
+  optionsDisponibles Json?      @map("options_disponibles")
+  ordreAffichage     Int        @default(0) @map("ordre_affichage")
+  synchroniseLe      DateTime   @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  service ServiceGouv? @relation(fields: [serviceId], references: [id])
+  valeurs ValeurSoumission[]
+
+  @@unique([formulaireId, cleChamp])
+  @@index([serviceId])
+  @@index([estDimension])
+  @@map("champs_formulaire")
+}
+
+model ValeurSoumission {
+  id                Int      @id @default(autoincrement())
+  soumissionId      Int      @map("soumission_id")
+  champFormulaireId Int      @map("champ_formulaire_id")
+  valeur            String?  @db.VarChar(500)
+  valeurNumerique   Float?   @map("valeur_numerique")
+  synchroniseLe     DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  soumission      Soumission      @relation(fields: [soumissionId], references: [id], onDelete: Cascade)
+  champFormulaire ChampFormulaire @relation(fields: [champFormulaireId], references: [id], onDelete: Cascade)
+
+  @@unique([soumissionId, champFormulaireId])
+  @@index([champFormulaireId, valeur])
+  @@index([soumissionId])
+  @@map("valeurs_soumission")
 }
 
 // ═══════════════════════════════════════════════════════════════

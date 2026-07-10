@@ -351,3 +351,19 @@ export async function fetchAudit(range, signal) {
   const raw = await cachedGet('/analytics/audit', buildAnalyticsDateParams(range), signal);
   return unwrap(raw);
 }
+
+// ─── Explorateur de donnees ───────────────────────────
+export async function fetchExplorerDimensions(params = {}, signal) {
+  const raw = await apiGet('/analytics/explorer/dimensions', params, { signal });
+  return unwrap(raw);
+}
+
+export async function fetchExplorerExplore(body, signal) {
+  const raw = await apiPost('/analytics/explorer/explore', body, { signal });
+  return unwrap(raw);
+}
+
+export async function fetchExplorerCrosstab(body, signal) {
+  const raw = await apiPost('/analytics/explorer/crosstab', body, { signal });
+  return unwrap(raw);
+}

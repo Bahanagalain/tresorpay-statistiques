@@ -85,6 +85,30 @@ async function requetePP(path) {
   return response.json();
 }
 
+/** Requete sans auth — pour les endpoints publics */
+async function requetePPPublic(path) {
+  const response = await fetch(`${PP_API_URL}${path}`, {
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    throw new Error(`PP ${path} -> ${response.status}`);
+  }
+  return response.json();
+}
+
+/** Essaie d'abord avec auth, puis en public si 401 */
+async function requetePPAuto(path, publicPath) {
+  try {
+    return await requetePP(path);
+  } catch (err) {
+    if (publicPath && err.message?.includes('401')) {
+      console.log(`[SYNC] Fallback public: ${publicPath}`);
+      return await requetePPPublic(publicPath);
+    }
+    throw err;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // JOURNAL DE SYNC
 // ═══════════════════════════════════════════════════════════════
@@ -128,7 +152,30 @@ async function existeLocalement(model, id) {
   return !!r;
 }
 
-/** Wrapper generique de sync par entite */
+/** Wrapper generique de sync par entite (avec fallback public optionnel) */
+async function syncEntiteAuto(nom, endpoint, publicEndpoint, processItem) {
+  const debut = Date.now();
+  try {
+    const data = await requetePPAuto(endpoint, publicEndpoint);
+    const items = normalizeArray(data);
+    let count = 0;
+    for (const item of items) {
+      if (!item.id) continue;
+      await processItem(item);
+      count++;
+    }
+    const dureeMs = Date.now() - debut;
+    console.log(`[SYNC] ${nom}: ${count} en ${dureeMs}ms`);
+    await logSync(endpoint, 'SUCCES', count, dureeMs);
+    return count;
+  } catch (err) {
+    const dureeMs = Date.now() - debut;
+    console.error(`[SYNC] Erreur ${nom}:`, err.message);
+    await logSync(endpoint, 'ECHEC', 0, dureeMs, err.message);
+    return 0;
+  }
+}
+
 async function syncEntite(nom, endpoint, processItem) {
   const debut = Date.now();
   try {
@@ -157,7 +204,7 @@ async function syncEntite(nom, endpoint, processItem) {
 // ═══════════════════════════════════════════════════════════════
 
 async function syncMinisteres() {
-  return syncEntite('Ministeres', '/ministries', async (m) => {
+  return syncEntiteAuto('Ministeres', '/ministries', '/ministries/public', async (m) => {
     await prisma.ministere.upsert({
       where: { id: m.id },
       create: {
@@ -188,7 +235,7 @@ async function syncMinisteres() {
 }
 
 async function syncDomaines() {
-  return syncEntite('Domaines', '/domains', async (d) => {
+  return syncEntiteAuto('Domaines', '/domains', '/domains/public', async (d) => {
     await prisma.domaine.upsert({
       where: { id: d.id },
       create: {
@@ -471,8 +518,165 @@ async function syncStructures() {
   });
 }
 
+// ═══════════════════════════════════════════════════════════════
+// SYNC CHAMPS FORMULAIRE (pour l'explorateur dynamique)
+// ═══════════════════════════════════════════════════════════════
+
+function determinerTypeChamp(prop) {
+  if (!prop) return 'TEXT';
+  if (prop.type === 'boolean') return 'BOOLEAN';
+  if (prop.type === 'number' || prop.type === 'integer') return 'NUMBER';
+  if (prop.type === 'string' && prop.enum) return 'SELECT';
+  if (prop.type === 'array' && prop.items?.enum) return 'MULTI_SELECT';
+  return 'TEXT';
+}
+
+function extraireOptions(prop) {
+  if (!prop) return null;
+
+  // SELECT: enum + enumNamesFr ou enumNames
+  if (prop.enum) {
+    const labels = prop.enumNamesFr || prop.enumNames || prop.enum;
+    return prop.enum.map((val, i) => ({
+      value: val,
+      label: labels[i] || val,
+    }));
+  }
+
+  // MULTI_SELECT: array.items.enum
+  if (prop.items?.enum) {
+    const labels = prop.items.enumNamesFr || prop.items.enumNames || prop.items.enum;
+    return prop.items.enum.map((val, i) => ({
+      value: val,
+      label: labels[i] || val,
+    }));
+  }
+
+  // x-depends-on: fusionner toutes les options des branches
+  if (prop['x-depends-on']?.options) {
+    const allOpts = new Map();
+    for (const branch of Object.values(prop['x-depends-on'].options)) {
+      const bEnum = branch.enum || [];
+      const bLabels = branch.enumNamesFr || branch.enumNames || bEnum;
+      bEnum.forEach((val, i) => {
+        if (!allOpts.has(val)) allOpts.set(val, bLabels[i] || val);
+      });
+    }
+    return [...allOpts.entries()].map(([value, label]) => ({ value, label }));
+  }
+
+  return null;
+}
+
+function extraireChampsDepuisSchema(schema) {
+  if (!schema?.properties) return [];
+  const champs = [];
+  const mergedProps = { ...schema.properties };
+
+  // Fusionner les proprietes conditionnelles (dependencies.oneOf)
+  const deps = schema.dependencies || {};
+  for (const dep of Object.values(deps)) {
+    if (dep?.oneOf) {
+      for (const branch of dep.oneOf) {
+        if (branch?.properties) {
+          for (const [k, v] of Object.entries(branch.properties)) {
+            if (!(k in mergedProps)) mergedProps[k] = v;
+          }
+        }
+      }
+    }
+  }
+
+  let ordre = 0;
+  for (const [key, prop] of Object.entries(mergedProps)) {
+    if (key.startsWith('__')) continue;
+    if (key === 'paymentAmount') continue;
+
+    const typeChamp = determinerTypeChamp(prop);
+    const estDimension = typeChamp === 'SELECT' || typeChamp === 'MULTI_SELECT';
+    const options = estDimension ? extraireOptions(prop) : null;
+
+    champs.push({
+      cleChamp: key,
+      libelleChamp: prop.titleFr || prop.title || key,
+      libelleChampEn: prop.titleEn || null,
+      typeChamp,
+      estDimension,
+      estChampPaiement: prop['x-payment-field'] === true,
+      optionsDisponibles: options,
+      ordreAffichage: ordre++,
+    });
+  }
+
+  return champs;
+}
+
+async function syncChampsFormulaire() {
+  const debut = Date.now();
+  try {
+    const data = await requetePP('/forms');
+    const forms = normalizeArray(data);
+    let count = 0;
+
+    for (const form of forms) {
+      if (!form.id || !form.schema) continue;
+
+      let serviceId = form.serviceId || null;
+      if (serviceId && !(await existeLocalement('serviceGouv', serviceId))) serviceId = null;
+
+      const champs = extraireChampsDepuisSchema(form.schema);
+
+      for (const champ of champs) {
+        await prisma.champFormulaire.upsert({
+          where: {
+            formulaireId_cleChamp: {
+              formulaireId: form.id,
+              cleChamp: champ.cleChamp,
+            },
+          },
+          create: {
+            formulaireId: form.id,
+            serviceId,
+            cleChamp: champ.cleChamp,
+            libelleChamp: champ.libelleChamp,
+            libelleChampEn: champ.libelleChampEn,
+            typeChamp: champ.typeChamp,
+            estDimension: champ.estDimension,
+            estChampPaiement: champ.estChampPaiement,
+            optionsDisponibles: champ.optionsDisponibles,
+            ordreAffichage: champ.ordreAffichage,
+            synchroniseLe: new Date(),
+          },
+          update: {
+            serviceId,
+            libelleChamp: champ.libelleChamp,
+            libelleChampEn: champ.libelleChampEn,
+            typeChamp: champ.typeChamp,
+            estDimension: champ.estDimension,
+            estChampPaiement: champ.estChampPaiement,
+            optionsDisponibles: champ.optionsDisponibles,
+            ordreAffichage: champ.ordreAffichage,
+            synchroniseLe: new Date(),
+          },
+        });
+        count++;
+      }
+    }
+
+    const dureeMs = Date.now() - debut;
+    console.log(`[SYNC] ChampsFormulaire: ${count} en ${dureeMs}ms`);
+    await logSync('/forms/champs', 'SUCCES', count, dureeMs);
+    return count;
+  } catch (err) {
+    const dureeMs = Date.now() - debut;
+    console.error('[SYNC] Erreur champs formulaire:', err.message);
+    await logSync('/forms/champs', 'ECHEC', 0, dureeMs, err.message);
+    return 0;
+  }
+}
+
 async function syncPlateformesPartenaire() {
-  return syncEntite('PlateformesPartenaire', '/partner-platforms', async (p) => {
+  return syncEntite('PlateformesPartenaire', '/partner-platforms?limit=0', async (p) => {
     let ministereId = p.ministryId || p.ministry?.id || null;
     if (ministereId && !(await existeLocalement('ministere', ministereId))) ministereId = null;
 
@@ -516,7 +720,7 @@ async function syncDemandesPartenaire() {
 
     for (const pf of plateformes) {
       try {
-        const data = await requetePP(`/partner-platforms/${pf.id}/payment-requests?limit=1000`);
+        const data = await requetePP(`/partner-platforms/${pf.id}/payment-requests?limit=0`);
         const items = normalizeArray(data);
 
         for (const d of items) {
@@ -703,6 +907,17 @@ async function syncSoumissions() {
     const servicesMap = {};
     for (const s of servicesLocaux) servicesMap[s.id] = s;
 
+    // Pre-charger les champs formulaire groupes par formulaireId
+    const tousLesChamps = await prisma.champFormulaire.findMany({
+      where: { estDimension: true },
+      select: { id: true, formulaireId: true, cleChamp: true, libelleChamp: true, typeChamp: true },
+    });
+    const champsParFormulaire = new Map();
+    for (const c of tousLesChamps) {
+      if (!champsParFormulaire.has(c.formulaireId)) champsParFormulaire.set(c.formulaireId, []);
+      champsParFormulaire.get(c.formulaireId).push(c);
+    }
+
     let count = 0;
     for (const sub of items) {
       if (!sub.id) continue;
@@ -735,7 +950,7 @@ async function syncSoumissions() {
       const montant = parseFloat(sub.data?.__paymentAmount ?? sub.data?.__payment?.amount ?? sub.data?.paymentAmount ?? 0) || 0;
       const statutPaiement = resolveStatutPaiement(sub);
 
-      await prisma.soumission.upsert({
+      const soumission = await prisma.soumission.upsert({
         where: { externalId: sub.id },
         create: {
           externalId: sub.id,
@@ -768,7 +983,54 @@ async function syncSoumissions() {
           donneesFormulaire: sub.data || undefined,
           synchroniseLe: new Date(),
         },
+        select: { id: true },
       });
+
+      // Extraction des valeurs de champs pour l'explorateur
+      const champsForm = champsParFormulaire.get(sub.formId);
+      if (champsForm && sub.data && typeof sub.data === 'object') {
+        for (const champ of champsForm) {
+          // Matcher par libelleChamp (cle humanisee) ou cleChamp (cle technique)
+          let valeurBrute = sub.data[champ.libelleChamp] ?? sub.data[champ.cleChamp];
+          if (valeurBrute === undefined || valeurBrute === null) continue;
+
+          // MULTI_SELECT: inserer une ligne par element
+          const valeurs = champ.typeChamp === 'MULTI_SELECT' && Array.isArray(valeurBrute)
+            ? valeurBrute
+            : [valeurBrute];
+
+          for (const v of valeurs) {
+            const valStr = String(v).substring(0, 500);
+            const valNum = typeof v === 'number' ? v : (parseFloat(v) || null);
+
+            try {
+              await prisma.valeurSoumission.upsert({
+                where: {
+                  soumissionId_champFormulaireId: {
+                    soumissionId: soumission.id,
+                    champFormulaireId: champ.id,
+                  },
+                },
+                create: {
+                  soumissionId: soumission.id,
+                  champFormulaireId: champ.id,
+                  valeur: valStr,
+                  valeurNumerique: valNum,
+                  synchroniseLe: new Date(),
+                },
+                update: {
+                  valeur: valStr,
+                  valeurNumerique: valNum,
+                  synchroniseLe: new Date(),
+                },
+              });
+            } catch {
+              // Ignorer les erreurs individuelles d'extraction
+            }
+          }
+        }
+      }
+
       count++;
     }
 
@@ -796,6 +1058,7 @@ const ETAPES_SYNC = [
   { nom: 'Structures', fn: syncStructures, cle: 'structures' },
   { nom: 'Groupes de revenu', fn: syncGroupesRevenu, cle: 'groupesRevenu' },
   { nom: 'Services', fn: syncServices, cle: 'services' },
+  { nom: 'Champs formulaire', fn: syncChampsFormulaire, cle: 'champsFormulaire' },
   { nom: 'Bénéficiaires', fn: syncBeneficiaires, cle: 'beneficiaires' },
   { nom: 'Districts financiers', fn: syncDistrictsFinanciers, cle: 'districtsFinanciers' },
   { nom: 'Postes comptables', fn: syncPostesComptables, cle: 'postesComptables' },
@@ -863,7 +1126,9 @@ export async function lancerSynchronisationComplete() {
 // ═══════════════════════════════════════════════════════════════
 
 const TABLES_PURGEABLES = {
+  valeursSoumission: 'valeurSoumission',
   soumissions: 'soumission',
+  champsFormulaire: 'champFormulaire',
   demandesPartenaire: 'demandePartenaire',
   transactionsPartenaire: 'transactionPartenaire',
   journalAudit: 'journalAudit',

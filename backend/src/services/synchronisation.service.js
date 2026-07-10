@@ -161,8 +161,12 @@ async function syncEntiteAuto(nom, endpoint, publicEndpoint, processItem) {
     let count = 0;
     for (const item of items) {
       if (!item.id) continue;
-      await processItem(item);
-      count++;
+      try {
+        await processItem(item);
+        count++;
+      } catch (itemErr) {
+        console.warn(`[SYNC] ${nom}: erreur item ${item.id}:`, itemErr.message);
+      }
     }
     const dureeMs = Date.now() - debut;
     console.log(`[SYNC] ${nom}: ${count} en ${dureeMs}ms`);
@@ -184,8 +188,12 @@ async function syncEntite(nom, endpoint, processItem) {
     let count = 0;
     for (const item of items) {
       if (!item.id) continue;
-      await processItem(item);
-      count++;
+      try {
+        await processItem(item);
+        count++;
+      } catch (itemErr) {
+        console.warn(`[SYNC] ${nom}: erreur item ${item.id}:`, itemErr.message);
+      }
     }
     const dureeMs = Date.now() - debut;
     console.log(`[SYNC] ${nom}: ${count} en ${dureeMs}ms`);

@@ -5,8 +5,9 @@
 
 services:
   # ─── PostgreSQL ─────────────────────────────────────────────
-  postgres:
+  stats-postgres:
     image: postgres:16-alpine
+    container_name: stats_postgres
     environment:
       POSTGRES_DB: tresorpay_statistiques
       POSTGRES_USER: postgres
@@ -33,7 +34,7 @@ services:
     environment:
       PORT: 3002
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/tresorpay_statistiques
+      DATABASE_URL: postgresql://postgres:postgres@stats-postgres:5432/tresorpay_statistiques
       JWT_SECRET: ${JWT_SECRET:-tresorpay-stats-secret-changer-en-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME:-superadmin}
@@ -52,7 +53,7 @@ services:
       retries: 20
       start_period: 60s
     depends_on:
-      postgres:
+      stats-postgres:
         condition: service_healthy
     networks:
       - default

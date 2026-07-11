@@ -9,7 +9,7 @@ import {
   ChevronLeft, Building2, CheckCircle, Clock, AlertTriangle, DollarSign,
   FileText, LayoutDashboard, Target, FileSpreadsheet, FileDown, Layers,
 } from 'lucide-react';
-import { fetchRepartitionServices, fetchRepartitionDomaines, fetchDomaineDetail, fetchServiceDetail } from '../api/analyticsApi';
+import { fetchRepartitionServices, fetchRepartitionDomaines, fetchDomaineDetail, fetchServiceDetail, fetchSoumissions } from '../api/analyticsApi';
 import DatePresetFilter from '../components/ui/DatePresetFilter';
 import { getCurrentPeriodRange } from '../hooks/usePeriodFilter';
 import { formatMontant } from '../utils/format';
@@ -25,10 +25,24 @@ function SortIcon({ col, sortCol, sortDir }) {
 }
 
 // ─── Service Detail Panel ───────────────────────────────────
+const STATUT_BADGE = {
+  PAID:    { label: 'Payé',       bg: '#dcfce7', color: '#166534', icon: CheckCircle },
+  PENDING: { label: 'En attente', bg: '#fef9c3', color: '#854d0e', icon: Clock },
+  PARTIAL: { label: 'Partiel',    bg: '#dbeafe', color: '#1e40af', icon: Activity },
+  FAILED:  { label: 'Échoué',     bg: '#fee2e2', color: '#991b1b', icon: AlertTriangle },
+};
+
 function ServiceDetailPanel({ serviceId, dateRange, onBack }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [localDateRange, setLocalDateRange] = useState(dateRange || {});
+
+  // Soumissions individuelles
+  const [soumissions, setSoumissions] = useState([]);
+  const [soumPage, setSoumPage] = useState(1);
+  const [soumPagination, setSoumPagination] = useState({});
+  const [soumSearch, setSoumSearch] = useState('');
+  const [soumLoading, setSoumLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -37,6 +51,23 @@ function ServiceDetailPanel({ serviceId, dateRange, onBack }) {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [serviceId, localDateRange]);
+
+  useEffect(() => {
+    setSoumLoading(true);
+    fetchSoumissions({
+      serviceId,
+      ...localDateRange,
+      page: soumPage,
+      limit: 10,
+      search: soumSearch || undefined,
+    })
+      .then(res => {
+        setSoumissions(res.donnees || []);
+        setSoumPagination(res.pagination || {});
+      })
+      .catch(console.error)
+      .finally(() => setSoumLoading(false));
+  }, [serviceId, localDateRange, soumPage, soumSearch]);
 
   if (loading) {
     return (
@@ -136,6 +167,83 @@ function ServiceDetailPanel({ serviceId, dateRange, onBack }) {
             </>
           ) : <p className="no-data-msg">Pas de données</p>}
         </div>
+      </div>
+
+      {/* Soumissions individuelles */}
+      <div className="card" style={{ marginTop: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <h3 className="card-title" style={{ margin: 0 }}>Soumissions individuelles</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+              <input
+                type="text"
+                placeholder="Rechercher un soumetteur…"
+                value={soumSearch}
+                onChange={e => { setSoumSearch(e.target.value); setSoumPage(1); }}
+                style={{ padding: '0.4rem 0.5rem 0.4rem 1.75rem', borderRadius: '0.375rem', border: '1px solid var(--border-color, #d1d5db)', background: 'var(--bg-primary, #fff)', color: 'var(--text-primary)', fontSize: '0.8rem', width: '200px' }}
+              />
+            </div>
+            {soumPagination.total > 0 && <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{soumPagination.total} résultat(s)</span>}
+          </div>
+        </div>
+
+        {soumLoading ? (
+          <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-secondary)' }}>Chargement…</div>
+        ) : soumissions.length === 0 ? (
+          <p style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-tertiary)' }}>Aucune soumission trouvée.</p>
+        ) : (
+          <>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr>
+                    <th style={{ padding: '0.5rem 0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>#</th>
+                    <th style={{ padding: '0.5rem 0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Code</th>
+                    <th style={{ padding: '0.5rem 0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Soumetteur</th>
+                    <th style={{ padding: '0.5rem 0.75rem', textAlign: 'right', borderBottom: '2px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Montant</th>
+                    <th style={{ padding: '0.5rem 0.75rem', textAlign: 'center', borderBottom: '2px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Statut</th>
+                    <th style={{ padding: '0.5rem 0.75rem', textAlign: 'right', borderBottom: '2px solid var(--border-color)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {soumissions.map((s, i) => {
+                    const badge = STATUT_BADGE[s.statutPaiement] || STATUT_BADGE.PENDING;
+                    const BadgeIcon = badge.icon;
+                    return (
+                      <tr key={s.id} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--bg-secondary)' }}>
+                        <td style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color, #f3f4f6)', color: 'var(--text-tertiary)' }}>{(soumPage - 1) * 10 + i + 1}</td>
+                        <td style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color, #f3f4f6)', fontFamily: 'monospace', fontSize: '0.78rem' }}>{s.uniqueCode || s.externalId?.substring(0, 8) || '—'}</td>
+                        <td style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color, #f3f4f6)' }}>
+                          <div style={{ fontWeight: 500 }}>{s.soumetteurNom || 'Anonyme'}</div>
+                          {s.soumetteurTelephone && <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>{s.soumetteurTelephone}</div>}
+                        </td>
+                        <td style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color, #f3f4f6)', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmtFull(s.montant)}</td>
+                        <td style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color, #f3f4f6)', textAlign: 'center' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: '999px', background: badge.bg, color: badge.color, fontSize: '0.72rem', fontWeight: 600 }}>
+                            <BadgeIcon size={11} />{badge.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color, #f3f4f6)', textAlign: 'right', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          {s.dateSoumission ? new Date(s.dateSoumission).toLocaleDateString('fr-FR') : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {soumPagination.totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', marginTop: '0.75rem' }}>
+                <button onClick={() => setSoumPage(p => Math.max(1, p - 1))} disabled={soumPage <= 1} style={{ padding: '0.3rem 0.6rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', cursor: soumPage <= 1 ? 'not-allowed' : 'pointer', opacity: soumPage <= 1 ? 0.4 : 1, fontSize: '0.8rem' }}>← Précédent</button>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Page {soumPage} / {soumPagination.totalPages}</span>
+                <button onClick={() => setSoumPage(p => Math.min(soumPagination.totalPages, p + 1))} disabled={soumPage >= soumPagination.totalPages} style={{ padding: '0.3rem 0.6rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', cursor: soumPage >= soumPagination.totalPages ? 'not-allowed' : 'pointer', opacity: soumPage >= soumPagination.totalPages ? 0.4 : 1, fontSize: '0.8rem' }}>Suivant →</button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

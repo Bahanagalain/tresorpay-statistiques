@@ -33,6 +33,9 @@ export default function ExplorateurDonnees() {
   const [dimensions, setDimensions] = useState({ fixes: [], dynamiques: [] });
   const [serviceFilter, setServiceFilter] = useState('');
   const [services, setServices] = useState([]);
+  const [ministeres, setMinisteres] = useState([]);
+  const [ministereFilter, setMinistereFilter] = useState('');
+  const [statutFilter, setStatutFilter] = useState('');
 
   // Exploration state
   const [groupBy, setGroupBy] = useState([]);
@@ -43,6 +46,7 @@ export default function ExplorateurDonnees() {
   // Pivot state
   const [pivotLigne, setPivotLigne] = useState('');
   const [pivotColonne, setPivotColonne] = useState('');
+  const [pivotDisplayMode, setPivotDisplayMode] = useState('raw');
 
   // Results
   const [resultats, setResultats] = useState(null);
@@ -51,7 +55,7 @@ export default function ExplorateurDonnees() {
   const [error, setError] = useState(null);
   const abortRef = useRef(null);
 
-  // Charger les services de reference
+  // Charger les services et ministères de reference
   useEffect(() => {
     (async () => {
       try {
@@ -59,6 +63,15 @@ export default function ExplorateurDonnees() {
         if (res.ok) {
           const data = await res.json();
           setServices(Array.isArray(data) ? data : data?.data || []);
+        }
+      } catch { /* ignore */ }
+    })();
+    (async () => {
+      try {
+        const res = await fetch('/api/referentiel/ministeres');
+        if (res.ok) {
+          const data = await res.json();
+          setMinisteres(Array.isArray(data) ? data : data?.datas || data?.data || []);
         }
       } catch { /* ignore */ }
     })();
@@ -101,6 +114,8 @@ export default function ExplorateurDonnees() {
         ...filtresActifs,
       };
       if (serviceFilter) filtres.service_id = serviceFilter;
+      if (ministereFilter) filtres.ministere_id = ministereFilter;
+      if (statutFilter) filtres.statut = statutFilter;
 
       if (viewMode === 'pivot') {
         const data = await fetchExplorerCrosstab({
@@ -129,7 +144,7 @@ export default function ExplorateurDonnees() {
     } finally {
       setLoading(false);
     }
-  }, [groupBy, mesure, dateRange, filtresActifs, serviceFilter, viewMode, pivotLigne, pivotColonne]);
+  }, [groupBy, mesure, dateRange, filtresActifs, serviceFilter, ministereFilter, statutFilter, viewMode, pivotLigne, pivotColonne]);
 
   // Auto-refresh on param change
   useEffect(() => {
@@ -195,18 +210,27 @@ export default function ExplorateurDonnees() {
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1rem', alignItems: 'start' }}>
         {/* Panel gauche : configuration */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* Filtre par service */}
+          {/* Filtres */}
           <div style={cardStyle}>
-            <label style={labelStyle}>Service</label>
-            <select
-              value={serviceFilter}
-              onChange={e => setServiceFilter(e.target.value)}
-              style={selectStyle}
-            >
+            <label style={labelStyle}>Filtres</label>
+            <select value={ministereFilter} onChange={e => setMinistereFilter(e.target.value)} style={{ ...selectStyle, marginBottom: '0.5rem' }}>
+              <option value="">Tous les ministères</option>
+              {ministeres.map(m => (
+                <option key={m.id} value={m.id}>{m.nomFr || m.nom_fr}</option>
+              ))}
+            </select>
+            <select value={serviceFilter} onChange={e => setServiceFilter(e.target.value)} style={{ ...selectStyle, marginBottom: '0.5rem' }}>
               <option value="">Tous les services</option>
               {services.map(s => (
                 <option key={s.id} value={s.id}>{s.nomFr || s.nom_fr}</option>
               ))}
+            </select>
+            <select value={statutFilter} onChange={e => setStatutFilter(e.target.value)} style={selectStyle}>
+              <option value="">Tous les statuts</option>
+              <option value="PAID">Payé</option>
+              <option value="PENDING">En attente</option>
+              <option value="PARTIAL">Partiel</option>
+              <option value="FAILED">Échoué</option>
             </select>
           </div>
 
@@ -313,6 +337,28 @@ export default function ExplorateurDonnees() {
                   <option key={d.cle} value={d.cle}>{d.libelle}</option>
                 ))}
               </select>
+              <label style={{ ...labelStyle, marginTop: '0.75rem' }}>Affichage</label>
+              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                {[
+                  { key: 'raw', label: 'Valeurs' },
+                  { key: 'pctRow', label: '% Ligne' },
+                  { key: 'pctCol', label: '% Colonne' },
+                  { key: 'pctTotal', label: '% Total' },
+                ].map(m => (
+                  <button
+                    key={m.key}
+                    onClick={() => setPivotDisplayMode(m.key)}
+                    style={{
+                      ...btnToggleStyle,
+                      background: pivotDisplayMode === m.key ? 'var(--accent-color, #2563EB)' : 'var(--bg-secondary)',
+                      color: pivotDisplayMode === m.key ? '#fff' : 'var(--text-primary)',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -347,6 +393,7 @@ export default function ExplorateurDonnees() {
               mesure={mesure}
               dimLigneLabel={getDimLabel(pivotLigne)}
               dimColonneLabel={getDimLabel(pivotColonne)}
+              displayMode={pivotDisplayMode}
             />
           )}
 

@@ -5,7 +5,12 @@ function formatVal(value, mesure) {
   return value.toLocaleString('fr-FR');
 }
 
-export default function PivotTable({ data, mesure = 'count', dimLigneLabel, dimColonneLabel }) {
+function formatPct(val, denom) {
+  if (!denom) return '—';
+  return ((val / denom) * 100).toFixed(1) + '%';
+}
+
+export default function PivotTable({ data, mesure = 'count', dimLigneLabel, dimColonneLabel, displayMode = 'raw' }) {
   if (!data || !data.colonnes?.length || !data.lignes?.length) {
     return (
       <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
@@ -15,6 +20,34 @@ export default function PivotTable({ data, mesure = 'count', dimLigneLabel, dimC
   }
 
   const { colonnes, lignes, totauxColonnes, totalGeneral } = data;
+  const isPct = displayMode !== 'raw';
+
+  function renderCell(val, rowTotal, colTotal) {
+    if (!val && val !== 0) return <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
+    if (isPct) {
+      const denom = displayMode === 'pctRow' ? rowTotal : displayMode === 'pctCol' ? colTotal : totalGeneral;
+      return formatPct(val, denom);
+    }
+    return val > 0 ? formatVal(val, mesure) : <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
+  }
+
+  function renderRowTotal(rowTotal) {
+    if (isPct) {
+      if (displayMode === 'pctRow') return '100%';
+      const denom = displayMode === 'pctCol' ? totalGeneral : totalGeneral;
+      return formatPct(rowTotal, denom);
+    }
+    return formatVal(rowTotal, mesure);
+  }
+
+  function renderColTotal(colTotal) {
+    if (isPct) {
+      if (displayMode === 'pctCol') return '100%';
+      const denom = displayMode === 'pctRow' ? totalGeneral : totalGeneral;
+      return formatPct(colTotal, denom);
+    }
+    return formatVal(colTotal, mesure);
+  }
 
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -36,11 +69,11 @@ export default function PivotTable({ data, mesure = 'count', dimLigneLabel, dimC
               <td style={tdLabelStyle}>{ligne.libelle || '(vide)'}</td>
               {ligne.valeurs.map((val, j) => (
                 <td key={j} style={tdValueStyle}>
-                  {val > 0 ? formatVal(val, mesure) : <span style={{ color: 'var(--text-tertiary)' }}>-</span>}
+                  {renderCell(val, ligne.total, totauxColonnes[j])}
                 </td>
               ))}
               <td style={{ ...tdValueStyle, fontWeight: 600, background: 'var(--bg-tertiary)' }}>
-                {formatVal(ligne.total, mesure)}
+                {renderRowTotal(ligne.total)}
               </td>
             </tr>
           ))}
@@ -50,11 +83,11 @@ export default function PivotTable({ data, mesure = 'count', dimLigneLabel, dimC
             <td style={{ ...tdLabelStyle, fontWeight: 700 }}>Total</td>
             {totauxColonnes.map((val, i) => (
               <td key={i} style={{ ...tdValueStyle, fontWeight: 700 }}>
-                {formatVal(val, mesure)}
+                {renderColTotal(val)}
               </td>
             ))}
             <td style={{ ...tdValueStyle, fontWeight: 700, background: 'var(--bg-tertiary)' }}>
-              {formatVal(totalGeneral, mesure)}
+              {isPct ? '100%' : formatVal(totalGeneral, mesure)}
             </td>
           </tr>
         </tfoot>

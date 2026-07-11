@@ -375,20 +375,20 @@ export default async function analyticsRoutes(fastify) {
     },
   }, async (request) => {
     const { page = 1, limite = 20, search, statut, ministere_id, service_id, domaine_id, date_debut, date_fin } = request.query;
-    const data = await computeSoumissions({
-      page: Number(page),
-      limit: Number(limite),
-      search: search || undefined,
-      statut: statut || undefined,
-      ministereId: ministere_id || undefined,
-      serviceId: service_id || undefined,
-      domaineId: domaine_id || undefined,
-      dateDebut: date_debut || undefined,
-      dateFin: date_fin || undefined,
-    });
+    const data = await computeSoumissions(
+      {
+        recherche: search || undefined,
+        statut: statut || undefined,
+        ministereId: ministere_id || undefined,
+        serviceId: service_id || undefined,
+        domaineId: domaine_id || undefined,
+        dateDebut: date_debut || undefined,
+        dateFin: date_fin || undefined,
+      },
+      { page: Number(page), limite: Number(limite) },
+    );
     return {
-      datas: data.data,
-      meta: data.meta,
+      datas: { donnees: data.donnees, pagination: data.pagination },
       message: 'Soumissions récupérées avec succès',
     };
   });

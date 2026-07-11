@@ -354,7 +354,7 @@ async function syncGroupesRevenu() {
 }
 
 async function syncServices() {
-  return syncEntite('Services', '/services?limit=0', async (s) => {
+  return syncEntiteAuto('Services', '/services?limit=0', '/services/public', async (s) => {
     let ministereId = s.ministryId || null;
     if (ministereId && !(await existeLocalement('ministere', ministereId))) ministereId = null;
     let domaineId = s.domainId || null;

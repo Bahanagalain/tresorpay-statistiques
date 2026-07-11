@@ -39,7 +39,10 @@ services:
       SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME:-superadmin}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-Admin@2026!}
       SUPER_ADMIN_FULLNAME: ${SUPER_ADMIN_FULLNAME:-Super Administrateur}
-      PP_REMOTE_API_URL: ${PP_REMOTE_API_URL:-}
+      PP_REMOTE_API_URL: ${PP_REMOTE_API_URL:-http://admin_service:3005}
+      PP_REMOTE_USERNAME: ${PP_REMOTE_USERNAME:-admin}
+      PP_REMOTE_PASSWORD: ${PP_REMOTE_PASSWORD:-}
+      PP_AUTH_ENDPOINT: ${PP_AUTH_ENDPOINT:-/auth/login}
       SYNC_INTERVAL_MS: ${SYNC_INTERVAL_MS:-600000}
       SYNC_ENABLED: ${SYNC_ENABLED:-true}
     healthcheck:
@@ -51,6 +54,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - default
+      - backend
     restart: unless-stopped
 
   # ─── Frontend (React → Nginx) ──────────────────────────────
@@ -72,6 +78,10 @@ services:
       retries: 10
       start_period: 10s
     restart: unless-stopped
+
+networks:
+  backend:
+    external: true
 
 volumes:
   pgdata:

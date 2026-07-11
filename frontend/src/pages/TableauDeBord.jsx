@@ -389,7 +389,7 @@ export default function TableauDeBord() {
         <div className="header-left">
           <div>
             <h1 className="dgi-page__title">Tableau de Bord</h1>
-            <p className="dgi-page__sub">Plateforme de recettes publiques — Statistiques & Analytiques</p>
+            <p className="dgi-page__sub">Plateforme de recettes non fiscales — Statistiques & Analytiques</p>
           </div>
         </div>
         <div className="header-right">

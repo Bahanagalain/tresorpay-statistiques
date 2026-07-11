@@ -477,6 +477,10 @@
   border-radius: 4px;
   object-fit: contain;
 }
+.lp-partners img.lp-partner-main {
+  height: 46px;
+  filter: grayscale(0);
+}
 .lp-partners img:hover {
   filter: grayscale(0);
   transform: scale(1.1);

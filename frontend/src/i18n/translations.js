@@ -32,17 +32,17 @@ const translations = {
 
     // ── Login ──
     login: {
-      title: 'Statistiques',
-      accent: 'FISCALITÉ LOCALE',
-      desc: "Supervision en temps réel des recettes fiscales, pilotage des avis d'imposition et tableau de bord stratégique.",
-      accessRestricted: 'Accès réservé aux agents autorisés MINFI',
+      title: 'TresorPay',
+      accent: 'RECETTES NON FISCALES',
+      desc: "Supervision en temps réel des recettes non fiscales, suivi des paiements et tableau de bord stratégique de la DGTCFM.",
+      accessRestricted: 'Accès réservé aux agents autorisés DGTCFM',
       loginPlaceholder: 'Login',
       passwordPlaceholder: 'Mot de passe',
       submit: 'Accéder au Portail',
       connecting: 'Connexion sécurisée…',
       success: 'Connexion réussie',
       failure: 'Échec de la connexion',
-      footer: 'Infrastructure Sécurisée MINFI © 2026',
+      footer: 'Direction Générale du Trésor — MINFI © 2026',
       lightMode: 'Mode clair',
       darkMode: 'Mode sombre',
       tooManyAttempts: 'Trop de tentatives. Réessayez dans',
@@ -53,8 +53,8 @@ const translations = {
     sidebar: {
       dashboard: 'Tableau de Bord',
       analysis: 'ANALYSE',
-      perfCdi: 'Performance CDIs',
-      fiscalDist: 'Répartition Fiscale',
+      perfCdi: 'Performance Ministères',
+      fiscalDist: 'Répartition Recettes',
       cartography: 'Cartographie',
       taxpayers: 'Contribuables',
       operations: 'OPÉRATIONS',
@@ -108,10 +108,10 @@ const translations = {
       evolution: 'Évolution du Recouvrement',
     },
 
-    // ── DGI Statistiques ──
+    // ── Statistiques ──
     dgi: {
-      title: 'Statistiques DGI',
-      subtitle: "Direction Générale des Impôts — Avis d'imposition & recouvrement fiscal",
+      title: 'Statistiques RNF',
+      subtitle: "Direction Générale du Trésor — Recettes non fiscales & recouvrement",
       tabs: {
         overview: 'Aperçu Stratégique',
         cdiAnalysis: 'Analyse Centres CDI',
@@ -528,17 +528,17 @@ const translations = {
 
     // ── Login ──
     login: {
-      title: 'Statistics',
-      accent: 'LOCAL TAXATION',
-      desc: 'Real-time monitoring of tax revenues, tax notice management and strategic dashboard.',
-      accessRestricted: 'Access restricted to authorized MINFI agents',
+      title: 'TresorPay',
+      accent: 'NON-TAX REVENUE',
+      desc: 'Real-time monitoring of non-tax revenues, payment tracking and DGTCFM strategic dashboard.',
+      accessRestricted: 'Access restricted to authorized DGTCFM agents',
       loginPlaceholder: 'Login',
       passwordPlaceholder: 'Password',
       submit: 'Access Portal',
       connecting: 'Secure connection…',
       success: 'Login successful',
       failure: 'Login failed',
-      footer: 'MINFI Secured Infrastructure © 2026',
+      footer: 'General Directorate of the Treasury — MINFI © 2026',
       lightMode: 'Light mode',
       darkMode: 'Dark mode',
       tooManyAttempts: 'Too many attempts. Try again in',
@@ -604,10 +604,10 @@ const translations = {
       evolution: 'Recovery Evolution',
     },
 
-    // ── DGI Statistiques ──
+    // ── Statistics ──
     dgi: {
-      title: 'DGI Statistics',
-      subtitle: 'General Directorate of Taxes — Tax notices & fiscal recovery',
+      title: 'NTR Statistics',
+      subtitle: 'General Directorate of the Treasury — Non-tax revenue & collection',
       tabs: {
         overview: 'Strategic Overview',
         cdiAnalysis: 'CDI Center Analysis',

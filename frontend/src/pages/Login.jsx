@@ -53,11 +53,11 @@ function FlowingLines() {
     window.addEventListener('resize', resize);
 
     const LINES = [
-      { color: '#16a34a', speed: 0.7,  amplitude: 22, phase: 0,   yBase: 0.30, width: 2.2, dashLen: 18, gapLen: 10 },
-      { color: '#dc2626', speed: 0.50, amplitude: 18, phase: 2.1, yBase: 0.50, width: 2.0, dashLen: 22, gapLen: 14 },
-      { color: '#D97706', speed: 0.65, amplitude: 25, phase: 4.2, yBase: 0.70, width: 1.8, dashLen: 14, gapLen: 8  },
-      { color: '#16a34a', speed: 0.40, amplitude: 12, phase: 1.0, yBase: 0.18, width: 1.4, dashLen: 8,  gapLen: 18 },
-      { color: '#dc2626', speed: 0.85, amplitude: 16, phase: 3.3, yBase: 0.85, width: 1.3, dashLen: 20, gapLen: 12 },
+      { color: '#2563eb', speed: 0.7,  amplitude: 22, phase: 0,   yBase: 0.30, width: 2.2, dashLen: 18, gapLen: 10 },
+      { color: '#D97706', speed: 0.50, amplitude: 18, phase: 2.1, yBase: 0.50, width: 2.0, dashLen: 22, gapLen: 14 },
+      { color: '#0d9488', speed: 0.65, amplitude: 25, phase: 4.2, yBase: 0.70, width: 1.8, dashLen: 14, gapLen: 8  },
+      { color: '#2563eb', speed: 0.40, amplitude: 12, phase: 1.0, yBase: 0.18, width: 1.4, dashLen: 8,  gapLen: 18 },
+      { color: '#0d9488', speed: 0.85, amplitude: 16, phase: 3.3, yBase: 0.85, width: 1.3, dashLen: 20, gapLen: 12 },
       { color: '#fbbf24', speed: 0.55, amplitude: 20, phase: 5.1, yBase: 0.60, width: 2.0, dashLen: 16, gapLen: 9  },
     ];
 
@@ -182,9 +182,7 @@ export default function Login() {
           <span className="lp-partners-label">Projet porté par :</span>
           <div className="lp-partners">
             <img src="/images/logo-cameroun.png" alt="Cameroun" title="République du Cameroun" />
-            <img src="/images/Logo_DGI_Cameroun.png" alt="DGI" title="Direction Générale des Impôts" />
-            <img src="/images/logo-dgtcfm.png" alt="DGTCFM" title="Direction Générale du Trésor" />
-            <img src="/images/logo douane.png" alt="DGD" title="Direction Générale des Douanes" />
+            <img src="/images/logo-dgtcfm.png" alt="DGTCFM" title="Direction Générale du Trésor, de la Coopération Financière et Monétaire" className="lp-partner-main" />
           </div>
         </div>
 

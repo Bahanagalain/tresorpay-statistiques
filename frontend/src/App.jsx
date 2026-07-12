@@ -17,9 +17,9 @@ import AuditActivite from './pages/AuditActivite';
 import Administration from './pages/Administration';
 import Parametres from './pages/Parametres';
 import ExplorateurDonnees from './pages/ExplorateurDonnees';
-import DashboardList from './pages/bi/DashboardList';
-import DashboardBuilder from './pages/bi/DashboardBuilder';
-import IndicateurBuilder from './pages/bi/IndicateurBuilder';
+const DashboardList = React.lazy(() => import('./pages/bi/DashboardList'));
+const DashboardBuilder = React.lazy(() => import('./pages/bi/DashboardBuilder'));
+const IndicateurBuilder = React.lazy(() => import('./pages/bi/IndicateurBuilder'));
 
 function getRouterBasename() {
   const rawBasePath = import.meta.env.VITE_APP_BASE_PATH || '/';
@@ -48,9 +48,9 @@ function App() {
           <Route path="journal-soumissions" element={<GenerationRapports />} />
           <Route path="rapports" element={<GenerationRapports />} />
 
-          <Route path="bi/dashboards" element={<DashboardList />} />
-          <Route path="bi/dashboards/:id" element={<DashboardBuilder />} />
-          <Route path="bi/indicateurs" element={<IndicateurBuilder />} />
+          <Route path="bi/dashboards" element={<React.Suspense fallback={<div style={{padding:'2rem'}}>Chargement...</div>}><DashboardList /></React.Suspense>} />
+          <Route path="bi/dashboards/:id" element={<React.Suspense fallback={<div style={{padding:'2rem'}}>Chargement...</div>}><DashboardBuilder /></React.Suspense>} />
+          <Route path="bi/indicateurs" element={<React.Suspense fallback={<div style={{padding:'2rem'}}>Chargement...</div>}><IndicateurBuilder /></React.Suspense>} />
 
           <Route path="synchronisation" element={<SuperAdminRoute><Synchronisation /></SuperAdminRoute>} />
           <Route path="audit" element={<SuperAdminRoute><AuditActivite /></SuperAdminRoute>} />

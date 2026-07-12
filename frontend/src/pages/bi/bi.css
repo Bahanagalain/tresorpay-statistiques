@@ -1069,3 +1069,192 @@
 .bi-btn-icon:hover {
   background: var(--bg-hover, #f3f4f6);
 }
+
+/* ─── Sujet d'étude grid ─── */
+.bi-sujet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.bi-sujet-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--card-bg, #fff);
+}
+
+.bi-sujet-item:hover {
+  border-color: var(--primary, #2563eb);
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.bi-sujet-item.selected {
+  background: var(--primary, #2563eb);
+  color: #fff;
+  border-color: var(--primary, #2563eb);
+}
+
+.bi-sujet-item.selected svg {
+  color: #fff;
+}
+
+/* ─── Searchable Select ─── */
+.bi-searchable-select {
+  position: relative;
+}
+
+.bi-searchable-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  min-height: 34px;
+}
+
+.bi-searchable-select-trigger.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bi-searchable-select-placeholder {
+  color: #9ca3af;
+}
+
+.bi-searchable-select-value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bi-searchable-select-chevron {
+  flex-shrink: 0;
+  color: #9ca3af;
+}
+
+.bi-searchable-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  max-height: 240px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bi-searchable-select-search {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.bi-searchable-select-search input {
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 0.82rem;
+  background: transparent;
+  color: inherit;
+}
+
+.bi-searchable-select-search svg {
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.bi-searchable-select-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.bi-searchable-select-option {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.bi-searchable-select-option:hover {
+  background: var(--bg-muted, #f3f4f6);
+}
+
+.bi-searchable-select-option.selected {
+  background: rgba(37, 99, 235, 0.08);
+  font-weight: 600;
+  color: var(--primary, #2563eb);
+}
+
+.bi-searchable-select-empty {
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  text-align: center;
+}
+
+/* ─── Mesures checkboxes ─── */
+.bi-mesures-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.bi-mesure-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0.3rem 0;
+}
+
+.bi-mesure-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary, #2563eb);
+  cursor: pointer;
+}
+
+/* ─── Granularite grid ─── */
+.bi-granularite-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* ─── Editor sub-fields ─── */
+.bi-editor-sub-fields {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Editor preview empty state ─── */
+.bi-editor-preview-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.bi-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

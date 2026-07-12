@@ -709,3 +709,19 @@ model JournalSync {
   @@index([executeLe])
   @@map("journal_sync")
 }
+
+// ─── Webhook Inbox (idempotence + traçabilité) ─────────────────────────
+model WebhookInbox {
+  id            String   @id @db.VarChar(60)
+  eventType     String   @map("event_type") @db.VarChar(100)
+  aggregateType String   @map("aggregate_type") @db.VarChar(60)
+  aggregateId   String   @map("aggregate_id") @db.VarChar(60)
+  payload       Json
+  status        String   @default("PROCESSED") @db.VarChar(20)
+  errorMessage  String?  @map("error_message") @db.VarChar(500)
+  processedAt   DateTime @default(now()) @map("processed_at") @db.Timestamptz()
+
+  @@index([eventType])
+  @@index([processedAt])
+  @@map("webhook_inbox")
+}

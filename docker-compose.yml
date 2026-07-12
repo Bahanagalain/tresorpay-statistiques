@@ -44,8 +44,10 @@ services:
       PP_REMOTE_USERNAME: ${PP_REMOTE_USERNAME:-admin}
       PP_REMOTE_PASSWORD: ${PP_REMOTE_PASSWORD:-}
       PP_AUTH_ENDPOINT: ${PP_AUTH_ENDPOINT:-/auth/login}
-      SYNC_INTERVAL_MS: ${SYNC_INTERVAL_MS:-600000}
+      SYNC_INTERVAL_MS: ${SYNC_INTERVAL_MS:-86400000}
       SYNC_ENABLED: ${SYNC_ENABLED:-true}
+      # Webhook (réception events du PP en temps réel)
+      WEBHOOK_SECRET: ${WEBHOOK_OUTBOX_SECRET:-tresorpay-webhook-2026-secret}
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:3002/sante | grep -q '\"statut\":\"ok\"'"]
       interval: 15s

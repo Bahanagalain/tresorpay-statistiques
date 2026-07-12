@@ -17,6 +17,8 @@ import AuditActivite from './pages/AuditActivite';
 import Administration from './pages/Administration';
 import Parametres from './pages/Parametres';
 import ExplorateurDonnees from './pages/ExplorateurDonnees';
+import DashboardList from './pages/bi/DashboardList';
+import DashboardBuilder from './pages/bi/DashboardBuilder';
 
 function getRouterBasename() {
   const rawBasePath = import.meta.env.VITE_APP_BASE_PATH || '/';
@@ -44,6 +46,9 @@ function App() {
           <Route path="alertes" element={<AlertesAnomalies />} />
           <Route path="journal-soumissions" element={<GenerationRapports />} />
           <Route path="rapports" element={<GenerationRapports />} />
+
+          <Route path="bi/dashboards" element={<DashboardList />} />
+          <Route path="bi/dashboards/:id" element={<DashboardBuilder />} />
 
           <Route path="synchronisation" element={<SuperAdminRoute><Synchronisation /></SuperAdminRoute>} />
           <Route path="audit" element={<SuperAdminRoute><AuditActivite /></SuperAdminRoute>} />

@@ -1,0 +1,544 @@
+/* ═══════════════════════════════════════════════════════════════
+   BI Self-Service — Styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Dashboard List ─── */
+.bi-dashboard-list {
+  padding: 2rem;
+}
+
+.bi-dashboard-list h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bi-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.bi-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.1rem;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.bi-btn-primary:hover {
+  background: var(--primary-hover, #1d4ed8);
+}
+
+.bi-dashboards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.bi-dashboard-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: box-shadow 0.2s, transform 0.15s;
+  cursor: pointer;
+  position: relative;
+}
+
+.bi-dashboard-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.bi-dashboard-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.bi-dashboard-card .bi-card-meta {
+  font-size: 0.78rem;
+  color: var(--text-tertiary, #6b7280);
+  margin-bottom: 0.75rem;
+}
+
+.bi-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.bi-dashboard-card:hover .bi-card-actions {
+  opacity: 1;
+}
+
+.bi-card-actions button {
+  background: var(--bg-muted, #f3f4f6);
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-secondary, #4b5563);
+  transition: background 0.15s;
+}
+
+.bi-card-actions button:hover {
+  background: var(--border, #e5e7eb);
+}
+
+.bi-card-actions button.danger:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* ─── Dashboard Builder ─── */
+.bi-builder {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: calc(100vh - 60px);
+}
+
+.bi-builder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: var(--card-bg, #fff);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bi-builder-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  min-width: 200px;
+}
+
+.bi-builder-title:focus {
+  background: var(--bg-muted, #f3f4f6);
+}
+
+.bi-builder-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bi-builder-body {
+  flex: 1;
+  padding: 1.25rem;
+  background: var(--bg-muted, #f8f9fb);
+  overflow-y: auto;
+}
+
+.bi-grid-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--text-tertiary, #9ca3af);
+  font-size: 0.9rem;
+}
+
+.bi-grid-empty svg {
+  margin-bottom: 0.75rem;
+  opacity: 0.5;
+}
+
+/* ─── Widget Card ─── */
+.bi-widget-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+.bi-widget-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  min-height: 38px;
+}
+
+.bi-widget-card-header h4 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bi-widget-card-header .bi-widget-actions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.bi-widget-card:hover .bi-widget-actions {
+  opacity: 1;
+}
+
+.bi-widget-actions button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 4px;
+  color: var(--text-secondary, #6b7280);
+  display: inline-flex;
+}
+
+.bi-widget-actions button:hover {
+  background: var(--bg-muted, #f3f4f6);
+}
+
+.bi-widget-actions button.danger:hover {
+  color: #dc2626;
+}
+
+.bi-widget-card-body {
+  flex: 1;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* ─── Widget Editor Modal ─── */
+.bi-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.bi-editor-panel {
+  width: min(800px, 90vw);
+  background: var(--card-bg, #fff);
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.25s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.bi-editor-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.bi-editor-panel-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.bi-editor-panel-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.bi-editor-config {
+  flex: 1;
+  padding: 1.25rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--border, #e5e7eb);
+}
+
+.bi-editor-preview {
+  width: 320px;
+  padding: 1rem;
+  background: var(--bg-muted, #f8f9fb);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.bi-editor-preview h3 {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text-tertiary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bi-editor-step {
+  margin-bottom: 1.5rem;
+}
+
+.bi-editor-step h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+  color: var(--text-secondary, #374151);
+}
+
+.bi-editor-panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+/* ─── Chart Type Selector ─── */
+.bi-chart-type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+}
+
+.bi-chart-type-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.75rem 0.5rem;
+  border: 2px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary, #6b7280);
+}
+
+.bi-chart-type-item:hover {
+  border-color: var(--primary, #2563eb);
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.bi-chart-type-item.selected {
+  border-color: var(--primary, #2563eb);
+  background: rgba(37, 99, 235, 0.06);
+  color: var(--primary, #2563eb);
+}
+
+/* ─── Filter Bar ─── */
+.bi-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--card-bg, #fff);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  flex-wrap: wrap;
+}
+
+.bi-filter-bar select {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  background: var(--card-bg, #fff);
+  color: var(--text-primary, #1f2937);
+}
+
+/* ─── KPI Card ─── */
+.bi-kpi-card {
+  text-align: center;
+  padding: 1rem;
+}
+
+.bi-kpi-card .bi-kpi-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--primary, #2563eb);
+  line-height: 1.1;
+}
+
+.bi-kpi-card .bi-kpi-label {
+  font-size: 0.78rem;
+  color: var(--text-tertiary, #6b7280);
+  margin-top: 0.35rem;
+  font-weight: 500;
+}
+
+/* ─── Create Modal ─── */
+.bi-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bi-modal {
+  background: var(--card-bg, #fff);
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: min(440px, 90vw);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.bi-modal h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.bi-modal label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+  color: var(--text-secondary, #374151);
+}
+
+.bi-modal input,
+.bi-modal textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 0.85rem;
+  font-family: inherit;
+}
+
+.bi-modal textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+
+.bi-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.bi-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  background: var(--bg-muted, #f3f4f6);
+  color: var(--text-primary, #1f2937);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  font-size: 0.83rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bi-btn-secondary:hover {
+  background: var(--border, #e5e7eb);
+}
+
+/* ─── Pill/Chip selectors ─── */
+.bi-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.bi-pill {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--card-bg, #fff);
+}
+
+.bi-pill.active {
+  background: var(--primary, #2563eb);
+  color: #fff;
+  border-color: var(--primary, #2563eb);
+}
+
+/* ─── Simple Table ─── */
+.bi-simple-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.bi-simple-table th,
+.bi-simple-table td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  text-align: left;
+}
+
+.bi-simple-table th {
+  font-weight: 600;
+  background: var(--bg-muted, #f8f9fb);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .bi-dashboards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bi-editor-panel {
+    width: 100vw;
+  }
+
+  .bi-editor-panel-body {
+    flex-direction: column;
+  }
+
+  .bi-editor-preview {
+    width: 100%;
+    border-right: none;
+    border-top: 1px solid var(--border, #e5e7eb);
+  }
+
+  .bi-chart-type-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .bi-builder-header {
+    padding: 0.75rem 1rem;
+  }
+}

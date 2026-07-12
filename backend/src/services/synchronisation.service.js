@@ -292,32 +292,32 @@ async function syncEntite(nom, endpoint, processItem) {
 // SYNC PAR ENTITE
 // ═══════════════════════════════════════════════════════════════
 
+/** Tronque une string à maxLen chars (ou null si vide) */
+function tronquer(val, maxLen) {
+  if (!val) return null;
+  return String(val).substring(0, maxLen);
+}
+
 async function syncMinisteres() {
   return syncEntiteAuto('Ministeres', '/ministries', '/ministries/public', async (m) => {
-    // Code tronqué à 30 chars max (contrainte VarChar(30))
-    const rawCode = m.code || m.shortName || m.id.substring(0, 30);
-    const code = rawCode.substring(0, 30);
+    const code = tronquer(m.code || m.shortName || m.id, 30);
+    const nomFr = tronquer(m.nameFr || m.name, 200) || '';
+    const nomEn = tronquer(m.nameEn, 200);
+    const shortName = tronquer(m.shortName, 30);
+    const icon = tronquer(m.icon, 50);
+    const couleur = tronquer(m.color, 20);
+
     await prisma.ministere.upsert({
       where: { id: m.id },
       create: {
         id: m.id,
-        code,
-        nomFr: m.nameFr || m.name || '',
-        nomEn: m.nameEn || null,
-        shortName: m.shortName || null,
-        icon: m.icon || null,
-        couleur: m.color || null,
+        code, nomFr, nomEn, shortName, icon, couleur,
         estActif: m.isActive !== false,
         sortIndex: m.sortIndex || 0,
         synchroniseLe: new Date(),
       },
       update: {
-        code,
-        nomFr: m.nameFr || m.name || undefined,
-        nomEn: m.nameEn || null,
-        shortName: m.shortName || null,
-        icon: m.icon || null,
-        couleur: m.color || null,
+        code, nomFr: nomFr || undefined, nomEn, shortName, icon, couleur,
         estActif: m.isActive !== false,
         sortIndex: m.sortIndex || 0,
         synchroniseLe: new Date(),

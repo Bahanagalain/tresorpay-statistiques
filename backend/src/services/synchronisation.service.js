@@ -1290,6 +1290,75 @@ const TABLES_PURGEABLES = {
   ministeres: 'ministere',
 };
 
+// ═══════════════════════════════════════════════════════════════
+// REPARATION FK SOUMISSIONS
+// ═══════════════════════════════════════════════════════════════
+
+export async function reparerFkSoumissions() {
+  const debut = Date.now();
+  console.log('[REPAIR] Réparation FK soumissions — début');
+
+  // Charger la table de mapping formulaire → service (depuis champs_formulaire locaux)
+  const champs = await prisma.champFormulaire.findMany({
+    where: { serviceId: { not: null } },
+    select: { formulaireId: true, serviceId: true },
+    distinct: ['formulaireId'],
+  });
+  const formToService = new Map();
+  for (const c of champs) {
+    if (c.formulaireId && c.serviceId) formToService.set(c.formulaireId, c.serviceId);
+  }
+
+  // Charger les services locaux avec leurs FK
+  const services = await prisma.serviceGouv.findMany({
+    select: { id: true, ministereId: true, domaineId: true, orgUnitId: true },
+  });
+  const svcMap = new Map(services.map(s => [s.id, s]));
+
+  // Charger les soumissions avec FK manquantes
+  const soumissions = await prisma.soumission.findMany({
+    where: {
+      OR: [
+        { serviceId: null },
+        { ministereId: null },
+      ],
+    },
+    select: { id: true, formulaireId: true, serviceId: true, ministereId: true, domaineId: true, orgUnitId: true },
+  });
+
+  let repaired = 0;
+  for (const sub of soumissions) {
+    const updates = {};
+
+    // Résoudre serviceId via formulaireId
+    let serviceId = sub.serviceId;
+    if (!serviceId && sub.formulaireId) {
+      serviceId = formToService.get(sub.formulaireId) || null;
+      if (serviceId) updates.serviceId = serviceId;
+    }
+
+    // Résoudre ministereId/domaineId via service
+    if (serviceId) {
+      const svc = svcMap.get(serviceId);
+      if (svc) {
+        if (!sub.ministereId && svc.ministereId) updates.ministereId = svc.ministereId;
+        if (!sub.domaineId && svc.domaineId) updates.domaineId = svc.domaineId;
+        if (!sub.orgUnitId && svc.orgUnitId) updates.orgUnitId = svc.orgUnitId;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.soumission.update({ where: { id: sub.id }, data: updates });
+      repaired++;
+    }
+  }
+
+  const dureeMs = Date.now() - debut;
+  console.log(`[REPAIR] ${repaired}/${soumissions.length} soumissions réparées en ${dureeMs}ms`);
+  await logSync('REPAIR_FK', 'SUCCES', repaired, dureeMs);
+  return { repaired, total: soumissions.length, dureeMs };
+}
+
 export async function purgerDonnees(entites = null) {
   const tablesToPurge = entites && entites.length > 0
     ? entites.filter(e => TABLES_PURGEABLES[e])

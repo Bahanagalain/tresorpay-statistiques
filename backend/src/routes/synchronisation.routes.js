@@ -1,4 +1,4 @@
-import { lancerSynchronisationComplete, getEtatSync, purgerDonnees, verifierDisponibilitePP, PP_API_URL } from '../services/synchronisation.service.js';
+import { lancerSynchronisationComplete, getEtatSync, purgerDonnees, verifierDisponibilitePP, PP_API_URL, reparerFkSoumissions } from '../services/synchronisation.service.js';
 import prisma from '../config/prisma.js';
 
 export default async function synchronisationRoutes(fastify) {
@@ -178,6 +178,20 @@ export default async function synchronisationRoutes(fastify) {
         syncEnCours: etat.enCours,
       },
     };
+  });
+
+  // ─── POST /sync/reparer-fk ─────────────────────────────────────────
+
+  fastify.post('/reparer-fk', {
+    schema: {
+      tags: ['Synchronisation'],
+      summary: 'Réparer les FK manquantes sur les soumissions',
+      security: [{ bearerAuth: [] }],
+    },
+    preHandler: [fastify.exigerSuperAdmin],
+  }, async () => {
+    const resultat = await reparerFkSoumissions();
+    return { message: 'Réparation terminée', datas: resultat };
   });
 
   // ─── POST /sync/purger ────────────────────────────────────────────

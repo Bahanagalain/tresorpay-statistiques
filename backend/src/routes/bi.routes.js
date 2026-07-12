@@ -102,7 +102,7 @@ export default async function biRoutes(fastify) {
   fastify.get('/dashboards', {
     schema: { tags: ['BI'], summary: 'Liste des dashboards accessibles' },
   }, async (request) => {
-    const userId = request.utilisateurId;
+    const userId = request.utilisateur.id;
 
     const dashboards = await prisma.biDashboard.findMany({
       where: {
@@ -143,7 +143,7 @@ export default async function biRoutes(fastify) {
         titre,
         description: description || null,
         visibilite: visibilite || 'PRIVE',
-        proprietaireId: request.utilisateurId,
+        proprietaireId: request.utilisateur.id,
       },
     });
     return { message: 'Dashboard créé', datas: dashboard };
@@ -233,7 +233,7 @@ export default async function biRoutes(fastify) {
         layoutConfig: source.layoutConfig,
         filtresGlobaux: source.filtresGlobaux,
         themeConfig: source.themeConfig,
-        proprietaireId: request.utilisateurId,
+        proprietaireId: request.utilisateur.id,
         widgets: {
           create: source.widgets.map(w => ({
             datasetId: w.datasetId,
@@ -364,7 +364,7 @@ export default async function biRoutes(fastify) {
         estActif: true,
         OR: [
           { estSysteme: true },
-          { createurId: request.utilisateurId },
+          { createurId: request.utilisateur.id },
         ],
       },
       include: { dataset: { select: { code: true, libelle: true } } },
@@ -395,7 +395,7 @@ export default async function biRoutes(fastify) {
     },
   }, async (request) => {
     const indicateur = await prisma.biIndicateur.create({
-      data: { ...request.body, createurId: request.utilisateurId },
+      data: { ...request.body, createurId: request.utilisateur.id },
     });
     return { message: 'Indicateur créé', datas: indicateur };
   });

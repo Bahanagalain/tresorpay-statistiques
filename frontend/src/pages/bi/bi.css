@@ -1020,3 +1020,52 @@
     position: static;
   }
 }
+
+/* ─── Shared form elements ─── */
+
+.bi-input {
+  width: 100%;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: var(--bg-card, #fff);
+  color: inherit;
+}
+.bi-input:focus {
+  outline: none;
+  border-color: var(--primary, #6366f1);
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
+}
+.bi-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  color: var(--text, #374151);
+}
+.bi-hint {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin-top: 0.3rem;
+}
+.bi-dim-section-label {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  margin-bottom: 0.3rem;
+}
+.bi-btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--text-muted, #6b7280);
+}
+.bi-btn-icon:hover {
+  background: var(--bg-hover, #f3f4f6);
+}

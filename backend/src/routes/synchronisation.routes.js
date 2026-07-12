@@ -1,4 +1,4 @@
-import { lancerSynchronisationComplete, getEtatSync, purgerDonnees } from '../services/synchronisation.service.js';
+import { lancerSynchronisationComplete, getEtatSync, purgerDonnees, verifierDisponibilitePP, PP_API_URL } from '../services/synchronisation.service.js';
 import prisma from '../config/prisma.js';
 
 export default async function synchronisationRoutes(fastify) {
@@ -135,6 +135,49 @@ export default async function synchronisationRoutes(fastify) {
     });
 
     return { message: 'Configuration mise à jour', datas: config };
+  });
+
+  // ─── GET /sync/sante ──────────────────────────────────────────────
+
+  fastify.get('/sante', {
+    schema: {
+      tags: ['Synchronisation'],
+      summary: 'Santé de la synchronisation — health check PP + échecs consécutifs',
+      security: [{ bearerAuth: [] }],
+    },
+  }, async () => {
+    const etat = getEtatSync();
+    const ppDisponible = await verifierDisponibilitePP();
+
+    // Dernière sync réussie
+    let derniereSyncReussie = null;
+    try {
+      const config = await prisma.configSync.findUnique({ where: { id: 1 } });
+      derniereSyncReussie = config?.derniereSyncComplete || null;
+    } catch { /* ignore */ }
+
+    // Calculer "fraîcheur" — temps depuis la dernière sync réussie
+    const fraicheurMs = derniereSyncReussie ? Date.now() - new Date(derniereSyncReussie).getTime() : null;
+    const SEUIL_ALERTE_MS = 30 * 60 * 1000; // 30 minutes sans sync = alerte
+
+    const sante = fraicheurMs === null ? 'INCONNU'
+      : (!ppDisponible || etat.echecsConsecutifs >= 3) ? 'CRITIQUE'
+      : (fraicheurMs > SEUIL_ALERTE_MS || etat.echecsConsecutifs >= 1) ? 'DEGRADE'
+      : 'OK';
+
+    return {
+      datas: {
+        sante,
+        ppDisponible,
+        ppUrl: PP_API_URL,
+        echecsConsecutifs: etat.echecsConsecutifs,
+        dernierSucces: etat.dernierSucces,
+        dernierEchec: etat.dernierEchec,
+        derniereSyncReussie,
+        fraicheurMinutes: fraicheurMs ? Math.round(fraicheurMs / 60000) : null,
+        syncEnCours: etat.enCours,
+      },
+    };
   });
 
   // ─── POST /sync/purger ────────────────────────────────────────────

@@ -19,10 +19,71 @@ const etatSync = {
   etapeCourante: null,
   debutLe: null,
   dernierResultat: null,
+  // Suivi fiabilité
+  echecsConsecutifs: 0,
+  dernierSucces: null,
+  dernierEchec: null,
+  ppDisponible: null,
 };
 
 export function getEtatSync() {
   return { ...etatSync };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HEALTH CHECK & RETRY
+// ═══════════════════════════════════════════════════════════════
+
+const MAX_RETRIES = 3;
+const BACKOFF_BASE_MS = 2000; // 2s, 4s, 8s
+
+/** Vérifie que le payment-platform est joignable */
+export async function verifierDisponibilitePP() {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(`${PP_API_URL}/health`, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    clearTimeout(timeout);
+    etatSync.ppDisponible = response.ok;
+    return response.ok;
+  } catch {
+    // Fallback: essayer un GET simple sur l'API
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(`${PP_API_URL}/ministries/public`, {
+        signal: controller.signal,
+        headers: { Accept: 'application/json' },
+      });
+      clearTimeout(timeout);
+      etatSync.ppDisponible = response.ok;
+      return response.ok;
+    } catch {
+      etatSync.ppDisponible = false;
+      return false;
+    }
+  }
+}
+
+/** Exécute une fonction avec retry et backoff exponentiel */
+async function avecRetry(fn, contexte = '') {
+  let dernierErreur;
+  for (let tentative = 0; tentative < MAX_RETRIES; tentative++) {
+    try {
+      return await fn();
+    } catch (err) {
+      dernierErreur = err;
+      if (tentative < MAX_RETRIES - 1) {
+        const delai = BACKOFF_BASE_MS * Math.pow(2, tentative);
+        console.warn(`[SYNC] ${contexte} — tentative ${tentative + 1}/${MAX_RETRIES} echouee, retry dans ${delai}ms: ${err.message}`);
+        await new Promise(r => setTimeout(r, delai));
+      }
+    }
+  }
+  throw dernierErreur;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -60,7 +121,7 @@ async function authentifierPP() {
   }
 }
 
-async function requetePP(path) {
+async function requetePPBrute(path) {
   if (!cachedToken) {
     cachedToken = await authentifierPP();
   }
@@ -83,6 +144,10 @@ async function requetePP(path) {
   }
 
   return response.json();
+}
+
+async function requetePP(path) {
+  return avecRetry(() => requetePPBrute(path), `GET ${path}`);
 }
 
 /** Requete sans auth — pour les endpoints publics */
@@ -895,8 +960,25 @@ function resolveStatutPaiement(submission) {
 async function syncSoumissions() {
   const debut = Date.now();
   try {
-    const data = await requetePP('/form-submissions');
-    const items = normalizeArray(data);
+    // Sync incrémentale : ne tirer que les soumissions modifiées depuis la dernière sync réussie
+    let updatedSinceParam = '';
+    try {
+      const dernierLog = await prisma.journalSync.findFirst({
+        where: { endpoint: '/form-submissions', statut: 'SUCCES' },
+        orderBy: { executeLe: 'desc' },
+      });
+      if (dernierLog?.executeLe) {
+        // Marge de sécurité de 5 minutes pour couvrir les latences
+        const since = new Date(dernierLog.executeLe.getTime() - 5 * 60 * 1000);
+        updatedSinceParam = `?updatedSince=${since.toISOString()}&limit=0`;
+      }
+    } catch {
+      // Si erreur, on fait un full sync (pas de param)
+    }
+
+    const endpoint = `/form-submissions${updatedSinceParam || ''}`;
+    const data = await requetePP(endpoint);
+    const items = normalizeArray(data?.data || data);
 
     // Pre-charger les forms pour resolution formId -> serviceId
     let formsMap = {};
@@ -1045,7 +1127,8 @@ async function syncSoumissions() {
     }
 
     const dureeMs = Date.now() - debut;
-    console.log(`[SYNC] Soumissions: ${count} en ${dureeMs}ms`);
+    const mode = updatedSinceParam ? 'incremental' : 'full';
+    console.log(`[SYNC] Soumissions (${mode}): ${count} en ${dureeMs}ms`);
     await logSync('/form-submissions', 'SUCCES', count, dureeMs);
     return count;
   } catch (err) {
@@ -1084,6 +1167,21 @@ export async function lancerSynchronisationComplete() {
     return { skipped: true, message: 'Synchronisation deja en cours' };
   }
 
+  // ── Health check : vérifier que le PP est joignable ──
+  const ppOk = await verifierDisponibilitePP();
+  if (!ppOk) {
+    etatSync.echecsConsecutifs++;
+    etatSync.dernierEchec = new Date();
+    const msg = `Payment-platform injoignable (${PP_API_URL}) — echecs consecutifs: ${etatSync.echecsConsecutifs}`;
+    if (etatSync.echecsConsecutifs >= 3) {
+      console.error(`[SYNC] ⚠️  ALERTE: ${msg}`);
+    } else {
+      console.warn(`[SYNC] ${msg}`);
+    }
+    await logSync('HEALTH_CHECK', 'ECHEC', 0, 0, msg);
+    return { skipped: true, message: msg, echecsConsecutifs: etatSync.echecsConsecutifs };
+  }
+
   etatSync.enCours = true;
   etatSync.progression = 0;
   etatSync.debutLe = new Date();
@@ -1107,6 +1205,21 @@ export async function lancerSynchronisationComplete() {
 
   resultats.dureeMs = Date.now() - debutTotal;
 
+  // Évaluer succès global : au moins la moitié des étapes ont rapporté des données
+  const etapesReussies = ETAPES_SYNC.filter(e => (resultats[e.cle] || 0) > 0).length;
+  const syncReussie = etapesReussies > 0 && resultats.erreurs.length < ETAPES_SYNC.length / 2;
+
+  if (syncReussie) {
+    etatSync.echecsConsecutifs = 0;
+    etatSync.dernierSucces = new Date();
+  } else {
+    etatSync.echecsConsecutifs++;
+    etatSync.dernierEchec = new Date();
+    if (etatSync.echecsConsecutifs >= 3) {
+      console.error(`[SYNC] ⚠️  ALERTE: ${etatSync.echecsConsecutifs} echecs consecutifs — verifier la connexion au payment-platform`);
+    }
+  }
+
   // Mettre a jour ConfigSync
   try {
     await prisma.configSync.upsert({
@@ -1122,7 +1235,7 @@ export async function lancerSynchronisationComplete() {
   etatSync.dernierResultat = resultats;
 
   const resume = ETAPES_SYNC.map(e => `${e.nom}: ${resultats[e.cle] || 0}`).join(', ');
-  console.log(`[SYNC] ===== Fin: ${resultats.dureeMs}ms =====`);
+  console.log(`[SYNC] ===== Fin: ${resultats.dureeMs}ms — ${syncReussie ? 'SUCCES' : 'PARTIEL'} =====`);
   console.log(`[SYNC] ${resume}`);
   if (resultats.erreurs.length > 0) {
     console.warn('[SYNC] Erreurs:', resultats.erreurs.join('; '));

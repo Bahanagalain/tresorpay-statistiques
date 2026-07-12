@@ -217,30 +217,42 @@ async function existeLocalement(model, id) {
   return !!r;
 }
 
+/** Extrait un message d'erreur lisible (Prisma inclus) */
+function extraireMessageErreur(err) {
+  if (!err) return 'Erreur inconnue';
+  if (err.code === 'P2002') return `Contrainte unique violee: ${err.meta?.target || 'champ inconnu'}`;
+  if (err.code === 'P2000') return `Valeur trop longue: ${err.meta?.column_name || err.meta?.target || ''}`;
+  return err.message || String(err);
+}
+
 /** Wrapper generique de sync par entite (avec fallback public optionnel) */
 async function syncEntiteAuto(nom, endpoint, publicEndpoint, processItem) {
   const debut = Date.now();
   try {
     const data = await requetePPAuto(endpoint, publicEndpoint);
     const items = normalizeArray(data);
-    let count = 0;
+    let count = 0, errCount = 0;
     for (const item of items) {
       if (!item.id) continue;
       try {
         await processItem(item);
         count++;
       } catch (itemErr) {
-        console.warn(`[SYNC] ${nom}: erreur item ${item.id}:`, itemErr.message);
+        errCount++;
+        if (errCount <= 3) {
+          console.warn(`[SYNC] ${nom}: erreur item ${item.id}: ${extraireMessageErreur(itemErr)}`);
+        }
       }
     }
+    if (errCount > 3) console.warn(`[SYNC] ${nom}: ... et ${errCount - 3} autres erreurs`);
     const dureeMs = Date.now() - debut;
-    console.log(`[SYNC] ${nom}: ${count} en ${dureeMs}ms`);
+    console.log(`[SYNC] ${nom}: ${count}/${count + errCount} en ${dureeMs}ms`);
     await logSync(endpoint, 'SUCCES', count, dureeMs);
     return count;
   } catch (err) {
     const dureeMs = Date.now() - debut;
-    console.error(`[SYNC] Erreur ${nom}:`, err.message);
-    await logSync(endpoint, 'ECHEC', 0, dureeMs, err.message);
+    console.error(`[SYNC] Erreur ${nom}:`, extraireMessageErreur(err));
+    await logSync(endpoint, 'ECHEC', 0, dureeMs, extraireMessageErreur(err));
     return 0;
   }
 }
@@ -250,24 +262,28 @@ async function syncEntite(nom, endpoint, processItem) {
   try {
     const data = await requetePP(endpoint);
     const items = normalizeArray(data);
-    let count = 0;
+    let count = 0, errCount = 0;
     for (const item of items) {
       if (!item.id) continue;
       try {
         await processItem(item);
         count++;
       } catch (itemErr) {
-        console.warn(`[SYNC] ${nom}: erreur item ${item.id}:`, itemErr.message);
+        errCount++;
+        if (errCount <= 3) {
+          console.warn(`[SYNC] ${nom}: erreur item ${item.id}: ${extraireMessageErreur(itemErr)}`);
+        }
       }
     }
+    if (errCount > 3) console.warn(`[SYNC] ${nom}: ... et ${errCount - 3} autres erreurs`);
     const dureeMs = Date.now() - debut;
-    console.log(`[SYNC] ${nom}: ${count} en ${dureeMs}ms`);
+    console.log(`[SYNC] ${nom}: ${count}/${count + errCount} en ${dureeMs}ms`);
     await logSync(endpoint, 'SUCCES', count, dureeMs);
     return count;
   } catch (err) {
     const dureeMs = Date.now() - debut;
-    console.error(`[SYNC] Erreur ${nom}:`, err.message);
-    await logSync(endpoint, 'ECHEC', 0, dureeMs, err.message);
+    console.error(`[SYNC] Erreur ${nom}:`, extraireMessageErreur(err));
+    await logSync(endpoint, 'ECHEC', 0, dureeMs, extraireMessageErreur(err));
     return 0;
   }
 }
@@ -278,8 +294,9 @@ async function syncEntite(nom, endpoint, processItem) {
 
 async function syncMinisteres() {
   return syncEntiteAuto('Ministeres', '/ministries', '/ministries/public', async (m) => {
-    // Générer un code unique si absent — utilise le shortName ou les 30 premiers chars de l'ID
-    const code = m.code || m.shortName || m.id.substring(0, 30);
+    // Code tronqué à 30 chars max (contrainte VarChar(30))
+    const rawCode = m.code || m.shortName || m.id.substring(0, 30);
+    const code = rawCode.substring(0, 30);
     await prisma.ministere.upsert({
       where: { id: m.id },
       create: {
@@ -960,20 +977,23 @@ function resolveStatutPaiement(submission) {
 async function syncSoumissions() {
   const debut = Date.now();
   try {
-    // Sync incrémentale : ne tirer que les soumissions modifiées depuis la dernière sync réussie
+    // Sync incrémentale : seulement si on a déjà des soumissions en base locale
     let updatedSinceParam = '';
-    try {
-      const dernierLog = await prisma.journalSync.findFirst({
-        where: { endpoint: '/form-submissions', statut: 'SUCCES' },
-        orderBy: { executeLe: 'desc' },
-      });
-      if (dernierLog?.executeLe) {
-        // Marge de sécurité de 5 minutes pour couvrir les latences
-        const since = new Date(dernierLog.executeLe.getTime() - 5 * 60 * 1000);
-        updatedSinceParam = `?updatedSince=${since.toISOString()}&limit=0`;
+    const nbSoumissionsLocales = await prisma.soumission.count();
+    if (nbSoumissionsLocales > 0) {
+      try {
+        const dernierLog = await prisma.journalSync.findFirst({
+          where: { endpoint: '/form-submissions', statut: 'SUCCES' },
+          orderBy: { executeLe: 'desc' },
+        });
+        if (dernierLog?.executeLe) {
+          // Marge de sécurité de 5 minutes pour couvrir les latences
+          const since = new Date(dernierLog.executeLe.getTime() - 5 * 60 * 1000);
+          updatedSinceParam = `?updatedSince=${since.toISOString()}&limit=0`;
+        }
+      } catch {
+        // Si erreur, on fait un full sync (pas de param)
       }
-    } catch {
-      // Si erreur, on fait un full sync (pas de param)
     }
 
     const endpoint = `/form-submissions${updatedSinceParam || ''}`;

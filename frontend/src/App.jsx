@@ -19,6 +19,7 @@ import Parametres from './pages/Parametres';
 import ExplorateurDonnees from './pages/ExplorateurDonnees';
 import DashboardList from './pages/bi/DashboardList';
 import DashboardBuilder from './pages/bi/DashboardBuilder';
+import IndicateurBuilder from './pages/bi/IndicateurBuilder';
 
 function getRouterBasename() {
   const rawBasePath = import.meta.env.VITE_APP_BASE_PATH || '/';
@@ -49,6 +50,7 @@ function App() {
 
           <Route path="bi/dashboards" element={<DashboardList />} />
           <Route path="bi/dashboards/:id" element={<DashboardBuilder />} />
+          <Route path="bi/indicateurs" element={<IndicateurBuilder />} />
 
           <Route path="synchronisation" element={<SuperAdminRoute><Synchronisation /></SuperAdminRoute>} />
           <Route path="audit" element={<SuperAdminRoute><AuditActivite /></SuperAdminRoute>} />

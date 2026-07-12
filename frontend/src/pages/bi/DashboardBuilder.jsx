@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ResponsiveGridLayout } from 'react-grid-layout';
-import { Plus, Save, ArrowLeft, LayoutDashboard } from 'lucide-react';
+import { Plus, Save, ArrowLeft, LayoutDashboard, BookOpen } from 'lucide-react';
 import {
   fetchDashboard, updateDashboard,
   addWidget, updateWidget, deleteWidget,
@@ -10,11 +10,15 @@ import WeaveSpinner from '../../components/ui/WeaveSpinner';
 import WidgetCard from '../../components/bi/WidgetCard';
 import WidgetEditor from '../../components/bi/WidgetEditor';
 import FilterBar from '../../components/bi/FilterBar';
+import WidgetLibrary from '../../components/bi/WidgetLibrary';
+import ExportDashboard from '../../components/bi/ExportDashboard';
+import { CrossFilterProvider, useCrossFilter } from '../../components/bi/CrossFilterContext';
+import DrillDownStack from '../../components/bi/DrillDownStack';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import './bi.css';
 
-export default function DashboardBuilder() {
+function DashboardBuilderInner() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
@@ -22,9 +26,15 @@ export default function DashboardBuilder() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({});
-  const [editingWidget, setEditingWidget] = useState(null); // null = fermé, {} = nouveau, widget = edition
+  const [editingWidget, setEditingWidget] = useState(null);
   const [titre, setTitre] = useState('');
+  const [drillDownStack, setDrillDownStack] = useState([]);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const titleTimeout = useRef(null);
+  const lastClickRef = useRef(null);
+  const gridRef = useRef(null);
+
+  const { setCrossFilter } = useCrossFilter();
 
   // Load dashboard
   useEffect(() => {
@@ -87,7 +97,7 @@ export default function DashboardBuilder() {
     };
   }, [dashboard]);
 
-  // Layout change → save positions
+  // Layout change -> save positions
   const handleLayoutChange = useCallback((layout) => {
     if (!dashboard?.widgets) return;
     const positions = {};
@@ -95,7 +105,6 @@ export default function DashboardBuilder() {
       positions[item.i] = { posX: item.x, posY: item.y, largeur: item.w, hauteur: item.h };
     });
 
-    // Update local state
     setDashboard(prev => ({
       ...prev,
       widgets: prev.widgets.map(w => ({
@@ -104,7 +113,6 @@ export default function DashboardBuilder() {
       })),
     }));
 
-    // Persist each widget position
     Object.entries(positions).forEach(([widgetId, pos]) => {
       updateWidget(widgetId, pos).catch(() => {});
     });
@@ -126,7 +134,6 @@ export default function DashboardBuilder() {
   const handleWidgetSave = async (widgetData) => {
     try {
       if (widgetData.id) {
-        // Update existing
         const res = await updateWidget(widgetData.id, widgetData);
         const updated = res?.datas || res;
         setDashboard(prev => ({
@@ -134,7 +141,6 @@ export default function DashboardBuilder() {
           widgets: prev.widgets.map(w => w.id === widgetData.id ? { ...w, ...updated } : w),
         }));
       } else {
-        // Create new
         const res = await addWidget(id, widgetData);
         const created = res?.datas || res;
         setDashboard(prev => ({
@@ -161,6 +167,54 @@ export default function DashboardBuilder() {
     }
   };
 
+  // Single click on chart -> cross-filter
+  const handleChartClick = useCallback((widgetId, dimension, valeur, nom) => {
+    lastClickRef.current = { widgetId, dimension, valeur, nom };
+    setCrossFilter(String(widgetId), dimension, valeur, nom);
+  }, [setCrossFilter]);
+
+  // Double click on widget body -> drill-down
+  const handleChartDoubleClick = useCallback((widgetId) => {
+    const last = lastClickRef.current;
+    if (last && last.widgetId === widgetId) {
+      setDrillDownStack(prev => [...prev, {
+        dimension: last.dimension,
+        valeur: last.valeur,
+        nom: last.nom,
+      }]);
+    }
+  }, []);
+
+  // Drill-down navigation
+  const handleDrillNavigate = useCallback((index) => {
+    if (index < 0) {
+      setDrillDownStack([]);
+    } else {
+      setDrillDownStack(prev => prev.slice(0, index + 1));
+    }
+  }, []);
+
+  const handleDrillReset = useCallback(() => {
+    setDrillDownStack([]);
+  }, []);
+
+  // Drill-down filters to pass to widgets
+  const drillDownFilters = React.useMemo(() => {
+    const df = {};
+    drillDownStack.forEach(level => {
+      if (level.dimension && level.valeur) {
+        df[level.dimension] = level.valeur;
+      }
+    });
+    return df;
+  }, [drillDownStack]);
+
+  // Combined filters: global + drill-down
+  const combinedFilters = React.useMemo(() => ({
+    ...filters,
+    ...drillDownFilters,
+  }), [filters, drillDownFilters]);
+
   if (loading) return <WeaveSpinner size={80} message="Chargement du dashboard..." />;
   if (error && !dashboard) return <p style={{ padding: '2rem', color: '#dc2626' }}>{error}</p>;
 
@@ -184,10 +238,20 @@ export default function DashboardBuilder() {
           />
         </div>
         <div className="bi-builder-actions">
+          <button className="bi-btn-secondary" onClick={() => setLibraryOpen(true)}>
+            <BookOpen size={15} />
+            Bibliothèque
+          </button>
           <button className="bi-btn-secondary" onClick={() => setEditingWidget({})}>
             <Plus size={15} />
             Ajouter widget
           </button>
+          <ExportDashboard
+            dashboardId={id}
+            titre={titre}
+            widgets={widgets}
+            gridRef={gridRef}
+          />
           <button className="bi-btn-primary" onClick={handleSave} disabled={saving}>
             <Save size={15} />
             {saving ? 'Sauvegarde...' : 'Sauvegarder'}
@@ -201,8 +265,15 @@ export default function DashboardBuilder() {
         onFiltersChange={setFilters}
       />
 
+      {/* Drill-Down Breadcrumb */}
+      <DrillDownStack
+        stack={drillDownStack}
+        onNavigate={handleDrillNavigate}
+        onReset={handleDrillReset}
+      />
+
       {/* Grid */}
-      <div className="bi-builder-body">
+      <div className="bi-builder-body" ref={gridRef}>
         {error && <p style={{ color: '#dc2626', fontSize: '0.82rem', marginBottom: '0.75rem' }}>{error}</p>}
 
         {widgets.length === 0 ? (
@@ -226,9 +297,11 @@ export default function DashboardBuilder() {
               <div key={String(widget.id)}>
                 <WidgetCard
                   widget={widget}
-                  filters={filters}
+                  filters={combinedFilters}
                   onEdit={(w) => setEditingWidget(w)}
                   onDelete={handleWidgetDelete}
+                  onChartClick={handleChartClick}
+                  onChartDoubleClick={handleChartDoubleClick}
                 />
               </div>
             ))}
@@ -245,6 +318,24 @@ export default function DashboardBuilder() {
           onClose={() => setEditingWidget(null)}
         />
       )}
+
+      {/* Widget Library */}
+      <WidgetLibrary
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onSelect={(config) => {
+          setLibraryOpen(false);
+          handleWidgetSave(config);
+        }}
+      />
     </div>
+  );
+}
+
+export default function DashboardBuilder() {
+  return (
+    <CrossFilterProvider>
+      <DashboardBuilderInner />
+    </CrossFilterProvider>
   );
 }

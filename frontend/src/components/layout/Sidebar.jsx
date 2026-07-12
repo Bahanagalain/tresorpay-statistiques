@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, ChevronRight, Settings, Shield,
   PieChart, Map, Users, Activity, AlertTriangle, FileBarChart,
-  ChevronsLeft, ChevronsRight, Handshake, RefreshCw, Search,
+  ChevronsLeft, ChevronsRight, Handshake, RefreshCw, Search, Calculator,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { useSidebar } from './MainLayout';
@@ -45,6 +45,7 @@ export default function Sidebar() {
         { to: '/activite-citoyens', icon: Users, label: 'Activité Citoyens', iconColor: '#EC4899' },
         { to: '/explorateur', icon: Search, label: 'Explorateur Données', iconColor: '#F59E0B' },
         { to: '/bi/dashboards', icon: LayoutDashboard, label: 'Mes Dashboards', iconColor: '#6366F1' },
+        { to: '/bi/indicateurs', icon: Calculator, label: 'Indicateurs', iconColor: '#0D9488' },
       ],
     },
     {

@@ -491,6 +491,11 @@ model Utilisateur {
   roles         UtilisateurRole[]
   jetonsRefresh JetonRefresh[]
 
+  // Relations BI
+  dashboardsCrees    BiDashboard[]        @relation("ProprietaireDashboard")
+  dashboardsPartages BiDashboardPartage[] @relation("PartagesDashboard")
+  indicateursCrees   BiIndicateur[]       @relation("CreateurIndicateur")
+
   @@map("utilisateurs")
 }
 
@@ -724,4 +729,189 @@ model WebhookInbox {
   @@index([eventType])
   @@index([processedAt])
   @@map("webhook_inbox")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODULE BI SELF-SERVICE
+// ═══════════════════════════════════════════════════════════════
+
+enum TypeWidget {
+  CHART_BAR
+  CHART_LINE
+  CHART_PIE
+  CHART_AREA
+  CHART_DONUT
+  CHART_STACKED
+  KPI_CARD
+  TABLE
+  GAUGE
+  MAP
+  PIVOT
+}
+
+enum VisibiliteDashboard {
+  PRIVE
+  EQUIPE
+  PUBLIC
+}
+
+enum TypeMesure {
+  COUNT
+  SUM
+  AVG
+  MIN
+  MAX
+  RATIO
+  CUSTOM
+}
+
+enum GranulariteTemporelle {
+  JOUR
+  SEMAINE
+  MOIS
+  TRIMESTRE
+  ANNEE
+}
+
+model BiDataset {
+  id                  Int      @id @default(autoincrement())
+  code                String   @unique @db.VarChar(60)
+  libelle             String   @db.VarChar(200)
+  description         String?
+  tableSource         String   @map("table_source") @db.VarChar(60)
+  joinsConfig         Json?    @map("joins_config")
+  colonnesDisponibles Json?    @map("colonnes_disponibles")
+  estActif            Boolean  @default(true) @map("est_actif")
+  creeLe              DateTime @default(now()) @map("cree_le") @db.Timestamptz()
+
+  indicateurs BiIndicateur[]
+  widgets     BiWidget[]
+
+  @@map("bi_datasets")
+}
+
+model BiIndicateur {
+  id              Int        @id @default(autoincrement())
+  code            String     @unique @db.VarChar(80)
+  libelle         String     @db.VarChar(200)
+  description     String?
+  datasetId       Int        @map("dataset_id")
+  typeMesure      TypeMesure @map("type_mesure")
+  formule         Json?
+  colonneMesure   String?    @map("colonne_mesure") @db.VarChar(100)
+  filtresDefaut   Json?      @map("filtres_defaut")
+  formatAffichage String?    @map("format_affichage") @db.VarChar(30)
+  createurId      Int        @map("createur_id")
+  estSysteme      Boolean    @default(false) @map("est_systeme")
+  estActif        Boolean    @default(true) @map("est_actif")
+  creeLe          DateTime   @default(now()) @map("cree_le") @db.Timestamptz()
+  modifieLe       DateTime   @default(now()) @updatedAt @map("modifie_le") @db.Timestamptz()
+
+  dataset  BiDataset   @relation(fields: [datasetId], references: [id])
+  createur Utilisateur @relation("CreateurIndicateur", fields: [createurId], references: [id])
+  widgets  BiWidgetIndicateur[]
+
+  @@index([datasetId])
+  @@index([createurId])
+  @@map("bi_indicateurs")
+}
+
+model BiDashboard {
+  id             Int                  @id @default(autoincrement())
+  code           String               @unique @default(uuid()) @db.VarChar(60)
+  titre          String               @db.VarChar(200)
+  description    String?
+  visibilite     VisibiliteDashboard  @default(PRIVE)
+  layoutConfig   Json?                @map("layout_config")
+  filtresGlobaux Json?                @map("filtres_globaux")
+  themeConfig    Json?                @map("theme_config")
+  proprietaireId Int                  @map("proprietaire_id")
+  estFavori      Boolean              @default(false) @map("est_favori")
+  ordreAffichage Int                  @default(0) @map("ordre_affichage")
+  creeLe         DateTime             @default(now()) @map("cree_le") @db.Timestamptz()
+  modifieLe      DateTime             @default(now()) @updatedAt @map("modifie_le") @db.Timestamptz()
+
+  proprietaire Utilisateur        @relation("ProprietaireDashboard", fields: [proprietaireId], references: [id])
+  widgets      BiWidget[]
+  partages     BiDashboardPartage[]
+  filtres      BiFiltreGlobal[]
+
+  @@index([proprietaireId])
+  @@index([visibilite])
+  @@map("bi_dashboards")
+}
+
+model BiDashboardPartage {
+  id            Int      @id @default(autoincrement())
+  dashboardId   Int      @map("dashboard_id")
+  utilisateurId Int?     @map("utilisateur_id")
+  niveauPartage Niveau?  @map("niveau_partage")
+  ministereId   String?  @map("ministere_id")
+  peutEditer    Boolean  @default(false) @map("peut_editer")
+
+  dashboard   BiDashboard  @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  utilisateur Utilisateur? @relation("PartagesDashboard", fields: [utilisateurId], references: [id])
+
+  @@unique([dashboardId, utilisateurId])
+  @@index([utilisateurId])
+  @@map("bi_dashboard_partages")
+}
+
+model BiFiltreGlobal {
+  id             Int    @id @default(autoincrement())
+  dashboardId    Int    @map("dashboard_id")
+  cle            String @db.VarChar(60)
+  libelle        String @db.VarChar(120)
+  type           String @db.VarChar(30)
+  config         Json?
+  ordreAffichage Int    @default(0) @map("ordre_affichage")
+
+  dashboard BiDashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([dashboardId])
+  @@map("bi_filtres_globaux")
+}
+
+model BiWidget {
+  id             Int         @id @default(autoincrement())
+  dashboardId    Int         @map("dashboard_id")
+  datasetId      Int?        @map("dataset_id")
+  titre          String      @db.VarChar(200)
+  typeWidget     TypeWidget  @map("type_widget")
+  dimensions     Json?
+  filtresLocaux  Json?       @map("filtres_locaux")
+  granularite    GranulariteTemporelle?
+  limite         Int         @default(20)
+  tri            String      @default("desc") @db.VarChar(4)
+  chartConfig    Json?       @map("chart_config")
+  gridX          Int         @default(0) @map("grid_x")
+  gridY          Int         @default(0) @map("grid_y")
+  gridW          Int         @default(6) @map("grid_w")
+  gridH          Int         @default(4) @map("grid_h")
+  drillDownConfig Json?      @map("drill_down_config")
+  ordreAffichage Int         @default(0) @map("ordre_affichage")
+  creeLe         DateTime    @default(now()) @map("cree_le") @db.Timestamptz()
+  modifieLe      DateTime    @default(now()) @updatedAt @map("modifie_le") @db.Timestamptz()
+
+  dashboard   BiDashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  dataset     BiDataset?  @relation(fields: [datasetId], references: [id])
+  indicateurs BiWidgetIndicateur[]
+
+  @@index([dashboardId])
+  @@index([datasetId])
+  @@map("bi_widgets")
+}
+
+model BiWidgetIndicateur {
+  id             Int     @id @default(autoincrement())
+  widgetId       Int     @map("widget_id")
+  indicateurId   Int     @map("indicateur_id")
+  ordreAffichage Int     @default(0) @map("ordre_affichage")
+  couleur        String? @db.VarChar(20)
+
+  widget     BiWidget     @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+  indicateur BiIndicateur @relation(fields: [indicateurId], references: [id], onDelete: Cascade)
+
+  @@unique([widgetId, indicateurId])
+  @@map("bi_widget_indicateurs")
 }

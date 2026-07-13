@@ -36,25 +36,26 @@ function DashboardBuilderInner() {
   const [debouncedFilters, setDebouncedFilters] = useState({});
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('bi-dark-mode');
-    if (saved !== null) return saved === 'true';
-    return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches || false;
+    return saved === 'true';
   });
   const titleTimeout = useRef(null);
   const filterTimeout = useRef(null);
   const lastClickRef = useRef(null);
   const gridRef = useRef(null);
+  const builderRef = useRef(null);
 
   const { setCrossFilter } = useCrossFilter();
 
   useEffect(() => {
-    const root = document.querySelector('.bi-builder')?.closest('.app-content') || document.body;
+    const el = builderRef.current;
+    if (!el) return;
     if (darkMode) {
-      root.classList.add('bi-dark');
+      el.classList.add('bi-dark');
     } else {
-      root.classList.remove('bi-dark');
+      el.classList.remove('bi-dark');
     }
     localStorage.setItem('bi-dark-mode', String(darkMode));
-    return () => root.classList.remove('bi-dark');
+    return () => el?.classList.remove('bi-dark');
   }, [darkMode]);
 
   // Debounce filters (500ms) pour éviter de relancer toutes les requêtes à chaque frappe
@@ -286,7 +287,7 @@ function DashboardBuilderInner() {
   const layouts = getLayouts();
 
   return (
-    <div className="bi-builder">
+    <div className="bi-builder" ref={builderRef}>
       {/* Header */}
       <div className="bi-builder-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

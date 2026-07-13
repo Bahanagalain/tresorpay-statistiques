@@ -1061,6 +1061,9 @@ async function syncSoumissions() {
 
       const montant = parseFloat(sub.data?.__paymentAmount ?? sub.data?.__payment?.amount ?? sub.data?.paymentAmount ?? 0) || 0;
       const statutPaiement = resolveStatutPaiement(sub);
+      const montantPaye = parseFloat(
+        sub.data?.__payment?.paidAmount ?? sub.data?.__corebank?.amount ?? (statutPaiement === 'PAID' ? montant : 0)
+      ) || 0;
 
       const soumission = await prisma.soumission.upsert({
         where: { externalId: sub.id },
@@ -1074,6 +1077,7 @@ async function syncSoumissions() {
           soumetteurEmail: sub.customer?.email || null,
           soumetteurTelephone: sub.customer?.phoneNumber || null,
           montant,
+          montantPaye,
           statutPaiement,
           dateSoumission: sub.submittedAt ? new Date(sub.submittedAt) : null,
           datePaiement: statutPaiement === 'PAID' && sub.submittedAt ? new Date(sub.submittedAt) : null,
@@ -1089,6 +1093,7 @@ async function syncSoumissions() {
           soumetteurEmail: sub.customer?.email || undefined,
           soumetteurTelephone: sub.customer?.phoneNumber || undefined,
           montant,
+          montantPaye,
           statutPaiement,
           dateSoumission: sub.submittedAt ? new Date(sub.submittedAt) : undefined,
           datePaiement: statutPaiement === 'PAID' && sub.submittedAt ? new Date(sub.submittedAt) : undefined,

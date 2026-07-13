@@ -26,6 +26,12 @@ const DATASETS = {
       org_unit: { sql: 's.org_unit_id', model: 'orgUnit', champ: 'nomFr' },
       statut: { sql: 's.statut_paiement', model: null },
       formulaire: { sql: 's.formulaire_id', model: null, labelSql: 's.formulaire_nom' },
+      groupe_revenu: {
+        sql: 'svc_gr.groupe_revenu_id',
+        model: 'groupeRevenu',
+        champ: 'nomFr',
+        join: 'LEFT JOIN services_gouv svc_gr ON svc_gr.id = s.service_id',
+      },
     },
     filtres: {
       ministere_id: 's.ministere_id',
@@ -34,6 +40,7 @@ const DATASETS = {
       org_unit_id: 's.org_unit_id',
       statut: 's.statut_paiement',
       formulaire_id: 's.formulaire_id',
+      groupe_revenu_id: 'svc_gr.groupe_revenu_id',
     },
   },
   demandes_partenaire: {
@@ -290,7 +297,7 @@ export async function executerRequete(req) {
             return [d.cle, d.cle];
           }
         }
-        const fixedLabels = { ministere: 'Ministère', service: 'Service', domaine: 'Domaine', region: 'Région', departement: 'Département', org_unit: 'Unité org.', statut: 'Statut', periode: 'Période', formulaire: 'Formulaire' };
+        const fixedLabels = { ministere: 'Ministère', service: 'Service', domaine: 'Domaine', region: 'Région', departement: 'Département', org_unit: 'Unité org.', statut: 'Statut', periode: 'Période', formulaire: 'Formulaire', groupe_revenu: 'Groupe de revenus', plateforme: 'Plateforme', methode_paiement: 'Méthode paiement', operateur: 'Opérateur' };
         return [d.cle, fixedLabels[d.cle] || d.cle];
       }))),
       mesures: mesuresMeta,
@@ -388,6 +395,7 @@ function parseDimension(dimKey, ds, granularite) {
     alias: `dim_${dimKey}`,
     model: dimDef.model,
     champ: dimDef.champ || 'nomFr',
+    join: dimDef.join || null,
   };
 }
 

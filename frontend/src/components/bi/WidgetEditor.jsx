@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, Check, ChevronDown, Search, Building2, Landmark, Globe, MapPin, CreditCard, TrendingUp, HelpCircle } from 'lucide-react';
+import { X, Check, ChevronDown, Search, Building2, Landmark, Globe, MapPin, CreditCard, TrendingUp, HelpCircle, Layers } from 'lucide-react';
 import { fetchDatasets, fetchDimensions, biQueryPreview } from '../../api/biApi';
 import { apiFetch } from '../../api/httpClient';
 import WeaveSpinner from '../ui/WeaveSpinner';
@@ -15,6 +15,7 @@ const SUJETS = [
   { value: 'service', label: 'Par Service', icon: Landmark },
   { value: 'domaine', label: 'Par Domaine', icon: Globe },
   { value: 'region', label: 'Par Région', icon: MapPin },
+  { value: 'groupe_revenu', label: 'Par Groupe de revenus', icon: Layers },
   { value: 'statut', label: 'Par Statut de paiement', icon: CreditCard },
   { value: 'temporel', label: 'Évolution temporelle', icon: TrendingUp },
 ];
@@ -299,6 +300,8 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       setSujet('domaine');
     } else if (dims.includes('region')) {
       setSujet('region');
+    } else if (dims.includes('groupe_revenu')) {
+      setSujet('groupe_revenu');
     }
 
     // Pré-remplir les sélections d'entités
@@ -464,6 +467,8 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       } else {
         parts.push('Par région');
       }
+    } else if (sujet === 'groupe_revenu') {
+      parts.push('Par groupe de revenus');
     } else if (sujet === 'statut') {
       parts.push('Par statut de paiement');
     } else if (sujet === 'temporel') {
@@ -512,6 +517,8 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       if (selectedRegion) {
         filtres.region_id = selectedRegion;
       }
+    } else if (sujet === 'groupe_revenu') {
+      dimensions.push('groupe_revenu');
     } else if (sujet === 'statut') {
       dimensions.push('statut_paiement');
     } else if (sujet === 'temporel') {
@@ -817,6 +824,11 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
                     {/* Par Statut */}
                     {sujet === 'statut' && (
                       <p className="bi-hint">Les données seront groupées par statut de paiement (payé, en attente, expiré).</p>
+                    )}
+
+                    {/* Par Groupe de revenus */}
+                    {sujet === 'groupe_revenu' && (
+                      <p className="bi-hint">Les données seront ventilées par groupe de revenus MINFI.</p>
                     )}
 
                     {/* Évolution temporelle */}

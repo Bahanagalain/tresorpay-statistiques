@@ -540,6 +540,7 @@ model Soumission {
   soumetteurEmail     String?        @map("soumetteur_email") @db.VarChar(200)
   soumetteurTelephone String?        @map("soumetteur_telephone") @db.VarChar(30)
   montant             Decimal        @default(0) @db.Decimal(18, 2)
+  montantPaye         Decimal        @default(0) @map("montant_paye") @db.Decimal(18, 2)
   statutPaiement      StatutPaiement @default(PENDING) @map("statut_paiement")
   dateSoumission      DateTime?      @map("date_soumission") @db.Timestamptz()
   datePaiement        DateTime?      @map("date_paiement") @db.Timestamptz()

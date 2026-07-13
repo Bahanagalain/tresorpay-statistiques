@@ -339,6 +339,10 @@ async function upsertSoumission(sub) {
 
   const montant = parseFloat(sub.data?.__paymentAmount ?? sub.data?.__payment?.amount ?? sub.data?.paymentAmount ?? 0) || 0;
   const statutPaiement = resolveStatutPaiement(sub);
+  // Extraire le montant payé depuis les données Corebank / payment
+  const montantPaye = parseFloat(
+    sub.data?.__payment?.paidAmount ?? sub.data?.__corebank?.amount ?? (statutPaiement === 'PAID' ? montant : 0)
+  ) || 0;
 
   await prisma.soumission.upsert({
     where: { externalId: sub.id },
@@ -353,6 +357,7 @@ async function upsertSoumission(sub) {
       soumetteurEmail: t(sub.customer?.email, 200),
       soumetteurTelephone: t(sub.customer?.phoneNumber, 30),
       montant,
+      montantPaye,
       statutPaiement,
       dateSoumission: sub.submittedAt ? new Date(sub.submittedAt) : null,
       datePaiement: statutPaiement === 'PAID' && sub.submittedAt ? new Date(sub.submittedAt) : null,
@@ -365,6 +370,7 @@ async function upsertSoumission(sub) {
       ministereId,
       domaineId,
       montant,
+      montantPaye,
       statutPaiement,
       datePaiement: statutPaiement === 'PAID' && sub.submittedAt ? new Date(sub.submittedAt) : undefined,
       donneesFormulaire: sub.data || undefined,

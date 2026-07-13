@@ -363,6 +363,8 @@ model DemandePartenaire {
 
   @@index([plateformeId])
   @@index([statut])
+  @@index([plateformeId, creeLe])
+  @@index([statut, creeLe])
   @@index([creeLe])
   @@map("demandes_partenaire")
 }
@@ -558,6 +560,12 @@ model Soumission {
   @@index([orgUnitId])
   @@index([dateSoumission])
   @@index([datePaiement])
+  // Index composites pour les requêtes BI (agrégations par dimension + période)
+  @@index([dateSoumission, statutPaiement])
+  @@index([ministereId, dateSoumission])
+  @@index([serviceId, dateSoumission])
+  @@index([domaineId, dateSoumission])
+  @@index([orgUnitId, dateSoumission])
   @@map("soumissions")
 }
 

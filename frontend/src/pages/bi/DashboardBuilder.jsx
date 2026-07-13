@@ -32,11 +32,20 @@ function DashboardBuilderInner() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [titleSaved, setTitleSaved] = useState(false);
+  const [debouncedFilters, setDebouncedFilters] = useState({});
   const titleTimeout = useRef(null);
+  const filterTimeout = useRef(null);
   const lastClickRef = useRef(null);
   const gridRef = useRef(null);
 
   const { setCrossFilter } = useCrossFilter();
+
+  // Debounce filters (500ms) pour éviter de relancer toutes les requêtes à chaque frappe
+  const handleFiltersChange = useCallback((newFilters) => {
+    setFilters(newFilters);
+    if (filterTimeout.current) clearTimeout(filterTimeout.current);
+    filterTimeout.current = setTimeout(() => setDebouncedFilters(newFilters), 500);
+  }, []);
 
   // Load dashboard
   useEffect(() => {
@@ -241,9 +250,9 @@ function DashboardBuilderInner() {
 
   // Combined filters: global + drill-down
   const combinedFilters = React.useMemo(() => ({
-    ...filters,
+    ...debouncedFilters,
     ...drillDownFilters,
-  }), [filters, drillDownFilters]);
+  }), [debouncedFilters, drillDownFilters]);
 
   if (loading) return <WeaveSpinner size={80} message="Chargement du dashboard..." />;
   if (error && !dashboard) return <p style={{ padding: '2rem', color: '#dc2626' }}>{error}</p>;
@@ -293,7 +302,7 @@ function DashboardBuilderInner() {
       {/* Filter Bar */}
       <FilterBar
         datasetCode={dashboard?.datasetCode}
-        onFiltersChange={setFilters}
+        onFiltersChange={handleFiltersChange}
       />
 
       {/* Drill-Down Breadcrumb */}

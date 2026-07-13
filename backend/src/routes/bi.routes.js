@@ -5,6 +5,7 @@
 
 import prisma from '../config/prisma.js';
 import { executerRequete, executerTableauCroise, getDimensionsDisponibles, getValeursFiltres } from '../services/bi-query-engine.service.js';
+import { cacheGetOrSet, cacheInvalidate } from '../services/cache.service.js';
 
 export default async function biRoutes(fastify) {
   fastify.addHook('preHandler', fastify.authentifier);
@@ -71,10 +72,9 @@ export default async function biRoutes(fastify) {
   fastify.get('/datasets', {
     schema: { tags: ['BI'], summary: 'Liste des datasets disponibles' },
   }, async () => {
-    const datasets = await prisma.biDataset.findMany({
-      where: { estActif: true },
-      orderBy: { id: 'asc' },
-    });
+    const datasets = await cacheGetOrSet('bi:datasets', () =>
+      prisma.biDataset.findMany({ where: { estActif: true }, orderBy: { id: 'asc' } }),
+    600);
     return { datas: datasets };
   });
 
@@ -83,7 +83,8 @@ export default async function biRoutes(fastify) {
   }, async (request) => {
     const { code } = request.params;
     const { service_id, formulaire_id } = request.query || {};
-    const result = await getDimensionsDisponibles(code, service_id, formulaire_id);
+    const cacheKey = `dims:${code}:${service_id || ''}:${formulaire_id || ''}`;
+    const result = await cacheGetOrSet(cacheKey, () => getDimensionsDisponibles(code, service_id, formulaire_id), 600);
     return { datas: result };
   });
 

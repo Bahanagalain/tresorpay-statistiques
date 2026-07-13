@@ -4,6 +4,7 @@
 
 import crypto from 'crypto';
 import prisma from '../config/prisma.js';
+import { cacheInvalidate } from './cache.service.js';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'tresorpay-webhook-secret-change-me';
 const TIMESTAMP_TOLERANCE_S = 300; // 5 minutes
@@ -83,6 +84,9 @@ export async function traiterEvent(event) {
     return;
   }
   await handler(event.payload, event.aggregateId);
+  // Invalider les caches BI après chaque event
+  cacheInvalidate('bi:');
+  cacheInvalidate('dims:');
 }
 
 // ═══════════════════════════════════════════════════════════════

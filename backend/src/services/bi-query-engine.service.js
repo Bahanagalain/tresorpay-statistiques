@@ -187,6 +187,21 @@ export async function executerRequete(req) {
         mesuresMeta.push({ cle: 'valeur_max', type: 'MAX', format: 'montant' });
         break;
       }
+      case 'SUM_PAYE': {
+        // Montant effectivement payé
+        const col = ds.colonneMontantPaye || ds.colonneMontant || '0';
+        mesureSqls.push(`COALESCE(SUM(${col}), 0) AS montant_paye`);
+        mesuresMeta.push({ cle: 'montant_paye', type: 'SUM_PAYE', format: 'montant' });
+        break;
+      }
+      case 'ECART': {
+        // Écart = montant attendu - montant payé (en souffrance)
+        const colM = ds.colonneMontant || '0';
+        const colP = ds.colonneMontantPaye || colM;
+        mesureSqls.push(`COALESCE(SUM(${colM}) - SUM(${colP}), 0) AS ecart`);
+        mesuresMeta.push({ cle: 'ecart', type: 'ECART', format: 'montant' });
+        break;
+      }
       case 'RATIO': {
         // Ratio = COUNT ou SUM avec filtre numérateur / total
         // Sera calculé en post-processing
@@ -197,6 +212,15 @@ export async function executerRequete(req) {
           mesureSqls.push('COUNT(*) AS _ratio_numerateur');
         }
         mesuresMeta.push({ cle: 'ratio', type: 'RATIO', format: 'pourcentage' });
+        break;
+      }
+      case 'TAUX_COMPLETUDE': {
+        // Taux de complétude = SUM(montant_paye) / SUM(montant) * 100
+        const colMt = ds.colonneMontant || '0';
+        const colPt = ds.colonneMontantPaye || colMt;
+        mesureSqls.push(`COALESCE(SUM(${colMt}), 0) AS _completude_den`);
+        mesureSqls.push(`COALESCE(SUM(${colPt}), 0) AS _completude_num`);
+        mesuresMeta.push({ cle: 'taux_completude', type: 'TAUX_COMPLETUDE', format: 'pourcentage' });
         break;
       }
       default:
@@ -374,9 +398,10 @@ function resolveColonneMesure(colonne, ds) {
 }
 
 function resolveOrderColumn(colonne, mesuresMeta) {
-  const validCols = ['nombre', 'montant_total', 'montant_moyen', 'valeur_min', 'valeur_max', 'ratio'];
+  const validCols = ['nombre', 'montant_total', 'montant_paye', 'montant_moyen', 'valeur_min', 'valeur_max', 'ratio', 'ecart', 'taux_completude'];
   if (validCols.includes(colonne)) {
     if (colonne === 'ratio') return '_ratio_numerateur';
+    if (colonne === 'taux_completude') return '_completude_num';
     return colonne;
   }
   // Défaut : première mesure
@@ -527,6 +552,10 @@ async function formatRows(rows, dims, mesuresMeta) {
       if (m.type === 'RATIO') {
         const num = Number(row._ratio_numerateur || 0);
         const den = Number(row._ratio_denominateur || 0);
+        result[m.cle] = den > 0 ? Math.round((num / den) * 10000) / 100 : 0;
+      } else if (m.type === 'TAUX_COMPLETUDE') {
+        const num = Number(row._completude_num || 0);
+        const den = Number(row._completude_den || 0);
         result[m.cle] = den > 0 ? Math.round((num / den) * 10000) / 100 : 0;
       } else {
         result[m.cle] = Number(row[m.cle] || 0);

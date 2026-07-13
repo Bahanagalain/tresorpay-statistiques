@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Edit, Trash2, BarChart3, Filter, Copy } from 'lucide-react';
-import { executeWidget } from '../../api/biApi';
+import { executeWidget, executeWidgetKpi } from '../../api/biApi';
 import WeaveSpinner from '../ui/WeaveSpinner';
 import WidgetRenderer from './WidgetRenderer';
 import { useCrossFilter } from './CrossFilterContext';
@@ -21,12 +21,10 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onDuplic
 
   const { crossFilters, getCrossFiltersForWidget } = useCrossFilter();
 
-  // Cross-filters from other widgets (not this one)
   const otherCrossFilters = useMemo(() => {
     return getCrossFiltersForWidget(widget.id);
   }, [getCrossFiltersForWidget, widget.id]);
 
-  // Merge global filters + cross-filters into a single filter object
   const mergedFilters = useMemo(() => {
     const merged = { ...(filters || {}) };
     Object.values(otherCrossFilters).forEach(({ dimension, valeur }) => {
@@ -37,7 +35,6 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onDuplic
     return merged;
   }, [filters, otherCrossFilters]);
 
-  // Is this widget the source of an active cross-filter?
   const isFilterSource = useMemo(() => {
     return !!crossFilters[String(widget.id)];
   }, [crossFilters, widget.id]);
@@ -47,20 +44,31 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onDuplic
     setLoading(true);
     setError(null);
 
-    executeWidget(widget.id, { filtres: mergedFilters })
+    const apiCall = widget.typeWidget === 'KPI_CARD'
+      ? executeWidgetKpi(widget.id, { filtres: mergedFilters })
+          .catch(() => executeWidget(widget.id, { filtres: mergedFilters }))
+      : executeWidget(widget.id, { filtres: mergedFilters });
+
+    apiCall
       .then(res => {
         if (!cancelled) {
           const result = res?.datas || res;
+
+          if (widget.typeWidget === 'KPI_CARD') {
+            setData(result);
+            setLoadTime(Date.now());
+            setLoading(false);
+            return;
+          }
+
           const rows = result?.rows || [];
           const meta = result?.meta || {};
           let transformed;
 
-          // Déterminer les clés de mesures réellement calculées
           const mesureKeys = (meta.mesures || []).map(m => m.cle);
           if (mesureKeys.length === 0) {
-            // Fallback : déduire des clés présentes dans la première ligne
             const sample = rows[0] || {};
-            for (const k of ['nombre', 'montant_total', 'montant_moyen', 'ratio']) {
+            for (const k of ['nombre', 'montant_total', 'montant_paye', 'montant_moyen', 'ratio', 'ecart', 'taux_completude']) {
               if (sample[k] !== undefined) mesureKeys.push(k);
             }
           }
@@ -104,9 +112,8 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onDuplic
       });
 
     return () => { cancelled = true; };
-  }, [widget.id, mergedFilters]);
+  }, [widget.id, widget.typeWidget, mergedFilters]);
 
-  // Refresh freshness label every 30s
   useEffect(() => {
     if (!loadTime) return;
     setFreshness(timeAgo(loadTime));
@@ -120,7 +127,7 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onDuplic
     }
   }, [onChartClick, widget.id]);
 
-  const handleDoubleClick = useCallback((e) => {
+  const handleDoubleClick = useCallback(() => {
     if (onChartDoubleClick) {
       onChartDoubleClick(widget.id);
     }

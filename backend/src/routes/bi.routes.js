@@ -372,6 +372,83 @@ export default async function biRoutes(fastify) {
     return { datas: result };
   });
 
+  // Exécuter un widget KPI avec données de tendance (période courante vs précédente)
+  fastify.post('/widgets/:id/execute-kpi', {
+    schema: { tags: ['BI'], summary: 'Exécuter un widget KPI avec tendance' },
+  }, async (request) => {
+    const id = parseInt(request.params.id, 10);
+    const widget = await prisma.biWidget.findUnique({
+      where: { id },
+      include: { dataset: true },
+    });
+    if (!widget) return { error: 'Widget introuvable', statusCode: 404 };
+
+    const filtresLocaux = widget.filtresLocaux || {};
+    const filtresGlobaux = request.body?.filtres || {};
+    const filtresFusionnes = { ...filtresGlobaux };
+    for (const [key, val] of Object.entries(filtresLocaux)) {
+      if (val !== null && val !== undefined && val !== '') filtresFusionnes[key] = val;
+    }
+    if (filtresLocaux.champs || filtresGlobaux.champs) {
+      filtresFusionnes.champs = { ...(filtresGlobaux.champs || {}), ...(filtresLocaux.champs || {}) };
+    }
+
+    const baseReq = {
+      dataset: widget.dataset?.code || 'soumissions',
+      dimensions: [],
+      mesures: widget.chartConfig?.mesures || [{ type: 'COUNT' }],
+      filtres: { ...filtresFusionnes },
+      limite: 1,
+    };
+
+    // Période courante
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+    // Requête période courante
+    const currentResult = await executerRequete({
+      ...baseReq,
+      filtres: { ...baseReq.filtres, date_debut: startOfMonth.toISOString(), date_fin: now.toISOString() },
+    });
+
+    // Requête période précédente
+    const prevResult = await executerRequete({
+      ...baseReq,
+      filtres: { ...baseReq.filtres, date_debut: startOfPrevMonth.toISOString(), date_fin: endOfPrevMonth.toISOString() },
+    });
+
+    // Sparkline : 6 derniers mois
+    const sparkData = [];
+    for (let i = 5; i >= 0; i--) {
+      const mStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mEnd = i === 0 ? now : new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+      try {
+        const r = await executerRequete({
+          ...baseReq,
+          filtres: { ...baseReq.filtres, date_debut: mStart.toISOString(), date_fin: mEnd.toISOString() },
+        });
+        const row = r.rows[0] || {};
+        sparkData.push({
+          mois: mStart.toISOString().slice(0, 7),
+          ...Object.fromEntries(Object.entries(row).filter(([k]) => k !== 'dimensions')),
+        });
+      } catch {
+        sparkData.push({ mois: mStart.toISOString().slice(0, 7) });
+      }
+    }
+
+    return {
+      datas: {
+        current: currentResult.rows[0] || {},
+        previous: prevResult.rows[0] || {},
+        spark: sparkData,
+        meta: currentResult.meta,
+      },
+    };
+  });
+
   // ═══════════════════════════════════════════════════════════════
   // INDICATEURS
   // ═══════════════════════════════════════════════════════════════

@@ -30,23 +30,32 @@ const GRANULARITES = [
 const MESURE_OPTIONS = [
   { value: 'COUNT', label: 'Nombre de soumissions', checked: true },
   { value: 'SUM', label: 'Montant total' },
+  { value: 'SUM_PAYE', label: 'Montant payé' },
   { value: 'AVG', label: 'Montant moyen' },
+  { value: 'ECART', label: 'Écart (en souffrance)' },
   { value: 'RATIO', label: 'Taux de paiement (%)' },
+  { value: 'TAUX_COMPLETUDE', label: 'Taux de complétude (%)' },
 ];
 
 function mesuresToApi(selected) {
   return selected.map(m => {
     if (m === 'SUM') return { type: 'SUM', colonne: 'montant' };
+    if (m === 'SUM_PAYE') return { type: 'SUM_PAYE' };
     if (m === 'AVG') return { type: 'AVG', colonne: 'montant' };
+    if (m === 'ECART') return { type: 'ECART' };
     if (m === 'RATIO') return { type: 'RATIO', filtreNum: { statut: 'PAID' } };
+    if (m === 'TAUX_COMPLETUDE') return { type: 'TAUX_COMPLETUDE' };
     return { type: 'COUNT' };
   });
 }
 
 function mesureDataKey(m) {
   if (m === 'SUM') return 'montant_total';
+  if (m === 'SUM_PAYE') return 'montant_paye';
   if (m === 'AVG') return 'montant_moyen';
+  if (m === 'ECART') return 'ecart';
   if (m === 'RATIO') return 'ratio';
+  if (m === 'TAUX_COMPLETUDE') return 'taux_completude';
   return 'nombre';
 }
 
@@ -307,8 +316,11 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
     if (widget.chartConfig?.mesures?.length > 0) {
       const mesureKeys = widget.chartConfig.mesures.map(m => {
         if (m.type === 'SUM') return 'SUM';
+        if (m.type === 'SUM_PAYE') return 'SUM_PAYE';
         if (m.type === 'AVG') return 'AVG';
+        if (m.type === 'ECART') return 'ECART';
         if (m.type === 'RATIO') return 'RATIO';
+        if (m.type === 'TAUX_COMPLETUDE') return 'TAUX_COMPLETUDE';
         return 'COUNT';
       });
       setSelectedMesures(mesureKeys);

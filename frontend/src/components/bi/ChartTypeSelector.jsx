@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   BarChart3, LineChart, PieChart, AreaChart,
-  Table, Gauge, Map, Hash,
+  Table, Gauge, Map, Hash, TrendingUp,
 } from 'lucide-react';
 
 const CHART_TYPES = [
@@ -9,6 +9,8 @@ const CHART_TYPES = [
   { value: 'CHART_LINE', label: 'Lignes', icon: LineChart },
   { value: 'CHART_PIE', label: 'Camembert', icon: PieChart },
   { value: 'CHART_AREA', label: 'Aire', icon: AreaChart },
+  { value: 'CHART_BAR_STACKED', label: 'Barres empilées', icon: BarChart3 },
+  { value: 'CHART_COMBO', label: 'Combiné', icon: TrendingUp },
   { value: 'KPI_CARD', label: 'KPI', icon: Hash },
   { value: 'TABLE', label: 'Table', icon: Table },
   { value: 'GAUGE', label: 'Jauge', icon: Gauge },

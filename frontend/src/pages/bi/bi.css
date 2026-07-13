@@ -591,24 +591,62 @@
   vertical-align: middle;
 }
 
-/* ─── KPI Card ─── */
+/* ─── KPI Card (enrichi avec tendance + sparkline) ─── */
 .bi-kpi-card {
   text-align: center;
-  padding: 1rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  height: 100%;
 }
 
-.bi-kpi-card .bi-kpi-value {
-  font-size: 2rem;
+.bi-kpi-label {
+  font-size: 0.72rem;
+  color: var(--text-tertiary, #6b7280);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.15rem;
+}
+
+.bi-kpi-value {
+  font-size: 1.8rem;
   font-weight: 800;
-  color: var(--primary, #2563eb);
+  color: var(--text-primary, #1f2937);
   line-height: 1.1;
 }
 
-.bi-kpi-card .bi-kpi-label {
-  font-size: 0.78rem;
-  color: var(--text-tertiary, #6b7280);
+.bi-kpi-trend {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.15rem;
+}
+
+.bi-kpi-trend-arrow {
+  font-size: 0.9rem;
+}
+
+.bi-kpi-trend-pct {
+  font-weight: 700;
+}
+
+.bi-kpi-trend-prev {
+  font-weight: 400;
+  color: var(--text-tertiary, #9ca3af);
+  font-size: 0.68rem;
+}
+
+.bi-kpi-spark {
+  width: 100%;
+  max-width: 180px;
   margin-top: 0.35rem;
-  font-weight: 500;
+  opacity: 0.8;
 }
 
 /* ─── Create Modal ─── */

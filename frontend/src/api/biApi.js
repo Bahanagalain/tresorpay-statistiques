@@ -84,6 +84,10 @@ export async function executeWidget(widgetId, body) {
   return apiFetch(`/bi/widgets/${widgetId}/execute`, { method: 'POST', body });
 }
 
+export async function executeWidgetKpi(widgetId, body) {
+  return apiFetch(`/bi/widgets/${widgetId}/execute-kpi`, { method: 'POST', body });
+}
+
 // ═══════════════════════════════════════════════════════════════
 // INDICATEURS
 // ═══════════════════════════════════════════════════════════════

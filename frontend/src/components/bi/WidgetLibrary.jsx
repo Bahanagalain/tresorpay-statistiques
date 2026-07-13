@@ -2,9 +2,63 @@ import React, { useState } from 'react';
 import {
   X, TrendingUp, BarChart3, PieChart, LineChart, Table2,
   Activity, Hash, Percent, ArrowUpRight, Layers,
+  Building2, Landmark, Globe, MapPin, LayoutDashboard,
 } from 'lucide-react';
 
-const CATEGORIES = ['KPI', 'Graphiques', 'Tables', 'Avancé'];
+const CATEGORIES = ['Dashboards', 'KPI', 'Graphiques', 'Tables', 'Avancé'];
+
+// ─── Templates de dashboards pré-faits ───
+const DASHBOARD_TEMPLATES = [
+  {
+    id: 'minfi',
+    titre: 'Vue MINFI',
+    description: 'Vue consolidée des recettes par ministère et groupe de revenus',
+    icon: Building2,
+    widgets: [
+      { titre: 'Recettes totales', typeWidget: 'KPI_CARD', dimensions: ['ministere'], chartConfig: { mesures: [{ type: 'SUM', colonne: 'montant' }], tri: { colonne: 'montant_total', direction: 'desc' } }, filtresLocaux: {}, gridW: 3, gridH: 2 },
+      { titre: 'Taux de paiement', typeWidget: 'KPI_CARD', dimensions: ['ministere'], chartConfig: { mesures: [{ type: 'RATIO', filtreNum: { statut: 'PAID' } }], tri: { colonne: 'ratio', direction: 'desc' } }, filtresLocaux: {}, gridW: 3, gridH: 2 },
+      { titre: 'Soumissions par ministère', typeWidget: 'CHART_BAR', dimensions: ['ministere'], chartConfig: { mesures: [{ type: 'COUNT' }], tri: { colonne: 'nombre', direction: 'desc' } }, filtresLocaux: {}, gridW: 6, gridH: 4 },
+      { titre: 'Recettes par groupe de revenus', typeWidget: 'CHART_PIE', dimensions: ['groupe_revenu'], chartConfig: { mesures: [{ type: 'SUM', colonne: 'montant' }], tri: { colonne: 'montant_total', direction: 'desc' } }, filtresLocaux: {}, gridW: 6, gridH: 4 },
+      { titre: 'Évolution mensuelle', typeWidget: 'CHART_LINE', dimensions: ['periode_mois'], chartConfig: { mesures: [{ type: 'COUNT' }, { type: 'SUM', colonne: 'montant' }], tri: { colonne: 'nombre', direction: 'asc' } }, filtresLocaux: {}, gridW: 12, gridH: 4 },
+    ],
+  },
+  {
+    id: 'suivi-ministere',
+    titre: 'Suivi Ministère',
+    description: "Performance détaillée d'un ministère : services, domaines, statuts",
+    icon: Landmark,
+    widgets: [
+      { titre: 'Total soumissions', typeWidget: 'KPI_CARD', dimensions: ['service'], chartConfig: { mesures: [{ type: 'COUNT' }], tri: { colonne: 'nombre', direction: 'desc' } }, filtresLocaux: {}, gridW: 3, gridH: 2 },
+      { titre: 'Montant total', typeWidget: 'KPI_CARD', dimensions: ['service'], chartConfig: { mesures: [{ type: 'SUM', colonne: 'montant' }], tri: { colonne: 'montant_total', direction: 'desc' } }, filtresLocaux: {}, gridW: 3, gridH: 2 },
+      { titre: 'Services du ministère', typeWidget: 'TABLE', dimensions: ['service'], chartConfig: { mesures: [{ type: 'COUNT' }, { type: 'SUM', colonne: 'montant' }], tri: { colonne: 'montant_total', direction: 'desc' } }, filtresLocaux: {}, gridW: 6, gridH: 4 },
+      { titre: 'Répartition par statut', typeWidget: 'CHART_PIE', dimensions: ['statut_paiement'], chartConfig: { mesures: [{ type: 'COUNT' }], tri: { colonne: 'nombre', direction: 'desc' } }, filtresLocaux: {}, gridW: 6, gridH: 4 },
+      { titre: 'Évolution mensuelle', typeWidget: 'CHART_AREA', dimensions: ['periode_mois'], chartConfig: { mesures: [{ type: 'SUM', colonne: 'montant' }], tri: { colonne: 'montant_total', direction: 'asc' } }, filtresLocaux: {}, gridW: 12, gridH: 4 },
+    ],
+  },
+  {
+    id: 'partenaires',
+    titre: 'Monitoring Partenaires',
+    description: 'Suivi des plateformes partenaires : statuts, méthodes de paiement, opérateurs',
+    icon: Globe,
+    widgets: [
+      { titre: 'Demandes partenaires', typeWidget: 'KPI_CARD', dimensions: [], chartConfig: { mesures: [{ type: 'COUNT' }], tri: { colonne: 'nombre', direction: 'desc' } }, filtresLocaux: {}, gridW: 3, gridH: 2 },
+      { titre: 'Par plateforme', typeWidget: 'CHART_BAR', dimensions: ['plateforme'], chartConfig: { mesures: [{ type: 'COUNT' }, { type: 'SUM', colonne: 'montant' }], tri: { colonne: 'nombre', direction: 'desc' } }, filtresLocaux: {}, gridW: 6, gridH: 4 },
+      { titre: 'Par méthode de paiement', typeWidget: 'CHART_PIE', dimensions: ['methode_paiement'], chartConfig: { mesures: [{ type: 'COUNT' }], tri: { colonne: 'nombre', direction: 'desc' } }, filtresLocaux: {}, gridW: 6, gridH: 4 },
+      { titre: 'Détail par statut', typeWidget: 'TABLE', dimensions: ['statut'], chartConfig: { mesures: [{ type: 'COUNT' }, { type: 'SUM', colonne: 'montant' }], tri: { colonne: 'nombre', direction: 'desc' } }, filtresLocaux: {}, gridW: 12, gridH: 3 },
+    ],
+  },
+  {
+    id: 'performance-regionale',
+    titre: 'Performance Régionale',
+    description: 'Analyse comparative des recettes par région et département',
+    icon: MapPin,
+    widgets: [
+      { titre: 'Recettes par région', typeWidget: 'CHART_BAR', dimensions: ['region'], chartConfig: { mesures: [{ type: 'SUM', colonne: 'montant' }], tri: { colonne: 'montant_total', direction: 'desc' } }, filtresLocaux: {}, gridW: 6, gridH: 4 },
+      { titre: 'Soumissions par région', typeWidget: 'CHART_BAR_STACKED', dimensions: ['region'], chartConfig: { mesures: [{ type: 'COUNT' }, { type: 'SUM', colonne: 'montant' }], tri: { colonne: 'nombre', direction: 'desc' } }, filtresLocaux: {}, gridW: 6, gridH: 4 },
+      { titre: 'Tableau régional', typeWidget: 'TABLE', dimensions: ['region'], chartConfig: { mesures: [{ type: 'COUNT' }, { type: 'SUM', colonne: 'montant' }, { type: 'RATIO', filtreNum: { statut: 'PAID' } }], tri: { colonne: 'montant_total', direction: 'desc' } }, filtresLocaux: {}, gridW: 12, gridH: 4 },
+    ],
+  },
+];
 
 const TEMPLATES = [
   // ─── KPI ───
@@ -166,10 +220,19 @@ const TEMPLATES = [
   },
 ];
 
-export default function WidgetLibrary({ open, onClose, onSelect }) {
-  const [categorie, setCategorie] = useState('KPI');
+export default function WidgetLibrary({ open, onClose, onSelect, onApplyTemplate }) {
+  const [categorie, setCategorie] = useState('Dashboards');
 
   if (!open) return null;
+
+  const handleApplyTemplate = (template) => {
+    if (onApplyTemplate) {
+      onApplyTemplate(template.widgets);
+    } else {
+      template.widgets.forEach(w => onSelect(w));
+    }
+    onClose();
+  };
 
   const filtered = TEMPLATES.filter(t => t.categorie === categorie);
 
@@ -192,33 +255,66 @@ export default function WidgetLibrary({ open, onClose, onSelect }) {
               className={`bi-pill ${categorie === cat ? 'active' : ''}`}
               onClick={() => setCategorie(cat)}
             >
+              {cat === 'Dashboards' && <LayoutDashboard size={14} />}
               {cat}
             </button>
           ))}
         </div>
 
-        {/* Grille de templates */}
-        <div className="bi-library-grid">
-          {filtered.map((tpl, idx) => {
-            const Icon = tpl.icon;
-            return (
-              <button
-                key={idx}
-                className="bi-library-card"
-                onClick={() => onSelect(tpl.config)}
-              >
-                <span className="bi-library-card-icon">
-                  <Icon size={20} />
-                </span>
-                <span className="bi-library-card-title">{tpl.titre}</span>
-                <span className="bi-library-card-desc">{tpl.description}</span>
-                <span className="bi-library-card-add">
-                  <ArrowUpRight size={14} /> Ajouter
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Contenu selon la catégorie */}
+        {categorie === 'Dashboards' ? (
+          <div className="bi-library-dashboards">
+            {DASHBOARD_TEMPLATES.map(tpl => {
+              const Icon = tpl.icon;
+              return (
+                <div key={tpl.id} className="bi-library-dashboard-card">
+                  <div className="bi-library-dashboard-header">
+                    <span className="bi-library-card-icon">
+                      <Icon size={22} />
+                    </span>
+                    <div>
+                      <span className="bi-library-card-title">{tpl.titre}</span>
+                      <span className="bi-library-card-desc">{tpl.description}</span>
+                    </div>
+                  </div>
+                  <div className="bi-library-dashboard-footer">
+                    <span className="bi-library-dashboard-count">
+                      {tpl.widgets.length} widgets
+                    </span>
+                    <button
+                      className="bi-library-dashboard-apply"
+                      onClick={() => handleApplyTemplate(tpl)}
+                    >
+                      <ArrowUpRight size={14} /> Appliquer ce template
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bi-library-grid">
+            {filtered.map((tpl, idx) => {
+              const Icon = tpl.icon;
+              return (
+                <button
+                  key={idx}
+                  className="bi-library-card"
+                  onClick={() => onSelect(tpl.config)}
+                >
+                  <span className="bi-library-card-icon">
+                    <Icon size={20} />
+                  </span>
+                  <span className="bi-library-card-title">{tpl.titre}</span>
+                  <span className="bi-library-card-desc">{tpl.description}</span>
+                  <span className="bi-library-card-add">
+                    <ArrowUpRight size={14} /> Ajouter
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

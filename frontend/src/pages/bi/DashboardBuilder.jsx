@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ResponsiveGridLayout } from 'react-grid-layout';
-import { Plus, Save, ArrowLeft, LayoutDashboard, BookOpen } from 'lucide-react';
+import { Plus, Save, ArrowLeft, LayoutDashboard, BookOpen, Maximize2, X } from 'lucide-react';
 import {
   fetchDashboard, updateDashboard,
   addWidget, updateWidget, deleteWidget,
@@ -31,6 +31,7 @@ function DashboardBuilderInner() {
   const [drillDownStack, setDrillDownStack] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [presentationMode, setPresentationMode] = useState(false);
   const [titleSaved, setTitleSaved] = useState(false);
   const [debouncedFilters, setDebouncedFilters] = useState({});
   const titleTimeout = useRef(null);
@@ -254,6 +255,14 @@ function DashboardBuilderInner() {
     ...drillDownFilters,
   }), [debouncedFilters, drillDownFilters]);
 
+  // Escape pour quitter le mode présentation
+  useEffect(() => {
+    if (!presentationMode) return;
+    const handleEsc = (e) => { if (e.key === 'Escape') setPresentationMode(false); };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [presentationMode]);
+
   if (loading) return <WeaveSpinner size={80} message="Chargement du dashboard..." />;
   if (error && !dashboard) return <p style={{ padding: '2rem', color: '#dc2626' }}>{error}</p>;
 
@@ -292,6 +301,9 @@ function DashboardBuilderInner() {
             widgets={widgets}
             gridRef={gridRef}
           />
+          <button className="bi-btn-secondary" onClick={() => setPresentationMode(true)} title="Mode présentation">
+            <Maximize2 size={15} />
+          </button>
           <button className="bi-btn-primary" onClick={handleSave} disabled={saving}>
             <Save size={15} />
             {saving ? 'Sauvegarde...' : 'Sauvegarder'}
@@ -369,6 +381,12 @@ function DashboardBuilderInner() {
           setLibraryOpen(false);
           handleWidgetSave(config);
         }}
+        onApplyTemplate={async (widgetConfigs) => {
+          setLibraryOpen(false);
+          for (const config of widgetConfigs) {
+            await handleWidgetSave(config);
+          }
+        }}
       />
 
       {/* Confirmation suppression widget */}
@@ -381,6 +399,44 @@ function DashboardBuilderInner() {
               <button className="bi-btn-secondary" onClick={() => setDeleteConfirm(null)}>Annuler</button>
               <button className="bi-btn-danger" onClick={confirmDelete}>Supprimer</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mode Présentation */}
+      {presentationMode && (
+        <div className="bi-presentation-overlay">
+          <div className="bi-presentation-header">
+            <h1>{titre || 'Dashboard'}</h1>
+            <div className="bi-presentation-meta">
+              {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </div>
+            <button className="bi-presentation-close" onClick={() => setPresentationMode(false)} title="Quitter la présentation">
+              <X size={20} />
+            </button>
+          </div>
+          <div className="bi-presentation-body">
+            <ResponsiveGridLayout
+              className="bi-grid-layout"
+              layouts={getLayouts()}
+              breakpoints={{ lg: 1200, md: 768, sm: 0 }}
+              cols={{ lg: 12, md: 6, sm: 1 }}
+              rowHeight={90}
+              isDraggable={false}
+              isResizable={false}
+            >
+              {widgets.map((widget, idx) => (
+                <div key={String(widget.id)}>
+                  <WidgetCard
+                    widget={widget}
+                    index={idx}
+                    filters={combinedFilters}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                  />
+                </div>
+              ))}
+            </ResponsiveGridLayout>
           </div>
         </div>
       )}

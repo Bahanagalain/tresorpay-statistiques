@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Plus, Copy, Trash2, Edit, Eye } from 'lucide-react';
-import { fetchDashboards, createDashboard, deleteDashboard, duplicateDashboard } from '../../api/biApi';
+import { LayoutDashboard, Plus, Copy, Trash2, Edit, Eye, Search, Star } from 'lucide-react';
+import { fetchDashboards, createDashboard, deleteDashboard, duplicateDashboard, updateDashboard } from '../../api/biApi';
 import WeaveSpinner from '../../components/ui/WeaveSpinner';
 import './bi.css';
 
@@ -14,6 +14,34 @@ export default function DashboardList() {
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [creating, setCreating] = useState(false);
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('recent');
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return dashboards;
+    const q = search.toLowerCase();
+    return dashboards.filter(d =>
+      (d.titre || '').toLowerCase().includes(q) ||
+      (d.description || '').toLowerCase().includes(q)
+    );
+  }, [dashboards, search]);
+
+  const sorted = useMemo(() => {
+    const list = [...filtered];
+    if (sortBy === 'title') list.sort((a, b) => (a.titre || '').localeCompare(b.titre || ''));
+    else if (sortBy === 'widgets') list.sort((a, b) => (b.widgets?.length || 0) - (a.widgets?.length || 0));
+    else list.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+    return list;
+  }, [filtered, sortBy]);
+
+  const toggleFavorite = async (dashId, current) => {
+    try {
+      await updateDashboard(dashId, { estFavori: !current });
+      setDashboards(prev => prev.map(d => d.id === dashId ? { ...d, estFavori: !d.estFavori } : d));
+    } catch (err) {
+      console.error('Erreur favori:', err);
+    }
+  };
 
   const loadDashboards = async () => {
     setLoading(true);
@@ -87,23 +115,56 @@ export default function DashboardList() {
         </button>
       </div>
 
+      <div className="bi-list-toolbar">
+        <div className="bi-search-bar">
+          <Search size={16} />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher un dashboard..."
+            className="bi-search-input"
+          />
+        </div>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="bi-sort-select">
+          <option value="recent">Plus récents</option>
+          <option value="title">Alphabétique</option>
+          <option value="widgets">Nombre de widgets</option>
+        </select>
+      </div>
+
       {error && <p style={{ color: '#dc2626', marginBottom: '1rem', fontSize: '0.85rem' }}>{error}</p>}
 
-      {dashboards.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="bi-grid-empty">
           <LayoutDashboard size={48} />
-          <p>Aucun dashboard pour le moment.</p>
-          <p style={{ fontSize: '0.82rem' }}>Créez votre premier dashboard personnalisé.</p>
+          {dashboards.length === 0 ? (
+            <>
+              <p>Aucun dashboard pour le moment.</p>
+              <p style={{ fontSize: '0.82rem' }}>Créez votre premier dashboard personnalisé.</p>
+            </>
+          ) : (
+            <p>Aucun dashboard ne correspond à votre recherche.</p>
+          )}
         </div>
       ) : (
         <div className="bi-dashboards-grid">
-          {dashboards.map(dash => (
+          {sorted.map(dash => (
             <div
               key={dash.id}
               className="bi-dashboard-card"
               onClick={() => navigate(`/bi/dashboards/${dash.id}`)}
             >
-              <h3>{dash.titre}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3>{dash.titre}</h3>
+                <button
+                  className={`bi-fav-btn ${dash.estFavori ? 'active' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); toggleFavorite(dash.id, dash.estFavori); }}
+                  title={dash.estFavori ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                >
+                  <Star size={16} fill={dash.estFavori ? 'currentColor' : 'none'} />
+                </button>
+              </div>
               <div className="bi-card-meta">
                 {dash.widgets?.length || 0} widget{(dash.widgets?.length || 0) > 1 ? 's' : ''} &middot;{' '}
                 Modifié {dash.updatedAt ? new Date(dash.updatedAt).toLocaleDateString('fr-FR') : '—'}

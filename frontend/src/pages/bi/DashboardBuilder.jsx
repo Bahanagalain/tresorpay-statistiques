@@ -30,6 +30,8 @@ function DashboardBuilderInner() {
   const [titre, setTitre] = useState('');
   const [drillDownStack, setDrillDownStack] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [titleSaved, setTitleSaved] = useState(false);
   const titleTimeout = useRef(null);
   const lastClickRef = useRef(null);
   const gridRef = useRef(null);
@@ -58,7 +60,12 @@ function DashboardBuilderInner() {
     setTitre(val);
     if (titleTimeout.current) clearTimeout(titleTimeout.current);
     titleTimeout.current = setTimeout(() => {
-      updateDashboard(id, { titre: val }).catch(() => {});
+      updateDashboard(id, { titre: val })
+        .then(() => {
+          setTitleSaved(true);
+          setTimeout(() => setTitleSaved(false), 2000);
+        })
+        .catch(() => {});
     }, 1000);
   };
 
@@ -154,16 +161,39 @@ function DashboardBuilderInner() {
     }
   };
 
-  const handleWidgetDelete = async (widgetId) => {
-    if (!confirm('Supprimer ce widget ?')) return;
+  const handleWidgetDelete = (widgetId) => {
+    setDeleteConfirm(widgetId);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await deleteWidget(widgetId);
+      await deleteWidget(deleteConfirm);
       setDashboard(prev => ({
         ...prev,
-        widgets: prev.widgets.filter(w => w.id !== widgetId),
+        widgets: prev.widgets.filter(w => w.id !== deleteConfirm),
       }));
     } catch (err) {
       setError(err.message);
+    } finally {
+      setDeleteConfirm(null);
+    }
+  };
+
+  const handleDuplicateWidget = async (widget) => {
+    try {
+      const { id: _id, dashboardId: _dashId, ...config } = widget;
+      const res = await addWidget(dashboard.id, {
+        ...config,
+        titre: (widget.titre || 'Widget') + ' (copie)',
+      });
+      const newWidget = res?.datas || res;
+      setDashboard(prev => ({
+        ...prev,
+        widgets: [...(prev.widgets || []), newWidget],
+      }));
+    } catch (err) {
+      console.error('Erreur duplication:', err);
     }
   };
 
@@ -236,6 +266,7 @@ function DashboardBuilderInner() {
             onChange={handleTitleChange}
             placeholder="Titre du dashboard"
           />
+          {titleSaved && <span className="bi-save-indicator">&#10003;</span>}
         </div>
         <div className="bi-builder-actions">
           <button className="bi-btn-secondary" onClick={() => setLibraryOpen(true)}>
@@ -293,13 +324,15 @@ function DashboardBuilderInner() {
             isResizable
             isDraggable
           >
-            {widgets.map(widget => (
+            {widgets.map((widget, idx) => (
               <div key={String(widget.id)}>
                 <WidgetCard
                   widget={widget}
+                  index={idx}
                   filters={combinedFilters}
                   onEdit={(w) => setEditingWidget(w)}
                   onDelete={handleWidgetDelete}
+                  onDuplicate={handleDuplicateWidget}
                   onChartClick={handleChartClick}
                   onChartDoubleClick={handleChartDoubleClick}
                 />
@@ -328,6 +361,20 @@ function DashboardBuilderInner() {
           handleWidgetSave(config);
         }}
       />
+
+      {/* Confirmation suppression widget */}
+      {deleteConfirm && (
+        <div className="bi-confirm-overlay" onClick={() => setDeleteConfirm(null)}>
+          <div className="bi-confirm-dialog" onClick={e => e.stopPropagation()}>
+            <p>Supprimer ce widget ?</p>
+            <span className="bi-hint">Cette action est irréversible.</span>
+            <div className="bi-confirm-actions">
+              <button className="bi-btn-secondary" onClick={() => setDeleteConfirm(null)}>Annuler</button>
+              <button className="bi-btn-danger" onClick={confirmDelete}>Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

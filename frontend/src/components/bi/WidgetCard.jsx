@@ -1,14 +1,23 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Edit, Trash2, BarChart3, Filter } from 'lucide-react';
+import { Edit, Trash2, BarChart3, Filter, Copy } from 'lucide-react';
 import { executeWidget } from '../../api/biApi';
 import WeaveSpinner from '../ui/WeaveSpinner';
 import WidgetRenderer from './WidgetRenderer';
 import { useCrossFilter } from './CrossFilterContext';
 
-export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartClick, onChartDoubleClick }) {
+function timeAgo(loadTime) {
+  const elapsed = Date.now() - loadTime;
+  if (elapsed < 60000) return "à l'instant";
+  if (elapsed < 3600000) return Math.floor(elapsed / 60000) + ' min';
+  return Math.floor(elapsed / 3600000) + 'h';
+}
+
+export default function WidgetCard({ widget, filters, onEdit, onDelete, onDuplicate, onChartClick, onChartDoubleClick, index = 0 }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loadTime, setLoadTime] = useState(null);
+  const [freshness, setFreshness] = useState('');
 
   const { crossFilters, getCrossFiltersForWidget } = useCrossFilter();
 
@@ -57,7 +66,6 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
           }
 
           if (widget.typeWidget === 'TABLE') {
-            // Colonnes séparées par dimension avec labels lisibles depuis meta
             const dimLabels = meta.dimensions || {};
             transformed = rows.map(row => {
               const entry = {};
@@ -84,6 +92,7 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
             });
           }
           setData(transformed);
+          setLoadTime(Date.now());
           setLoading(false);
         }
       })
@@ -97,6 +106,14 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
     return () => { cancelled = true; };
   }, [widget.id, mergedFilters]);
 
+  // Refresh freshness label every 30s
+  useEffect(() => {
+    if (!loadTime) return;
+    setFreshness(timeAgo(loadTime));
+    const interval = setInterval(() => setFreshness(timeAgo(loadTime)), 30000);
+    return () => clearInterval(interval);
+  }, [loadTime]);
+
   const handleChartClick = useCallback((dimension, valeur, nom) => {
     if (onChartClick) {
       onChartClick(widget.id, dimension, valeur, nom);
@@ -104,17 +121,18 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
   }, [onChartClick, widget.id]);
 
   const handleDoubleClick = useCallback((e) => {
-    // Double-click on the widget body triggers drill-down
-    // Actual drill-down data comes from the last chart click stored in parent
     if (onChartDoubleClick) {
       onChartDoubleClick(widget.id);
     }
   }, [onChartDoubleClick, widget.id]);
 
   return (
-    <div className={`bi-widget-card ${isFilterSource ? 'bi-widget-filter-source' : ''}`}>
+    <div
+      className={`bi-widget-card bi-widget-animate-in ${isFilterSource ? 'bi-widget-filter-source' : ''}`}
+      style={{ animationDelay: `${index * 0.05}s` }}
+    >
       <div className="bi-widget-card-header">
-        <h4>
+        <h4 title={widget.titre}>
           <BarChart3 size={13} style={{ marginRight: 4, opacity: 0.5 }} />
           {widget.titre || 'Widget'}
           {isFilterSource && (
@@ -127,6 +145,11 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
           <button onClick={() => onEdit(widget)} title="Modifier">
             <Edit size={13} />
           </button>
+          {onDuplicate && (
+            <button onClick={() => onDuplicate(widget)} title="Dupliquer">
+              <Copy size={13} />
+            </button>
+          )}
           <button className="danger" onClick={() => onDelete(widget.id)} title="Supprimer">
             <Trash2 size={13} />
           </button>
@@ -148,6 +171,9 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
           />
         )}
       </div>
+      {!loading && !error && freshness && (
+        <span className="bi-widget-freshness">Mis à jour {freshness}</span>
+      )}
     </div>
   );
 }

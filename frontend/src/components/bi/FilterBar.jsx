@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Filter, XCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Filter, XCircle, X } from 'lucide-react';
 import DatePresetFilter from '../ui/DatePresetFilter';
 import { fetchFiltreValeurs } from '../../api/biApi';
 import { useCrossFilter } from './CrossFilterContext';
 
-export default function FilterBar({ datasetCode, onFiltersChange }) {
+export default function FilterBar({ datasetCode, onFiltersChange, resultCount }) {
   const [periode, setPeriode] = useState(null);
   const [ministere, setMinistere] = useState('');
   const [region, setRegion] = useState('');
@@ -55,6 +55,32 @@ export default function FilterBar({ datasetCode, onFiltersChange }) {
   }, [clearAllCrossFilters]);
 
   const hasAnyFilter = !!(ministere || region || statut || periode?.startDate || crossFilterCount > 0);
+
+  const activeFilters = useMemo(() => {
+    const list = [];
+    if (periode?.startDate) list.push({ key: 'dateDebut', label: `Depuis ${periode.startDate}` });
+    if (periode?.endDate) list.push({ key: 'dateFin', label: `Jusqu'au ${periode.endDate}` });
+    if (ministere) {
+      const m = ministeres.find(x => (x.code || x) === ministere);
+      list.push({ key: 'ministere', label: m?.libelle || ministere });
+    }
+    if (region) {
+      const r = regions.find(x => (x.code || x) === region);
+      list.push({ key: 'region', label: r?.libelle || region });
+    }
+    if (statut) {
+      const s = statuts.find(x => (x.code || x) === statut);
+      list.push({ key: 'statut', label: `Statut: ${s?.libelle || statut}` });
+    }
+    return list;
+  }, [periode, ministere, region, statut, ministeres, regions, statuts]);
+
+  const removeFilter = useCallback((key) => {
+    if (key === 'dateDebut' || key === 'dateFin') setPeriode(null);
+    else if (key === 'ministere') setMinistere('');
+    else if (key === 'region') setRegion('');
+    else if (key === 'statut') setStatut('');
+  }, []);
 
   return (
     <div className="bi-filter-bar">
@@ -107,7 +133,22 @@ export default function FilterBar({ datasetCode, onFiltersChange }) {
             Réinitialiser
           </button>
         )}
+
+        {resultCount !== undefined && (
+          <span className="bi-result-count">{resultCount.toLocaleString('fr-FR')} résultats</span>
+        )}
       </div>
+
+      {activeFilters.length > 0 && (
+        <div className="bi-filter-badges">
+          {activeFilters.map(f => (
+            <span key={f.key} className="bi-filter-badge">
+              {f.label}
+              <X size={12} onClick={() => removeFilter(f.key)} />
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

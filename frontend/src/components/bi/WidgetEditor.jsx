@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, Check, ChevronDown, Search, Building2, Landmark, Globe, MapPin, CreditCard, TrendingUp } from 'lucide-react';
+import { X, Check, ChevronDown, Search, Building2, Landmark, Globe, MapPin, CreditCard, TrendingUp, HelpCircle } from 'lucide-react';
 import { fetchDatasets, fetchDimensions, biQueryPreview } from '../../api/biApi';
 import { apiFetch } from '../../api/httpClient';
 import WeaveSpinner from '../ui/WeaveSpinner';
@@ -137,6 +137,14 @@ function SearchableSelect({ options, value, onChange, placeholder, loading, disa
 // WidgetEditor — Composant principal
 // ─────────────────────────────────────────────────────────────────────
 
+const STEP_TOOLTIPS = {
+  1: 'Choisissez comment afficher vos données',
+  2: 'Le sujet détermine l\'axe principal de votre analyse',
+  3: 'Filtrez pour cibler un périmètre précis',
+  4: 'Ventiler par champ formulaire permet une analyse plus fine',
+  5: 'Choisissez les valeurs à calculer',
+};
+
 export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   // --- State: étapes ---
   const [typeWidget, setTypeWidget] = useState(widget?.typeWidget || 'CHART_BAR');
@@ -182,6 +190,61 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
 
   // --- Ref: évite le reset des valeurs pré-remplies au premier montage en mode édition ---
   const editInitRef = useRef(!!widget?.id);
+
+  // ═══════════════════════════════════════════════════════════════
+  // Escape pour fermer
+  // ═══════════════════════════════════════════════════════════════
+
+  useEffect(() => {
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // Stepper visuel
+  // ═══════════════════════════════════════════════════════════════
+
+  const stepperSteps = useMemo(() => {
+    const hasEntity = (sujet === 'ministere' && selectedMinistere)
+      || (sujet === 'service' && (selectedMinistere || selectedService))
+      || (sujet === 'domaine' && selectedDomaine)
+      || (sujet === 'region' && selectedRegion)
+      || sujet === 'statut'
+      || sujet === 'temporel';
+
+    const base = [
+      { num: 1, label: 'Visualisation', completed: true, active: true },
+      { num: 2, label: 'Sujet', completed: !!sujet, active: true },
+      { num: 3, label: 'Périmètre', completed: !!hasEntity, active: !!sujet },
+    ];
+
+    if (selectedService) {
+      base.push({ num: 4, label: 'Ventilation', completed: selectedDynDims.length > 0, active: true });
+    }
+
+    const mesureNum = selectedService ? 5 : 4;
+    const titreNum = selectedService ? 6 : 5;
+    base.push(
+      { num: mesureNum, label: 'Mesures', completed: selectedMesures.length > 0, active: !!sujet },
+      { num: titreNum, label: 'Titre', completed: !!titre.trim(), active: !!sujet },
+    );
+    return base;
+  }, [sujet, selectedMinistere, selectedService, selectedDomaine, selectedRegion, selectedDynDims, selectedMesures, titre]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // Recommandation intelligente du type de chart
+  // ═══════════════════════════════════════════════════════════════
+
+  const getRecommendedChart = useCallback(() => {
+    if (sujet === 'temporel') return { type: 'CHART_LINE', reason: 'Recommandé pour les évolutions temporelles' };
+    if (sujet === 'statut') return { type: 'CHART_PIE', reason: 'Idéal pour visualiser les proportions' };
+    if (selectedDynDims.length >= 2) return { type: 'TABLE', reason: 'Recommandé pour les analyses multi-dimensions' };
+    if (typeWidget === 'KPI_CARD' && selectedMesures.length > 1) return { type: 'CHART_BAR', reason: 'Un KPI ne peut afficher qu\'une mesure' };
+    return null;
+  }, [sujet, selectedDynDims, typeWidget, selectedMesures]);
+
+  const recommendation = getRecommendedChart();
 
   // ═══════════════════════════════════════════════════════════════
   // Chargement initial (datasets)
@@ -620,15 +683,42 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
           <div className="bi-editor-config">
             {loadingInit ? <WeaveSpinner size={60} message="Chargement..." /> : (
               <>
+                {/* ─── Stepper visuel ─── */}
+                <div className="bi-stepper">
+                  {stepperSteps.map((step, i) => {
+                    const status = step.completed ? 'completed' : step.active ? 'active' : 'disabled';
+                    return (
+                      <div key={step.num} className={`bi-stepper-item ${status}`}>
+                        <div className="bi-stepper-circle">
+                          {step.completed ? <Check size={14} /> : step.num}
+                        </div>
+                        <span className="bi-stepper-label">{step.label}</span>
+                        {i < stepperSteps.length - 1 && <div className="bi-stepper-line" />}
+                      </div>
+                    );
+                  })}
+                </div>
+
                 {/* ─── Étape 1: Type de visualisation ─── */}
                 <div className="bi-editor-step">
-                  <label className="bi-label">1. Type de visualisation</label>
+                  <label className="bi-label">
+                    1. Type de visualisation
+                    <HelpCircle size={13} className="bi-help-icon" title={STEP_TOOLTIPS[1]} />
+                  </label>
                   <ChartTypeSelector value={typeWidget} onChange={setTypeWidget} />
+                  {recommendation && typeWidget !== recommendation.type && (
+                    <div className="bi-chart-recommendation" onClick={() => setTypeWidget(recommendation.type)}>
+                      💡 {recommendation.reason}
+                    </div>
+                  )}
                 </div>
 
                 {/* ─── Étape 2: Sujet d'étude ─── */}
                 <div className="bi-editor-step">
-                  <label className="bi-label">2. Sujet d'étude</label>
+                  <label className="bi-label">
+                    2. Sujet d'étude
+                    <HelpCircle size={13} className="bi-help-icon" title={STEP_TOOLTIPS[2]} />
+                  </label>
                   <div className="bi-sujet-grid">
                     {SUJETS.map(({ value: val, label, icon: Icon }) => (
                       <div
@@ -646,7 +736,10 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
                 {/* ─── Étape 3: Sélection entité ─── */}
                 {sujet && (
                   <div className="bi-editor-step">
-                    <label className="bi-label">3. Périmètre</label>
+                    <label className="bi-label">
+                      3. Périmètre
+                      <HelpCircle size={13} className="bi-help-icon" title={STEP_TOOLTIPS[3]} />
+                    </label>
 
                     {/* Par Ministère */}
                     {sujet === 'ministere' && (
@@ -734,7 +827,10 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
                 {/* ─── Étape 4: Dimensions additionnelles ─── */}
                 {selectedService && (
                   <div className="bi-editor-step">
-                    <label className="bi-label">4. Ventilation par champ formulaire (optionnel)</label>
+                    <label className="bi-label">
+                      4. Ventilation par champ formulaire (optionnel)
+                      <HelpCircle size={13} className="bi-help-icon" title={STEP_TOOLTIPS[4]} />
+                    </label>
                     {loadingDimensions ? (
                       <WeaveSpinner size={30} />
                     ) : serviceDimensions.length > 0 ? (
@@ -788,7 +884,10 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
                 {/* ─── Étape 5: Mesures ─── */}
                 {sujet && (
                   <div className="bi-editor-step">
-                    <label className="bi-label">{selectedService ? '5' : '4'}. Indicateurs / Mesures</label>
+                    <label className="bi-label">
+                      {selectedService ? '5' : '4'}. Indicateurs / Mesures
+                      <HelpCircle size={13} className="bi-help-icon" title={STEP_TOOLTIPS[5]} />
+                    </label>
                     <div className="bi-mesures-list">
                       {MESURE_OPTIONS.map(m => (
                         <label key={m.value} className="bi-mesure-checkbox">
@@ -829,7 +928,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
             <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Aperçu</h3>
             {previewLoading && <WeaveSpinner size={50} />}
             {!previewLoading && rendererData.length > 0 && (
-              <div style={{ height: 280 }}>
+              <div style={{ height: 350 }}>
                 <WidgetRenderer
                   type={typeWidget}
                   data={rendererData}

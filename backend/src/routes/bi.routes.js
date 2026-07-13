@@ -299,8 +299,13 @@ export default async function biRoutes(fastify) {
     },
   }, async (request) => {
     const dashboardId = parseInt(request.params.dashboardId, 10);
+    const { dashboardId: _, datasetId, ...rest } = request.body;
     const widget = await prisma.biWidget.create({
-      data: { dashboardId, ...request.body },
+      data: {
+        ...rest,
+        dashboardId,
+        datasetId: datasetId ? parseInt(datasetId, 10) : null,
+      },
     });
     return { message: 'Widget ajouté', datas: widget };
   });

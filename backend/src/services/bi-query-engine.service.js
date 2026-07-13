@@ -259,9 +259,12 @@ export async function executerRequete(req) {
       dimensions: Object.fromEntries(await Promise.all(dims.map(async d => {
         if (d.type === 'dynamic' && d.champId) {
           try {
-            const ch = await prisma.champFormulaire.findUnique({ where: { id: d.champId }, select: { libelleChamp: true } });
-            return [d.cle, ch?.libelleChamp || d.cle];
-          } catch { return [d.cle, d.cle]; }
+            const ch = await prisma.champFormulaire.findUnique({ where: { id: d.champId }, select: { libelleChamp: true, cleChamp: true } });
+            return [d.cle, ch?.libelleChamp || ch?.cleChamp || d.cle];
+          } catch (err) {
+            console.warn(`[BI] Impossible de résoudre le label pour ${d.cle} (champId=${d.champId}):`, err.message);
+            return [d.cle, d.cle];
+          }
         }
         const fixedLabels = { ministere: 'Ministère', service: 'Service', domaine: 'Domaine', region: 'Région', departement: 'Département', org_unit: 'Unité org.', statut: 'Statut', periode: 'Période', formulaire: 'Formulaire' };
         return [d.cle, fixedLabels[d.cle] || d.cle];

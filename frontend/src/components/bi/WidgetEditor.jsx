@@ -568,10 +568,12 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
 
   const previewRows = previewData?.rows || [];
   const previewMeta = previewData?.meta || {};
+  // Clés de mesures effectivement sélectionnées
+  const activeMesureKeys = selectedMesures.map(m => mesureDataKey(m));
+
   const rendererData = (() => {
     if (typeWidget === 'TABLE') {
       const dimLabels = previewMeta.dimensions || {};
-      // Build dimension label map with fallback for dynamic fields
       const labelMap = (key) => {
         if (dimLabels[key]) return dimLabels[key];
         const dim = serviceDimensions.find(d => d.cle === key);
@@ -583,10 +585,9 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
         for (const [dimKey, dimVal] of Object.entries(row.dimensions || {})) {
           entry[labelMap(dimKey)] = dimVal?.nom || dimVal?.id || '?';
         }
-        entry.nombre = row.nombre || 0;
-        entry.montant_total = row.montant_total || 0;
-        entry.montant_moyen = row.montant_moyen || 0;
-        entry.ratio = row.ratio || 0;
+        for (const k of activeMesureKeys) {
+          entry[k] = row[k] ?? 0;
+        }
         return entry;
       });
     }
@@ -596,10 +597,9 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       entry.nom = dims.length === 1
         ? (dims[0][1]?.nom || dims[0][1]?.id || dims[0][1] || '(non défini)')
         : dims.map(([, v]) => v?.nom || v?.id || '?').join(' — ');
-      entry.nombre = row.nombre || 0;
-      entry.montant_total = row.montant_total || 0;
-      entry.montant_moyen = row.montant_moyen || 0;
-      entry.ratio = row.ratio || 0;
+      for (const k of activeMesureKeys) {
+        entry[k] = row[k] ?? 0;
+      }
       return entry;
     });
   })();

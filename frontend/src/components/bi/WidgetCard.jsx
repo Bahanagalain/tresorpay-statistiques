@@ -46,20 +46,28 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
           const meta = result?.meta || {};
           let transformed;
 
+          // Déterminer les clés de mesures réellement calculées
+          const mesureKeys = (meta.mesures || []).map(m => m.cle);
+          if (mesureKeys.length === 0) {
+            // Fallback : déduire des clés présentes dans la première ligne
+            const sample = rows[0] || {};
+            for (const k of ['nombre', 'montant_total', 'montant_moyen', 'ratio']) {
+              if (sample[k] !== undefined) mesureKeys.push(k);
+            }
+          }
+
           if (widget.typeWidget === 'TABLE') {
             // Colonnes séparées par dimension avec labels lisibles depuis meta
             const dimLabels = meta.dimensions || {};
             transformed = rows.map(row => {
               const entry = {};
               for (const [dimKey, dimVal] of Object.entries(row.dimensions || {})) {
-                // Utiliser le label du meta (ex: "Motif" au lieu de "champ_210")
                 const label = dimLabels[dimKey] || dimKey;
                 entry[label] = dimVal?.nom || dimVal?.id || '?';
               }
-              entry.nombre = row.nombre || 0;
-              entry.montant_total = row.montant_total || 0;
-              entry.montant_moyen = row.montant_moyen || 0;
-              entry.ratio = row.ratio || 0;
+              for (const k of mesureKeys) {
+                entry[k] = row[k] ?? 0;
+              }
               return entry;
             });
           } else {
@@ -68,13 +76,11 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
               const nom = dims.length === 1
                 ? (dims[0][1]?.nom || dims[0][1]?.id || '?')
                 : dims.map(([, v]) => v?.nom || v?.id).join(' — ');
-              return {
-                nom,
-                nombre: row.nombre || 0,
-                montant_total: row.montant_total || 0,
-                montant_moyen: row.montant_moyen || 0,
-                ratio: row.ratio || 0,
-              };
+              const entry = { nom };
+              for (const k of mesureKeys) {
+                entry[k] = row[k] ?? 0;
+              }
+              return entry;
             });
           }
           setData(transformed);

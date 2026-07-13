@@ -96,72 +96,73 @@ function DashboardBuilderInner() {
     }, 1000);
   };
 
-  // Build layouts from widgets — positionnement sans chevauchement
+  // Build layouts from widgets
+  // Les positions sont stockées en base via gridX/gridY/gridW/gridH
   const getLayouts = useCallback(() => {
     if (!dashboard?.widgets) return { lg: [], md: [], sm: [] };
     const widgets = dashboard.widgets;
 
-    // Calculer les positions pour les widgets sans posX/posY sauvegardés
-    // Utiliser un algorithme de placement en grille qui évite les chevauchements
-    // Algorithme : placer chaque widget au premier emplacement libre
-    // en respectant la largeur/hauteur configurée. Pas de chevauchement.
-    const computeLayout = (cols) => {
-      const colHeights = new Array(cols).fill(0);
-      return widgets.map((w) => {
-        const wWidth = Math.min(w.largeur || (w.gridW || 6), cols);
-        const wHeight = w.hauteur || (w.gridH || 3);
+    // Vérifier si les positions sont valides (pas tous à 0,0)
+    const hasValidPositions = widgets.some(w => (w.gridX > 0 || w.gridY > 0));
 
-        // Trouver la première position libre assez large
-        let bestX = 0;
-        let bestY = Infinity;
-        for (let x = 0; x <= cols - wWidth; x++) {
-          let maxH = 0;
-          for (let c = x; c < x + wWidth; c++) {
-            maxH = Math.max(maxH, colHeights[c]);
-          }
-          if (maxH < bestY) {
-            bestY = maxH;
-            bestX = x;
-          }
-        }
-
-        for (let c = bestX; c < bestX + wWidth; c++) {
-          colHeights[c] = bestY + wHeight;
-        }
-
-        return {
+    const buildLg = () => {
+      if (hasValidPositions) {
+        // Utiliser les positions sauvegardées en base
+        return widgets.map(w => ({
           i: String(w.id),
-          x: bestX,
-          y: bestY,
-          w: wWidth,
-          h: wHeight,
+          x: w.gridX ?? 0,
+          y: w.gridY ?? 0,
+          w: w.gridW || 6,
+          h: w.gridH || 4,
           minW: 2,
           minH: 2,
-        };
+        }));
+      }
+      // Aucune position valide : calculer un placement automatique
+      const colHeights = new Array(12).fill(0);
+      return widgets.map(w => {
+        const wW = w.gridW || 6;
+        const wH = w.gridH || 4;
+        let bestX = 0, bestY = Infinity;
+        for (let x = 0; x <= 12 - wW; x++) {
+          let maxH = 0;
+          for (let c = x; c < x + wW; c++) maxH = Math.max(maxH, colHeights[c]);
+          if (maxH < bestY) { bestY = maxH; bestX = x; }
+        }
+        for (let c = bestX; c < bestX + wW; c++) colHeights[c] = bestY + wH;
+        return { i: String(w.id), x: bestX, y: bestY, w: wW, h: wH, minW: 2, minH: 2 };
       });
     };
 
     return {
-      lg: computeLayout(12),
-      md: computeLayout(6),
+      lg: buildLg(),
+      md: widgets.map((w, i) => ({
+        i: String(w.id),
+        x: (i % 2) * 3,
+        y: Math.floor(i / 2) * (w.gridH || 4),
+        w: Math.min(w.gridW || 6, 6),
+        h: w.gridH || 4,
+        minW: 2,
+        minH: 2,
+      })),
       sm: widgets.map((w, i) => ({
         i: String(w.id),
         x: 0,
-        y: i * (w.hauteur || w.gridH || 3),
+        y: i * (w.gridH || 4),
         w: 1,
-        h: w.hauteur || w.gridH || 3,
+        h: w.gridH || 4,
         minW: 1,
         minH: 2,
       })),
     };
   }, [dashboard]);
 
-  // Layout change -> save positions
+  // Layout change -> save positions en base (gridX/gridY/gridW/gridH)
   const handleLayoutChange = useCallback((layout) => {
     if (!dashboard?.widgets) return;
     const positions = {};
     layout.forEach(item => {
-      positions[item.i] = { posX: item.x, posY: item.y, largeur: item.w, hauteur: item.h };
+      positions[item.i] = { gridX: item.x, gridY: item.y, gridW: item.w, gridH: item.h };
     });
 
     setDashboard(prev => ({
@@ -172,6 +173,7 @@ function DashboardBuilderInner() {
       })),
     }));
 
+    // Sauvegarder chaque widget en base
     Object.entries(positions).forEach(([widgetId, pos]) => {
       updateWidget(widgetId, pos).catch(() => {});
     });
@@ -189,6 +191,17 @@ function DashboardBuilderInner() {
     }
   };
 
+  // Calculer la position Y la plus basse de la grille (pour placer un nouveau widget en dessous)
+  const getNextY = useCallback(() => {
+    if (!dashboard?.widgets?.length) return 0;
+    let maxBottom = 0;
+    for (const w of dashboard.widgets) {
+      const bottom = (w.gridY || 0) + (w.gridH || 4);
+      if (bottom > maxBottom) maxBottom = bottom;
+    }
+    return maxBottom;
+  }, [dashboard]);
+
   // Widget CRUD
   const handleWidgetSave = async (widgetData) => {
     try {
@@ -200,7 +213,16 @@ function DashboardBuilderInner() {
           widgets: prev.widgets.map(w => w.id === widgetData.id ? { ...w, ...updated } : w),
         }));
       } else {
-        const res = await addWidget(id, widgetData);
+        // Nouveau widget : le placer en bas de la grille
+        const newY = getNextY();
+        const dataWithPos = {
+          ...widgetData,
+          gridX: 0,
+          gridY: newY,
+          gridW: widgetData.gridW || 6,
+          gridH: widgetData.gridH || 4,
+        };
+        const res = await addWidget(id, dataWithPos);
         const created = res?.datas || res;
         setDashboard(prev => ({
           ...prev,
@@ -234,10 +256,13 @@ function DashboardBuilderInner() {
 
   const handleDuplicateWidget = async (widget) => {
     try {
-      const { id: _id, dashboardId: _dashId, ...config } = widget;
+      const { id: _id, dashboardId: _dashId, creeLe: _, modifieLe: _m, dataset: _d, indicateurs: _ind, ...config } = widget;
+      const newY = getNextY();
       const res = await addWidget(dashboard.id, {
         ...config,
         titre: (widget.titre || 'Widget') + ' (copie)',
+        gridX: 0,
+        gridY: newY,
       });
       const newWidget = res?.datas || res;
       setDashboard(prev => ({

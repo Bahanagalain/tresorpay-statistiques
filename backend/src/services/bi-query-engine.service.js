@@ -334,8 +334,8 @@ function parseDimension(dimKey, ds, granularite) {
   }
 
   // Dimension temporelle (période avec granularité)
-  if (dimKey === 'periode' || dimKey.startsWith('periode_')) {
-    const gran = dimKey.startsWith('periode_') ? dimKey.replace('periode_', '').toUpperCase() : (granularite || 'MOIS');
+  if (dimKey === 'periode' || dimKey.startsWith('periode_') || dimKey.startsWith('date_')) {
+    const gran = dimKey.startsWith('periode_') || dimKey.startsWith('date_') ? dimKey.replace(/^(periode_|date_)/, '').toUpperCase() : (granularite || 'MOIS');
     const granDef = GRANULARITES[gran];
     if (!granDef || !ds.colonneDate) return null;
     const sql = granDef.sql(ds.colonneDate);
@@ -466,6 +466,25 @@ async function formatRows(rows, dims, mesuresMeta) {
     }
   }
 
+  // Résoudre les labels des dimensions dynamiques (champs formulaire) — batch
+  const optionsCache = {};
+  for (const dim of dims) {
+    if (dim.type === 'dynamic' && dim.champId) {
+      try {
+        const champ = await prisma.champFormulaire.findUnique({
+          where: { id: dim.champId },
+          select: { optionsDisponibles: true },
+        });
+        const options = champ?.optionsDisponibles;
+        if (Array.isArray(options) && options.length > 0) {
+          optionsCache[dim.cle] = new Map(options.map(o => [String(o.value ?? o.valeur ?? ''), o.label ?? o.libelle ?? String(o.value ?? o.valeur ?? '')]));
+        }
+      } catch {
+        // pas d'options disponibles, on garde la valeur brute
+      }
+    }
+  }
+
   return rows.map(row => {
     const result = { dimensions: {} };
 
@@ -476,6 +495,12 @@ async function formatRows(rows, dims, mesuresMeta) {
         result.dimensions[dim.cle] = {
           id: rawVal,
           nom: nomsCache[dim.cle]?.get(rawVal) || rawVal || '(non défini)',
+        };
+      } else if (dim.type === 'dynamic' && optionsCache[dim.cle]) {
+        const label = optionsCache[dim.cle].get(String(rawVal ?? ''));
+        result.dimensions[dim.cle] = {
+          id: rawVal,
+          nom: label || (rawVal != null ? String(rawVal) : '(non défini)'),
         };
       } else {
         result.dimensions[dim.cle] = {

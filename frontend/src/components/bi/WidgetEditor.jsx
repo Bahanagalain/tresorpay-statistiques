@@ -152,6 +152,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   // --- State: dimensions additionnelles (champs formulaire) ---
   const [serviceDimensions, setServiceDimensions] = useState([]);
   const [selectedDynDims, setSelectedDynDims] = useState([]);
+  const [champFiltres, setChampFiltres] = useState({}); // { [champId]: valeur }
 
   // --- State: mesures ---
   const [selectedMesures, setSelectedMesures] = useState(['COUNT']);
@@ -259,6 +260,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       setLoadingDimensions(true);
       setServiceDimensions([]);
       setSelectedDynDims([]);
+      setChampFiltres({});
       fetchDimensions('soumissions', { service_id: selectedService })
         .then(res => {
           const data = res?.datas || res || {};
@@ -357,7 +359,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
     } else if (sujet === 'statut') {
       dimensions.push('statut_paiement');
     } else if (sujet === 'temporel') {
-      dimensions.push(`date_${granularite}`);
+      dimensions.push(`periode_${granularite}`);
     }
 
     // Ajouter les dimensions dynamiques
@@ -380,7 +382,10 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
         dataset: 'soumissions',
         dimensions,
         mesures: mesuresToApi(selectedMesures),
-        filtres,
+        filtres: {
+          ...filtres,
+          ...(Object.keys(champFiltres).length > 0 ? { champs: champFiltres } : {}),
+        },
         limite: 10,
       });
       setPreviewData(res?.datas || res);
@@ -389,7 +394,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
     } finally {
       setPreviewLoading(false);
     }
-  }, [buildQueryParams, selectedMesures]);
+  }, [buildQueryParams, selectedMesures, champFiltres]);
 
   useEffect(() => {
     const t = setTimeout(runPreview, 600);
@@ -408,6 +413,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
     setSelectedRegion(null);
     setServiceDimensions([]);
     setSelectedDynDims([]);
+    setChampFiltres({});
     setTitreEdited(false);
   };
 
@@ -415,6 +421,26 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
     setSelectedDynDims(prev =>
       prev.includes(cle) ? prev.filter(d => d !== cle) : [...prev, cle]
     );
+    // Clear filter for this field when unchecking
+    setChampFiltres(prev => {
+      if (prev[cle]) {
+        const next = { ...prev };
+        delete next[cle];
+        return next;
+      }
+      return prev;
+    });
+  };
+
+  const toggleChampFiltre = (cle, valeur) => {
+    setChampFiltres(prev => {
+      if (prev[cle] === valeur) {
+        const next = { ...prev };
+        delete next[cle];
+        return next;
+      }
+      return { ...prev, [cle]: valeur };
+    });
   };
 
   const toggleMesure = (val) => {
@@ -441,7 +467,10 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
         mesures: mesuresToApi(selectedMesures),
         tri: { colonne: mesureDataKey(selectedMesures[0]), direction: 'desc' },
       },
-      filtresLocaux: filtres,
+      filtresLocaux: {
+        ...filtres,
+        ...(Object.keys(champFiltres).length > 0 ? { champs: champFiltres } : {}),
+      },
       gridW: typeWidget === 'KPI_CARD' ? 3 : 6,
       gridH: typeWidget === 'KPI_CARD' ? 2 : 4,
     });
@@ -457,11 +486,10 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   const previewRows = previewData?.rows || [];
   const rendererData = previewRows.map(row => {
     const entry = {};
-    const dimEntries = Object.entries(row.dimensions || {});
-    if (dimEntries.length > 0) {
-      const [, v] = dimEntries[0];
-      entry.nom = v?.nom || v?.id || v || '(non défini)';
-    }
+    const dims = Object.entries(row.dimensions || {});
+    entry.nom = dims.length === 1
+      ? (dims[0][1]?.nom || dims[0][1]?.id || dims[0][1] || '(non défini)')
+      : dims.map(([, v]) => v?.nom || v?.id || '?').join(' — ');
     entry.nombre = row.nombre || 0;
     entry.montant_total = row.montant_total || 0;
     entry.montant_moyen = row.montant_moyen || 0;
@@ -618,6 +646,31 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
                             </span>
                           ))}
                         </div>
+                        {/* Filtres par valeur de champ */}
+                        {serviceDimensions
+                          .filter(d => selectedDynDims.includes(d.cle) && d.options && d.options.length > 0)
+                          .map(d => (
+                            <div key={`filtre-${d.cle}`} style={{ marginTop: '0.4rem', paddingLeft: '0.5rem', borderLeft: '2px solid var(--border, #e5e7eb)' }}>
+                              <span className="bi-hint" style={{ fontSize: '0.72rem', display: 'block', marginBottom: '0.25rem' }}>
+                                Filtrer « {d.libelle} » sur une valeur :
+                              </span>
+                              <div className="bi-pills" style={{ gap: '0.25rem' }}>
+                                {d.options.map(opt => {
+                                  const val = typeof opt === 'string' ? opt : (opt.label || opt.value || opt);
+                                  return (
+                                    <span
+                                      key={val}
+                                      className={`bi-pill small ${champFiltres[d.cle] === val ? 'active' : ''}`}
+                                      onClick={() => toggleChampFiltre(d.cle, val)}
+                                      style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem' }}
+                                    >
+                                      {val}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
                       </>
                     ) : (
                       <p className="bi-hint">Aucun champ formulaire disponible pour ce service.</p>
@@ -673,7 +726,10 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
                 <WidgetRenderer
                   type={typeWidget}
                   data={rendererData}
-                  config={{ dataKey: mesureDataKey(selectedMesures[0]) }}
+                  config={{
+                    mesure: mesureDataKey(selectedMesures[0]),
+                    dimension: 'nom',
+                  }}
                 />
               </div>
             )}

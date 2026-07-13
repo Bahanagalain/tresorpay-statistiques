@@ -41,7 +41,22 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
     executeWidget(widget.id, { filtres: mergedFilters })
       .then(res => {
         if (!cancelled) {
-          setData(res?.datas || res);
+          const result = res?.datas || res;
+          const rows = result?.rows || [];
+          const transformed = rows.map(row => {
+            const dims = Object.entries(row.dimensions || {});
+            const nom = dims.length === 1
+              ? (dims[0][1]?.nom || dims[0][1]?.id || '?')
+              : dims.map(([, v]) => v?.nom || v?.id).join(' — ');
+            return {
+              nom,
+              nombre: row.nombre || 0,
+              montant_total: row.montant_total || 0,
+              montant_moyen: row.montant_moyen || 0,
+              ratio: row.ratio || 0,
+            };
+          });
+          setData(transformed);
           setLoading(false);
         }
       })
@@ -97,7 +112,11 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
           <WidgetRenderer
             type={widget.typeWidget}
             data={data}
-            config={widget.config || {}}
+            config={{
+              dataKey: widget.chartConfig?.tri?.colonne || 'nombre',
+              mesure: widget.chartConfig?.tri?.colonne || 'nombre',
+              dimension: 'nom',
+            }}
             onChartClick={handleChartClick}
           />
         )}

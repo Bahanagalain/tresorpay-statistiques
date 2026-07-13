@@ -340,8 +340,23 @@ export default async function biRoutes(fastify) {
     });
     if (!widget) return { error: 'Widget introuvable', statusCode: 404 };
 
-    // Fusionner les filtres globaux (body) avec les filtres locaux du widget
-    const filtresFusionnes = { ...(widget.filtresLocaux || {}), ...(request.body?.filtres || {}) };
+    // Les filtres locaux du widget ont priorité
+    const filtresLocaux = widget.filtresLocaux || {};
+    const filtresGlobaux = request.body?.filtres || {};
+
+    const filtresFusionnes = { ...filtresGlobaux };
+
+    // Les filtres locaux du widget ont priorité sur les globaux
+    for (const [key, val] of Object.entries(filtresLocaux)) {
+      if (val !== null && val !== undefined && val !== '') {
+        filtresFusionnes[key] = val;
+      }
+    }
+
+    // Fusionner les champs formulaire (filtresLocaux.champs + filtresGlobaux.champs)
+    if (filtresLocaux.champs || filtresGlobaux.champs) {
+      filtresFusionnes.champs = { ...(filtresGlobaux.champs || {}), ...(filtresLocaux.champs || {}) };
+    }
 
     const result = await executerRequete({
       dataset: widget.dataset?.code || 'soumissions',

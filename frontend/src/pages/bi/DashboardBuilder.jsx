@@ -103,35 +103,18 @@ function DashboardBuilderInner() {
 
     // Calculer les positions pour les widgets sans posX/posY sauvegardés
     // Utiliser un algorithme de placement en grille qui évite les chevauchements
+    // Algorithme : placer chaque widget au premier emplacement libre
+    // en respectant la largeur/hauteur configurée. Pas de chevauchement.
     const computeLayout = (cols) => {
-      // Grille de hauteur : track de l'occupation par colonne
       const colHeights = new Array(cols).fill(0);
       return widgets.map((w) => {
         const wWidth = Math.min(w.largeur || (w.gridW || 6), cols);
         const wHeight = w.hauteur || (w.gridH || 3);
 
-        // Si le widget a des positions sauvegardées, les utiliser
-        if (w.posX !== null && w.posX !== undefined && w.posY !== null && w.posY !== undefined) {
-          // Mettre à jour les hauteurs de colonnes
-          for (let c = w.posX; c < Math.min(w.posX + wWidth, cols); c++) {
-            colHeights[c] = Math.max(colHeights[c], w.posY + wHeight);
-          }
-          return {
-            i: String(w.id),
-            x: w.posX,
-            y: w.posY,
-            w: wWidth,
-            h: wHeight,
-            minW: 2,
-            minH: 2,
-          };
-        }
-
-        // Trouver la meilleure position (premier emplacement libre assez large)
+        // Trouver la première position libre assez large
         let bestX = 0;
         let bestY = Infinity;
         for (let x = 0; x <= cols - wWidth; x++) {
-          // Hauteur max des colonnes que ce widget occuperait
           let maxH = 0;
           for (let c = x; c < x + wWidth; c++) {
             maxH = Math.max(maxH, colHeights[c]);
@@ -142,7 +125,6 @@ function DashboardBuilderInner() {
           }
         }
 
-        // Mettre à jour les hauteurs de colonnes
         for (let c = bestX; c < bestX + wWidth; c++) {
           colHeights[c] = bestY + wHeight;
         }
@@ -407,6 +389,8 @@ function DashboardBuilderInner() {
             breakpoints={{ lg: 1200, md: 768, sm: 0 }}
             cols={{ lg: 12, md: 6, sm: 1 }}
             rowHeight={80}
+            compactType="vertical"
+            preventCollision={false}
             onLayoutChange={handleLayoutChange}
             draggableHandle=".bi-widget-card-header"
             isResizable

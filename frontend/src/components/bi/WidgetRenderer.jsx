@@ -7,6 +7,8 @@ import {
 import { BarChart3 } from 'lucide-react';
 import GaugeChart from '../ui/GaugeChart';
 
+const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
 const COLORS = ['#2563eb', '#8b5cf6', '#059669', '#f59e0b', '#ec4899', '#14b8a6', '#f97316', '#6366f1'];
 
 const LABELS = {
@@ -108,7 +110,7 @@ function RenderBarChart({ data, config, onChartClick }) {
         <XAxis dataKey={labelKey} tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} />
         <Tooltip content={<CustomTooltip />} />
-        <Bar dataKey={dataKey} fill="#2563eb" radius={[4, 4, 0, 0]} />
+        <Bar dataKey={dataKey} fill="#2563eb" radius={[4, 4, 0, 0]} isAnimationActive={!prefersReducedMotion} animationDuration={600} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -137,7 +139,7 @@ function RenderLineChart({ data, config, onChartClick }) {
         <XAxis dataKey={labelKey} tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} />
         <Tooltip content={<CustomTooltip />} />
-        <Line type="monotone" dataKey={dataKey} stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+        <Line type="monotone" dataKey={dataKey} stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={!prefersReducedMotion} animationDuration={800} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -166,6 +168,8 @@ function RenderPieChart({ data, config, onChartClick }) {
           outerRadius="70%"
           label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
           labelLine={{ strokeWidth: 1 }}
+          isAnimationActive={!prefersReducedMotion}
+          animationDuration={600}
           onClick={handleClick}
           style={{ cursor: onChartClick ? 'pointer' : 'default' }}
         >
@@ -203,7 +207,7 @@ function RenderAreaChart({ data, config, onChartClick }) {
         <XAxis dataKey={labelKey} tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} />
         <Tooltip content={<CustomTooltip />} />
-        <Area type="monotone" dataKey={dataKey} stroke="#8b5cf6" fill="rgba(139, 92, 246, 0.15)" strokeWidth={2} />
+        <Area type="monotone" dataKey={dataKey} stroke="#8b5cf6" fill="rgba(139, 92, 246, 0.15)" strokeWidth={2} isAnimationActive={!prefersReducedMotion} animationDuration={800} />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -227,7 +231,7 @@ function RenderStackedBarChart({ data, config, onChartClick }) {
         <Tooltip content={<CustomTooltip />} />
         <Legend wrapperStyle={{ fontSize: 11 }} />
         {mesureKeys.map((key, idx) => (
-          <Bar key={key} dataKey={key} stackId="stack" fill={COLORS[idx % COLORS.length]} name={LABELS[key] || key} />
+          <Bar key={key} dataKey={key} stackId="stack" fill={COLORS[idx % COLORS.length]} name={LABELS[key] || key} isAnimationActive={!prefersReducedMotion} animationDuration={600} />
         ))}
       </BarChart>
     </ResponsiveContainer>
@@ -254,8 +258,8 @@ function RenderComboChart({ data, config, onChartClick }) {
         {lineKey && <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />}
         <Tooltip content={<CustomTooltip />} />
         <Legend wrapperStyle={{ fontSize: 11 }} />
-        <Bar yAxisId="left" dataKey={barKey} fill="#2563eb" radius={[4, 4, 0, 0]} name={LABELS[barKey] || barKey} />
-        {lineKey && <Line yAxisId="right" type="monotone" dataKey={lineKey} stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} name={LABELS[lineKey] || lineKey} />}
+        <Bar yAxisId="left" dataKey={barKey} fill="#2563eb" radius={[4, 4, 0, 0]} name={LABELS[barKey] || barKey} isAnimationActive={!prefersReducedMotion} animationDuration={600} />
+        {lineKey && <Line yAxisId="right" type="monotone" dataKey={lineKey} stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} name={LABELS[lineKey] || lineKey} isAnimationActive={!prefersReducedMotion} animationDuration={800} />}
       </BarChart>
     </ResponsiveContainer>
   );

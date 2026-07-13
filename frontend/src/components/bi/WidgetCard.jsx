@@ -1,9 +1,43 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Edit, Trash2, BarChart3, Filter, Copy } from 'lucide-react';
 import { executeWidget, executeWidgetKpi } from '../../api/biApi';
-import WeaveSpinner from '../ui/WeaveSpinner';
 import WidgetRenderer from './WidgetRenderer';
 import { useCrossFilter } from './CrossFilterContext';
+
+function WidgetSkeleton({ type }) {
+  if (type === 'KPI_CARD') {
+    return (
+      <div className="bi-skeleton-kpi">
+        <div className="bi-skeleton-line" style={{ width: '40%', height: 12 }} />
+        <div className="bi-skeleton-line" style={{ width: '60%', height: 28, marginTop: 8 }} />
+        <div className="bi-skeleton-line" style={{ width: '50%', height: 10, marginTop: 8 }} />
+      </div>
+    );
+  }
+  if (type === 'TABLE') {
+    return (
+      <div className="bi-skeleton-table">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="bi-skeleton-row">
+            <div className="bi-skeleton-line" style={{ width: '30%' }} />
+            <div className="bi-skeleton-line" style={{ width: '20%' }} />
+            <div className="bi-skeleton-line" style={{ width: '25%' }} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  // Charts
+  return (
+    <div className="bi-skeleton-chart">
+      <div className="bi-skeleton-bars">
+        {[60, 85, 45, 70, 55, 90, 40].map((h, i) => (
+          <div key={i} className="bi-skeleton-bar" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function timeAgo(loadTime) {
   const elapsed = Date.now() - loadTime;
@@ -163,7 +197,7 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onDuplic
         </div>
       </div>
       <div className="bi-widget-card-body" onDoubleClick={handleDoubleClick}>
-        {loading && <WeaveSpinner size={50} />}
+        {loading && <WidgetSkeleton type={widget.typeWidget} />}
         {error && <p style={{ fontSize: '0.78rem', color: '#dc2626' }}>{error}</p>}
         {!loading && !error && (
           <WidgetRenderer

@@ -1878,6 +1878,319 @@
   display: none;
 }
 
+/* ─── Skeleton Loading ─── */
+@keyframes skeletonPulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0.6; }
+}
+
+.bi-skeleton-line {
+  background: var(--border, #e5e7eb);
+  border-radius: 4px;
+  height: 14px;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.bi-skeleton-kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 1rem;
+  width: 100%;
+}
+
+.bi-skeleton-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem;
+}
+
+.bi-skeleton-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.bi-skeleton-row .bi-skeleton-line {
+  height: 12px;
+}
+
+.bi-skeleton-chart {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  padding: 0.5rem;
+}
+
+.bi-skeleton-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+}
+
+.bi-skeleton-bar {
+  flex: 1;
+  background: var(--border, #e5e7eb);
+  border-radius: 3px 3px 0 0;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .bi-widget-animate-in,
+  .bi-kpi-trend,
+  .bi-kpi-spark,
+  .bi-fav-btn.active,
+  .bi-save-indicator,
+  .bi-dashboard-list,
+  .bi-builder,
+  .bi-indicateur-builder,
+  .bi-empty-state svg,
+  .bi-confirm-dialog,
+  .bi-editor-overlay,
+  .bi-library-overlay,
+  .bi-modal-overlay,
+  .bi-confirm-overlay,
+  .bi-presentation-overlay {
+    animation: none;
+  }
+  .bi-skeleton-line,
+  .bi-skeleton-bar {
+    animation: none;
+    opacity: 0.4;
+  }
+  .bi-btn-primary:active,
+  .bi-btn-secondary:active,
+  .bi-btn-danger:active,
+  .bi-pill:active,
+  .bi-sujet-item:active,
+  .bi-chart-type-item:active {
+    transform: none;
+  }
+  .bi-widget-card,
+  .bi-dashboard-card,
+  .bi-stepper-circle,
+  .bi-stepper-line,
+  .bi-filter-badge,
+  .bi-simple-table tbody td {
+    transition: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOT 6 — MICRO-INTERACTIONS & POLISH
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Hover effects améliorés ─── */
+.bi-btn-primary,
+.bi-btn-secondary,
+.bi-btn-danger {
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.bi-btn-primary:active,
+.bi-btn-secondary:active,
+.bi-btn-danger:active {
+  transform: scale(0.97);
+}
+
+/* ─── Focus visible pour accessibilité ─── */
+.bi-btn-primary:focus-visible,
+.bi-btn-secondary:focus-visible,
+.bi-btn-danger:focus-visible,
+.bi-input:focus-visible,
+.bi-sort-select:focus-visible {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
+}
+
+/* ─── Widget card interactions ─── */
+.bi-widget-card {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.bi-widget-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* ─── Table row interactions ─── */
+.bi-simple-table tbody td {
+  transition: color 0.12s ease;
+}
+
+/* ─── Pill/chip interactions ─── */
+.bi-pill:hover:not(.active) {
+  border-color: var(--primary, #2563eb);
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.bi-pill:active {
+  transform: scale(0.96);
+}
+
+/* ─── Sujet item — smooth selection ─── */
+.bi-sujet-item:active {
+  transform: scale(0.97);
+}
+
+/* ─── Chart type item — selection bounce ─── */
+.bi-chart-type-item:active {
+  transform: scale(0.95);
+}
+
+/* ─── Filter badge — smooth remove ─── */
+.bi-filter-badge {
+  transition: all 0.15s ease;
+}
+
+.bi-filter-badge:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+/* ─── Modal/drawer — smoother overlay ─── */
+.bi-editor-overlay,
+.bi-library-overlay,
+.bi-modal-overlay,
+.bi-confirm-overlay {
+  animation: overlayFadeIn 0.2s ease-out;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ─── Stepper — smooth transitions ─── */
+.bi-stepper-circle {
+  transition: all 0.25s ease;
+}
+
+.bi-stepper-line {
+  transition: background 0.25s ease;
+}
+
+/* ─── Search bar — glow on focus ─── */
+.bi-search-bar:focus-within {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* ─── KPI trend animation ─── */
+@keyframes kpiTrendPulse {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.bi-kpi-trend {
+  animation: kpiTrendPulse 0.4s ease-out 0.3s both;
+}
+
+.bi-kpi-spark {
+  animation: kpiTrendPulse 0.4s ease-out 0.5s both;
+}
+
+/* ─── Favorite star — bounce on toggle ─── */
+@keyframes favBounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.3); }
+  60% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+.bi-fav-btn.active {
+  animation: favBounce 0.3s ease-out;
+}
+
+/* ─── Save indicator — slide in ─── */
+.bi-save-indicator {
+  animation: saveSlideIn 0.3s ease-out, fadeInOut 2s ease-out forwards;
+}
+
+@keyframes saveSlideIn {
+  from { transform: translateX(-8px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ─── Scrollbar styling ─── */
+.bi-builder-body::-webkit-scrollbar,
+.bi-editor-config::-webkit-scrollbar,
+.bi-editor-preview::-webkit-scrollbar,
+.bi-library-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.bi-builder-body::-webkit-scrollbar-track,
+.bi-editor-config::-webkit-scrollbar-track,
+.bi-editor-preview::-webkit-scrollbar-track,
+.bi-library-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bi-builder-body::-webkit-scrollbar-thumb,
+.bi-editor-config::-webkit-scrollbar-thumb,
+.bi-editor-preview::-webkit-scrollbar-thumb,
+.bi-library-grid::-webkit-scrollbar-thumb {
+  background: var(--border, #d1d5db);
+  border-radius: 3px;
+}
+
+.bi-builder-body::-webkit-scrollbar-thumb:hover,
+.bi-editor-config::-webkit-scrollbar-thumb:hover,
+.bi-editor-preview::-webkit-scrollbar-thumb:hover,
+.bi-library-grid::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary, #9ca3af);
+}
+
+/* ─── Smooth page transitions ─── */
+.bi-dashboard-list,
+.bi-builder,
+.bi-indicateur-builder {
+  animation: pageFadeIn 0.3s ease-out;
+}
+
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Empty state — gentle bounce ─── */
+.bi-empty-state svg {
+  animation: emptyBounce 2s ease-in-out infinite;
+}
+
+@keyframes emptyBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* ─── Confirmation dialog — scale in ─── */
+.bi-confirm-dialog {
+  animation: dialogScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dialogScaleIn {
+  from { transform: scale(0.92); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ─── Loading spinner smooth ─── */
+.bi-widget-card-body .weave-spinner {
+  transition: opacity 0.3s ease;
+}
+
+/* ─── Presentation overlay — fade ─── */
+.bi-presentation-overlay {
+  animation: overlayFadeIn 0.3s ease-out;
+}
+
 /* ─── Responsive Lot 1 ─── */
 @media (max-width: 768px) {
   .bi-stepper {
@@ -1912,4 +2225,250 @@
     max-width: none;
     min-width: 0;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DARK MODE
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Détection automatique de la préférence système */
+@media (prefers-color-scheme: dark) {
+  .bi-dark-auto {
+    --card-bg: #1e1e2e;
+    --bg-muted: #181825;
+    --bg-hover: #313244;
+    --border: #45475a;
+    --text-primary: #cdd6f4;
+    --text-secondary: #bac2de;
+    --text-tertiary: #6c7086;
+    --primary: #89b4fa;
+    --primary-hover: #74c7ec;
+  }
+}
+
+/* Classe manuelle pour toggle */
+.bi-dark {
+  --card-bg: #1e1e2e;
+  --bg-muted: #181825;
+  --bg-hover: #313244;
+  --border: #45475a;
+  --text-primary: #cdd6f4;
+  --text-secondary: #bac2de;
+  --text-tertiary: #6c7086;
+  --primary: #89b4fa;
+  --primary-hover: #74c7ec;
+}
+
+/* Ajustements spécifiques pour le dark mode */
+.bi-dark .bi-widget-card,
+.bi-dark .bi-dashboard-card,
+.bi-dark .bi-modal,
+.bi-dark .bi-confirm-dialog,
+.bi-dark .bi-editor-panel,
+.bi-dark .bi-library-drawer {
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.bi-dark .bi-builder {
+  background: var(--bg-muted);
+}
+
+.bi-dark .bi-builder-body {
+  background: var(--bg-muted);
+}
+
+.bi-dark .bi-builder-title {
+  color: var(--text-primary);
+}
+
+.bi-dark .bi-builder-title:focus {
+  background: var(--bg-hover);
+}
+
+.bi-dark .bi-simple-table thead th {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.bi-dark .bi-simple-table tbody tr:hover {
+  background: rgba(137, 180, 250, 0.05);
+}
+
+.bi-dark .bi-simple-table td,
+.bi-dark .bi-simple-table th {
+  border-bottom-color: var(--border);
+}
+
+.bi-dark .bi-custom-tooltip {
+  background: #313244;
+  border-color: #45475a;
+  color: var(--text-primary);
+}
+
+.bi-dark .bi-custom-tooltip-label {
+  color: var(--text-primary);
+}
+
+.bi-dark .bi-editor-overlay {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.bi-dark .bi-editor-config {
+  border-right-color: var(--border);
+}
+
+.bi-dark .bi-editor-preview {
+  background: var(--bg-muted);
+}
+
+.bi-dark .bi-filter-bar {
+  background: var(--card-bg);
+  border-bottom-color: var(--border);
+}
+
+.bi-dark .bi-filter-bar select {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-btn-secondary {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-btn-secondary:hover {
+  background: #45475a;
+}
+
+.bi-dark .bi-input {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-searchable-select-dropdown {
+  background: var(--card-bg);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-searchable-select-option:hover {
+  background: var(--bg-hover);
+}
+
+.bi-dark .bi-pill {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.bi-dark .bi-sujet-item {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.bi-dark .bi-chart-type-item {
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.bi-dark .bi-kpi-value {
+  color: var(--text-primary);
+}
+
+.bi-dark .bi-empty-state p {
+  color: var(--text-secondary);
+}
+
+.bi-dark .bi-presentation-overlay {
+  background: var(--bg-muted);
+}
+
+.bi-dark .bi-presentation-header {
+  background: var(--card-bg);
+  border-bottom-color: var(--border);
+}
+
+.bi-dark .bi-presentation-header h1 {
+  color: var(--text-primary);
+}
+
+.bi-dark .bi-search-bar {
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-search-input {
+  color: var(--text-primary);
+}
+
+.bi-dark .bi-sort-select {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-export-menu {
+  background: var(--card-bg);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-export-menu button {
+  color: var(--text-primary);
+}
+
+.bi-dark .bi-export-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.bi-dark .bi-stepper-circle {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--text-tertiary);
+}
+
+.bi-dark .bi-stepper-line {
+  background: var(--border);
+}
+
+.bi-dark .bi-modal-overlay,
+.bi-dark .bi-confirm-overlay {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.bi-dark .bi-modal input,
+.bi-dark .bi-modal textarea {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-library-drawer {
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
+}
+
+.bi-dark .bi-library-card {
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-indicateur-form-section {
+  background: var(--card-bg);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-indicateur-item {
+  background: var(--card-bg);
+  border-color: var(--border);
+}
+
+.bi-dark .bi-indicateur-form input,
+.bi-dark .bi-indicateur-form select,
+.bi-dark .bi-indicateur-form textarea {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
 }

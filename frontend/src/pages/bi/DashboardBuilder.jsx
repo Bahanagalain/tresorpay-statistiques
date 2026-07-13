@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ResponsiveGridLayout } from 'react-grid-layout';
-import { Plus, Save, ArrowLeft, LayoutDashboard, BookOpen, Maximize2, X } from 'lucide-react';
+import { Plus, Save, ArrowLeft, LayoutDashboard, BookOpen, Maximize2, X, Sun, Moon } from 'lucide-react';
 import {
   fetchDashboard, updateDashboard,
   addWidget, updateWidget, deleteWidget,
@@ -34,12 +34,28 @@ function DashboardBuilderInner() {
   const [presentationMode, setPresentationMode] = useState(false);
   const [titleSaved, setTitleSaved] = useState(false);
   const [debouncedFilters, setDebouncedFilters] = useState({});
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('bi-dark-mode');
+    if (saved !== null) return saved === 'true';
+    return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches || false;
+  });
   const titleTimeout = useRef(null);
   const filterTimeout = useRef(null);
   const lastClickRef = useRef(null);
   const gridRef = useRef(null);
 
   const { setCrossFilter } = useCrossFilter();
+
+  useEffect(() => {
+    const root = document.querySelector('.bi-builder')?.closest('.app-content') || document.body;
+    if (darkMode) {
+      root.classList.add('bi-dark');
+    } else {
+      root.classList.remove('bi-dark');
+    }
+    localStorage.setItem('bi-dark-mode', String(darkMode));
+    return () => root.classList.remove('bi-dark');
+  }, [darkMode]);
 
   // Debounce filters (500ms) pour éviter de relancer toutes les requêtes à chaque frappe
   const handleFiltersChange = useCallback((newFilters) => {
@@ -301,6 +317,13 @@ function DashboardBuilderInner() {
             widgets={widgets}
             gridRef={gridRef}
           />
+          <button
+            className="bi-btn-secondary"
+            onClick={() => setDarkMode(!darkMode)}
+            title={darkMode ? 'Mode clair' : 'Mode sombre'}
+          >
+            {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
           <button className="bi-btn-secondary" onClick={() => setPresentationMode(true)} title="Mode présentation">
             <Maximize2 size={15} />
           </button>

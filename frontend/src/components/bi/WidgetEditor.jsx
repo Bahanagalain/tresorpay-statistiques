@@ -514,13 +514,15 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   };
 
   const toggleChampFiltre = (cle, valeur) => {
+    // Backend attend l'ID numérique (ex: "210"), pas la clé "champ_210"
+    const champId = cle.replace('champ_', '');
     setChampFiltres(prev => {
-      if (prev[cle] === valeur) {
+      if (prev[champId] === valeur) {
         const next = { ...prev };
-        delete next[cle];
+        delete next[champId];
         return next;
       }
-      return { ...prev, [cle]: valeur };
+      return { ...prev, [champId]: valeur };
     });
   };
 
@@ -765,7 +767,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
                                   return (
                                     <span
                                       key={val}
-                                      className={`bi-pill small ${champFiltres[d.cle] === val ? 'active' : ''}`}
+                                      className={`bi-pill small ${champFiltres[d.cle.replace('champ_', '')] === val ? 'active' : ''}`}
                                       onClick={() => toggleChampFiltre(d.cle, val)}
                                       style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem' }}
                                     >

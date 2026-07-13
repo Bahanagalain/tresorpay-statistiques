@@ -47,11 +47,12 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
           let transformed;
 
           if (widget.typeWidget === 'TABLE') {
-            // Colonnes séparées par dimension avec labels lisibles
+            // Colonnes séparées par dimension avec labels lisibles depuis meta
             const dimLabels = meta.dimensions || {};
             transformed = rows.map(row => {
               const entry = {};
               for (const [dimKey, dimVal] of Object.entries(row.dimensions || {})) {
+                // Utiliser le label du meta (ex: "Motif" au lieu de "champ_210")
                 const label = dimLabels[dimKey] || dimKey;
                 entry[label] = dimVal?.nom || dimVal?.id || '?';
               }

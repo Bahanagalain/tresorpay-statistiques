@@ -256,7 +256,16 @@ export async function executerRequete(req) {
     rows: formattedRows,
     meta: {
       dataset: datasetCode,
-      dimensions: dims.map(d => d.cle),
+      dimensions: Object.fromEntries(await Promise.all(dims.map(async d => {
+        if (d.type === 'dynamic' && d.champId) {
+          try {
+            const ch = await prisma.champFormulaire.findUnique({ where: { id: d.champId }, select: { libelleChamp: true } });
+            return [d.cle, ch?.libelleChamp || d.cle];
+          } catch { return [d.cle, d.cle]; }
+        }
+        const fixedLabels = { ministere: 'Ministère', service: 'Service', domaine: 'Domaine', region: 'Région', departement: 'Département', org_unit: 'Unité org.', statut: 'Statut', periode: 'Période', formulaire: 'Formulaire' };
+        return [d.cle, fixedLabels[d.cle] || d.cle];
+      }))),
       mesures: mesuresMeta,
       total,
       limite: maxLimite,

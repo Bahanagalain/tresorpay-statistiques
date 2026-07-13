@@ -199,7 +199,8 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
         setLoadingMinisteres(true);
         apiFetch('/referentiel/ministeres')
           .then(res => {
-            const list = res?.datas || res || [];
+            const raw = res?.datas || res || [];
+            const list = raw.map(m => ({ id: m.id, nom: m.nomFr || m.nom || m.shortName || m.id }));
             setMinisteres([{ id: '__all__', nom: 'Tous les ministères' }, ...list]);
           })
           .catch(() => setMinisteres([]))
@@ -209,14 +210,20 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
     if (sujet === 'domaine' && domaines.length === 0) {
       setLoadingDomaines(true);
       apiFetch('/referentiel/domaines')
-        .then(res => setDomaines(res?.datas || res || []))
+        .then(res => {
+          const raw = res?.datas || res || [];
+          setDomaines(raw.map(d => ({ id: d.id, nom: d.nomFr || d.nom || d.id })));
+        })
         .catch(() => setDomaines([]))
         .finally(() => setLoadingDomaines(false));
     }
     if (sujet === 'region' && regions.length === 0) {
       setLoadingRegions(true);
       apiFetch('/referentiel/orgUnits')
-        .then(res => setRegions(res?.datas || res || []))
+        .then(res => {
+          const raw = res?.datas || res || [];
+          setRegions(raw.map(o => ({ id: o.id, nom: o.nomFr || o.nom || o.code || o.id })));
+        })
         .catch(() => setRegions([]))
         .finally(() => setLoadingRegions(false));
     }
@@ -234,7 +241,10 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       setServiceDimensions([]);
       setSelectedDynDims([]);
       apiFetch('/referentiel/services', { params: { ministere_id: selectedMinistere } })
-        .then(res => setServices(res?.datas || res || []))
+        .then(res => {
+          const raw = res?.datas || res || [];
+          setServices(raw.map(s => ({ id: s.id, nom: s.nomFr || s.nom || s.nameFr || s.id })));
+        })
         .catch(() => setServices([]))
         .finally(() => setLoadingServices(false));
     }

@@ -180,6 +180,9 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  // --- Ref: évite le reset des valeurs pré-remplies au premier montage en mode édition ---
+  const editInitRef = useRef(!!widget?.id);
+
   // ═══════════════════════════════════════════════════════════════
   // Chargement initial (datasets)
   // ═══════════════════════════════════════════════════════════════
@@ -189,6 +192,76 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       .then(res => setDatasets(res?.datas || []))
       .finally(() => setLoadingInit(false));
   }, []);
+
+  // ═══════════════════════════════════════════════════════════════
+  // Pré-remplissage en mode édition
+  // ═══════════════════════════════════════════════════════════════
+
+  useEffect(() => {
+    if (!widget) return;
+    const fl = widget.filtresLocaux || {};
+    const dims = widget.dimensions || [];
+
+    // Pré-remplir typeWidget (déjà fait via useState initial)
+
+    // Pré-remplir le sujet
+    if (fl.service_id) {
+      setSujet('service');
+    } else if (fl.ministere_id && !fl.service_id) {
+      setSujet('ministere');
+    } else if (fl.domaine_id) {
+      setSujet('domaine');
+    } else if (fl.org_unit_id || fl.region_id) {
+      setSujet('region');
+    } else if (dims.includes('statut_paiement') || dims.includes('statut')) {
+      setSujet('statut');
+    } else if (dims.some(d => d.startsWith('periode_'))) {
+      setSujet('temporel');
+      const periDim = dims.find(d => d.startsWith('periode_'));
+      if (periDim) setGranularite(periDim.replace('periode_', ''));
+    } else if (dims.includes('ministere')) {
+      setSujet('ministere');
+    } else if (dims.includes('service')) {
+      setSujet('service');
+    } else if (dims.includes('domaine')) {
+      setSujet('domaine');
+    } else if (dims.includes('region')) {
+      setSujet('region');
+    }
+
+    // Pré-remplir les sélections d'entités
+    if (fl.ministere_id) setSelectedMinistere(fl.ministere_id);
+    if (fl.service_id) setSelectedService(fl.service_id);
+    if (fl.domaine_id) setSelectedDomaine(fl.domaine_id);
+    if (fl.org_unit_id) setSelectedRegion(fl.org_unit_id);
+    if (fl.region_id) setSelectedRegion(fl.region_id);
+
+    // Pré-remplir les dimensions dynamiques (champ_N)
+    const dynDims = dims.filter(d => d.startsWith('champ_'));
+    if (dynDims.length > 0) setSelectedDynDims(dynDims);
+
+    // Pré-remplir les mesures depuis chartConfig
+    if (widget.chartConfig?.mesures?.length > 0) {
+      const mesureKeys = widget.chartConfig.mesures.map(m => {
+        if (m.type === 'SUM') return 'SUM';
+        if (m.type === 'AVG') return 'AVG';
+        if (m.type === 'RATIO') return 'RATIO';
+        return 'COUNT';
+      });
+      setSelectedMesures(mesureKeys);
+    }
+
+    // Pré-remplir le titre
+    if (widget.titre) {
+      setTitre(widget.titre);
+      setTitreEdited(true);
+    }
+
+    // Pré-remplir les filtres de champs formulaire
+    if (fl.champs && Object.keys(fl.champs).length > 0) {
+      setChampFiltres(fl.champs);
+    }
+  }, [widget]);
 
   // ═══════════════════════════════════════════════════════════════
   // Chargement des référentiels selon le sujet
@@ -237,10 +310,13 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   useEffect(() => {
     if (sujet === 'service' && selectedMinistere && selectedMinistere !== '__all__') {
       setLoadingServices(true);
-      setServices([]);
-      setSelectedService(null);
-      setServiceDimensions([]);
-      setSelectedDynDims([]);
+      const isInit = editInitRef.current;
+      if (!isInit) {
+        setServices([]);
+        setSelectedService(null);
+        setServiceDimensions([]);
+        setSelectedDynDims([]);
+      }
       apiFetch('/referentiel/services', { params: { ministere_id: selectedMinistere } })
         .then(res => {
           const raw = res?.datas || res || [];
@@ -258,9 +334,14 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   useEffect(() => {
     if (selectedService) {
       setLoadingDimensions(true);
-      setServiceDimensions([]);
-      setSelectedDynDims([]);
-      setChampFiltres({});
+      const isInit = editInitRef.current;
+      if (!isInit) {
+        setServiceDimensions([]);
+        setSelectedDynDims([]);
+        setChampFiltres({});
+      }
+      // Désactiver le flag après le premier chargement en mode édition
+      if (isInit) editInitRef.current = false;
       fetchDimensions('soumissions', { service_id: selectedService })
         .then(res => {
           const data = res?.datas || res || {};
@@ -484,18 +565,42 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   // ═══════════════════════════════════════════════════════════════
 
   const previewRows = previewData?.rows || [];
-  const rendererData = previewRows.map(row => {
-    const entry = {};
-    const dims = Object.entries(row.dimensions || {});
-    entry.nom = dims.length === 1
-      ? (dims[0][1]?.nom || dims[0][1]?.id || dims[0][1] || '(non défini)')
-      : dims.map(([, v]) => v?.nom || v?.id || '?').join(' — ');
-    entry.nombre = row.nombre || 0;
-    entry.montant_total = row.montant_total || 0;
-    entry.montant_moyen = row.montant_moyen || 0;
-    entry.ratio = row.ratio || 0;
-    return entry;
-  });
+  const previewMeta = previewData?.meta || {};
+  const rendererData = (() => {
+    if (typeWidget === 'TABLE') {
+      const dimLabels = previewMeta.dimensions || {};
+      // Build dimension label map with fallback for dynamic fields
+      const labelMap = (key) => {
+        if (dimLabels[key]) return dimLabels[key];
+        const dim = serviceDimensions.find(d => d.cle === key);
+        if (dim) return dim.libelle;
+        return key;
+      };
+      return previewRows.map(row => {
+        const entry = {};
+        for (const [dimKey, dimVal] of Object.entries(row.dimensions || {})) {
+          entry[labelMap(dimKey)] = dimVal?.nom || dimVal?.id || '?';
+        }
+        entry.nombre = row.nombre || 0;
+        entry.montant_total = row.montant_total || 0;
+        entry.montant_moyen = row.montant_moyen || 0;
+        entry.ratio = row.ratio || 0;
+        return entry;
+      });
+    }
+    return previewRows.map(row => {
+      const entry = {};
+      const dims = Object.entries(row.dimensions || {});
+      entry.nom = dims.length === 1
+        ? (dims[0][1]?.nom || dims[0][1]?.id || dims[0][1] || '(non défini)')
+        : dims.map(([, v]) => v?.nom || v?.id || '?').join(' — ');
+      entry.nombre = row.nombre || 0;
+      entry.montant_total = row.montant_total || 0;
+      entry.montant_moyen = row.montant_moyen || 0;
+      entry.ratio = row.ratio || 0;
+      return entry;
+    });
+  })();
 
   // ═══════════════════════════════════════════════════════════════
   // Rendu

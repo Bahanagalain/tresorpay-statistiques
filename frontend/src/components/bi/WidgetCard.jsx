@@ -43,19 +43,39 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onChartC
         if (!cancelled) {
           const result = res?.datas || res;
           const rows = result?.rows || [];
-          const transformed = rows.map(row => {
-            const dims = Object.entries(row.dimensions || {});
-            const nom = dims.length === 1
-              ? (dims[0][1]?.nom || dims[0][1]?.id || '?')
-              : dims.map(([, v]) => v?.nom || v?.id).join(' — ');
-            return {
-              nom,
-              nombre: row.nombre || 0,
-              montant_total: row.montant_total || 0,
-              montant_moyen: row.montant_moyen || 0,
-              ratio: row.ratio || 0,
-            };
-          });
+          const meta = result?.meta || {};
+          let transformed;
+
+          if (widget.typeWidget === 'TABLE') {
+            // Colonnes séparées par dimension avec labels lisibles
+            const dimLabels = meta.dimensions || {};
+            transformed = rows.map(row => {
+              const entry = {};
+              for (const [dimKey, dimVal] of Object.entries(row.dimensions || {})) {
+                const label = dimLabels[dimKey] || dimKey;
+                entry[label] = dimVal?.nom || dimVal?.id || '?';
+              }
+              entry.nombre = row.nombre || 0;
+              entry.montant_total = row.montant_total || 0;
+              entry.montant_moyen = row.montant_moyen || 0;
+              entry.ratio = row.ratio || 0;
+              return entry;
+            });
+          } else {
+            transformed = rows.map(row => {
+              const dims = Object.entries(row.dimensions || {});
+              const nom = dims.length === 1
+                ? (dims[0][1]?.nom || dims[0][1]?.id || '?')
+                : dims.map(([, v]) => v?.nom || v?.id).join(' — ');
+              return {
+                nom,
+                nombre: row.nombre || 0,
+                montant_total: row.montant_total || 0,
+                montant_moyen: row.montant_moyen || 0,
+                ratio: row.ratio || 0,
+              };
+            });
+          }
           setData(transformed);
           setLoading(false);
         }

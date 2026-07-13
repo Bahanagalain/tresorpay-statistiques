@@ -170,7 +170,10 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onDuplic
   return (
     <div
       className={`bi-widget-card bi-widget-animate-in ${isFilterSource ? 'bi-widget-filter-source' : ''}`}
-      style={{ animationDelay: `${index * 0.05}s` }}
+      style={{
+        animationDelay: `${index * 0.05}s`,
+        ...(widget.chartConfig?.couleur ? { borderLeft: `3px solid ${widget.chartConfig.couleur}` } : {}),
+      }}
     >
       <div className="bi-widget-card-header">
         <h4 title={widget.titre}>

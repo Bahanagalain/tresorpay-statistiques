@@ -1496,6 +1496,31 @@
   cursor: not-allowed;
 }
 
+/* ─── Color Picker (widget) ─── */
+.bi-color-picker {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.bi-color-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  padding: 0;
+}
+
+.bi-color-dot:hover {
+  transform: scale(1.15);
+}
+
+.bi-color-dot.active {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--primary, #2563eb);
+  transform: scale(1.1);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    LOT 1 — AMÉLIORATIONS UX & PRÉSENTATION
    ═══════════════════════════════════════════════════════════════ */

@@ -178,6 +178,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   // --- State: titre ---
   const [titre, setTitre] = useState(widget?.titre || '');
   const [titreEdited, setTitreEdited] = useState(false);
+  const [couleur, setCouleur] = useState(widget?.chartConfig?.couleur || '');
 
   // --- State: référentiels ---
   const [ministeres, setMinisteres] = useState([]);
@@ -631,6 +632,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       chartConfig: {
         mesures: mesuresToApi(selectedMesures),
         tri: { colonne: mesureDataKey(selectedMesures[0]), direction: 'desc' },
+        ...(couleur ? { couleur } : {}),
       },
       filtresLocaux: {
         ...filtres,
@@ -941,6 +943,21 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
                     {!titreEdited && titre && (
                       <p className="bi-hint" style={{ marginTop: 4 }}>Auto-généré. Modifiez si besoin.</p>
                     )}
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <span className="bi-hint" style={{ display: 'block', marginBottom: '0.3rem' }}>Couleur du widget (optionnel)</span>
+                      <div className="bi-color-picker">
+                        {['', '#2563eb', '#8b5cf6', '#059669', '#f59e0b', '#ec4899', '#dc2626', '#14b8a6', '#6366f1', '#f97316'].map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            className={`bi-color-dot ${couleur === c ? 'active' : ''}`}
+                            style={{ background: c || 'transparent', border: c ? 'none' : '2px dashed var(--border, #d1d5db)' }}
+                            onClick={() => setCouleur(c)}
+                            title={c ? c : 'Aucune couleur'}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </>

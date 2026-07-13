@@ -96,36 +96,79 @@ function DashboardBuilderInner() {
     }, 1000);
   };
 
-  // Build layouts from widgets
+  // Build layouts from widgets — positionnement sans chevauchement
   const getLayouts = useCallback(() => {
     if (!dashboard?.widgets) return { lg: [], md: [], sm: [] };
     const widgets = dashboard.widgets;
+
+    // Calculer les positions pour les widgets sans posX/posY sauvegardés
+    // Utiliser un algorithme de placement en grille qui évite les chevauchements
+    const computeLayout = (cols) => {
+      // Grille de hauteur : track de l'occupation par colonne
+      const colHeights = new Array(cols).fill(0);
+      return widgets.map((w) => {
+        const wWidth = Math.min(w.largeur || (w.gridW || 6), cols);
+        const wHeight = w.hauteur || (w.gridH || 3);
+
+        // Si le widget a des positions sauvegardées, les utiliser
+        if (w.posX !== null && w.posX !== undefined && w.posY !== null && w.posY !== undefined) {
+          // Mettre à jour les hauteurs de colonnes
+          for (let c = w.posX; c < Math.min(w.posX + wWidth, cols); c++) {
+            colHeights[c] = Math.max(colHeights[c], w.posY + wHeight);
+          }
+          return {
+            i: String(w.id),
+            x: w.posX,
+            y: w.posY,
+            w: wWidth,
+            h: wHeight,
+            minW: 2,
+            minH: 2,
+          };
+        }
+
+        // Trouver la meilleure position (premier emplacement libre assez large)
+        let bestX = 0;
+        let bestY = Infinity;
+        for (let x = 0; x <= cols - wWidth; x++) {
+          // Hauteur max des colonnes que ce widget occuperait
+          let maxH = 0;
+          for (let c = x; c < x + wWidth; c++) {
+            maxH = Math.max(maxH, colHeights[c]);
+          }
+          if (maxH < bestY) {
+            bestY = maxH;
+            bestX = x;
+          }
+        }
+
+        // Mettre à jour les hauteurs de colonnes
+        for (let c = bestX; c < bestX + wWidth; c++) {
+          colHeights[c] = bestY + wHeight;
+        }
+
+        return {
+          i: String(w.id),
+          x: bestX,
+          y: bestY,
+          w: wWidth,
+          h: wHeight,
+          minW: 2,
+          minH: 2,
+        };
+      });
+    };
+
     return {
-      lg: widgets.map((w, i) => ({
-        i: String(w.id),
-        x: w.posX ?? (i % 3) * 4,
-        y: w.posY ?? Math.floor(i / 3) * 4,
-        w: w.largeur || 4,
-        h: w.hauteur || 3,
-        minW: 2,
-        minH: 2,
-      })),
-      md: widgets.map((w, i) => ({
-        i: String(w.id),
-        x: w.posX ?? (i % 2) * 6,
-        y: w.posY ?? Math.floor(i / 2) * 4,
-        w: Math.min(w.largeur || 4, 6),
-        h: w.hauteur || 3,
-        minW: 2,
-        minH: 2,
-      })),
+      lg: computeLayout(12),
+      md: computeLayout(6),
       sm: widgets.map((w, i) => ({
         i: String(w.id),
         x: 0,
-        y: i * 4,
-        w: 12,
-        h: w.hauteur || 3,
-        minW: 12,
+        y: i * (w.hauteur || w.gridH || 3),
+        w: 1,
+        h: w.hauteur || w.gridH || 3,
+        minW: 1,
         minH: 2,
       })),
     };

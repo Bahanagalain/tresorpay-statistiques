@@ -737,3 +737,67 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Tab Bar ─────────────────────────────────────────────── */
+.tdb-tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 0.2rem;
+  flex-shrink: 0;
+  width: fit-content;
+}
+
+.tdb-tab {
+  padding: 0.4rem 1rem;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tdb-tab:hover {
+  background: var(--bg-hover, rgba(0,0,0,0.04));
+  color: var(--text-primary);
+}
+
+.tdb-tab.active {
+  background: #059669;
+  color: white;
+  box-shadow: 0 1px 3px rgba(5,150,105,0.3);
+}
+
+/* ── Périmètre tab ───────────────────────────────────────── */
+.tdb-perimetre-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tdb-perimetre-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem 1.2rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  border-left: 4px solid #059669;
+}
+
+/* ── Alertes tab ─────────────────────────────────────────── */
+.tdb-alertes-tab {
+  min-height: 200px;
+}
+
+.tdb-alertes-full {
+  display: flex;
+  flex-direction: column;
+}

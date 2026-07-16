@@ -128,10 +128,21 @@ function KpiCard({ icon: Icon, label, value, color }) {
 }
 
 // ─── PAGE PRINCIPALE ───────────────────────────────────────
+const paginBtnStyle = {
+  padding: '0.3rem 0.6rem', border: '1px solid var(--glass-border)',
+  borderRadius: '6px', background: 'var(--bg-surface)', color: 'var(--text-primary)',
+  fontSize: '0.78rem', cursor: 'pointer',
+};
+
 export default function AuditActivite() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState(getCurrentPeriodRange);
+  const [filterAction, setFilterAction] = useState('');
+  const [filterEntite, setFilterEntite] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
 
   useEffect(() => {
     let cancelled = false;
@@ -162,6 +173,27 @@ export default function AuditActivite() {
   const evolution = data?.evolution ?? [];
   const recentes = data?.recentes ?? [];
 
+  // ─── Filtrage client-side ─────────────────────────────
+  const filteredActions = recentes.filter(entry => {
+    if (filterAction && entry.action !== filterAction) return false;
+    if (filterEntite && entry.typeEntite !== filterEntite) return false;
+    if (searchText) {
+      const q = searchText.toLowerCase();
+      const haystack = [
+        entry.acteurEmail, entry.acteurNom, entry.action,
+        entry.typeEntite, entry.cheminRoute,
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredActions.length / limit));
+  const safePage = Math.min(page, totalPages);
+  const startIdx = (safePage - 1) * limit;
+  const endIdx = Math.min(startIdx + limit, filteredActions.length);
+  const paginatedActions = filteredActions.slice(startIdx, endIdx);
+
   // Données pour les charts
   const barData = parAction.map(a => ({
     ...a,
@@ -178,7 +210,7 @@ export default function AuditActivite() {
 
   const getExportData = useCallback(() => ({
     headers: ['Date', 'Acteur', 'Action', 'Type Entité', 'Route', 'Méthode'],
-    rows: recentes.map(r => [
+    rows: filteredActions.map(r => [
       r.executeLe ? new Date(r.executeLe).toLocaleString('fr-FR') : '—',
       r.acteurEmail || '—',
       r.action || '—',
@@ -187,8 +219,8 @@ export default function AuditActivite() {
       r.methodeHttp || '—',
     ]),
     sheetName: 'Audit',
-    subtitle: `${formatEntier(total)} actions enregistrées`,
-  }), [recentes, total]);
+    subtitle: `${formatEntier(filteredActions.length)} actions${(searchText || filterAction || filterEntite) ? ' (filtrées)' : ''}`,
+  }), [filteredActions, searchText, filterAction, filterEntite]);
 
   return (
     <div className="page-container">
@@ -216,6 +248,50 @@ export default function AuditActivite() {
             <KpiCard icon={Activity} label="Total actions" value={total} color="#2563EB" />
             <KpiCard icon={Users} label="Acteurs uniques" value={topActeurs.length} color="#8B5CF6" />
             <KpiCard icon={FileText} label="Types d'entité" value={parEntite.length} color="#059669" />
+          </div>
+
+          {/* Filter bar */}
+          <div className="card" style={{ padding: '0.8rem 1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ position: 'relative', flex: '1 1 200px' }}>
+              <Search size={14} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+              <input
+                type="text"
+                placeholder="Rechercher par email, action, entité..."
+                value={searchText}
+                onChange={e => { setSearchText(e.target.value); setPage(1); }}
+                style={{ width: '100%', padding: '0.4rem 0.6rem 0.4rem 2rem', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+              />
+            </div>
+            <select value={filterAction} onChange={e => { setFilterAction(e.target.value); setPage(1); }}
+              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.8rem' }}>
+              <option value="">Toutes les actions</option>
+              <option value="LOGIN">LOGIN</option>
+              <option value="CREATE">CREATE</option>
+              <option value="UPDATE">UPDATE</option>
+              <option value="DELETE">DELETE</option>
+              <option value="SUBMIT">SUBMIT</option>
+              <option value="APPROVE">APPROVE</option>
+              <option value="PUBLISH">PUBLISH</option>
+              <option value="REJECT">REJECT</option>
+            </select>
+            <select value={filterEntite} onChange={e => { setFilterEntite(e.target.value); setPage(1); }}
+              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.8rem' }}>
+              <option value="">Tous les types</option>
+              <option value="AdminUser">AdminUser</option>
+              <option value="Service">Service</option>
+              <option value="FormDefinition">FormDefinition</option>
+              <option value="form">form</option>
+              <option value="service">service</option>
+              <option value="domain">domain</option>
+              <option value="revenue-group">revenue-group</option>
+              <option value="user">user</option>
+            </select>
+            {(searchText || filterAction || filterEntite) && (
+              <button onClick={() => { setSearchText(''); setFilterAction(''); setFilterEntite(''); setPage(1); }}
+                style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'none', color: '#DC2626', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <X size={12} /> Effacer
+              </button>
+            )}
           </div>
 
           {/* Two columns: Actions par type + Par entité */}
@@ -352,7 +428,12 @@ export default function AuditActivite() {
           {/* Dernières actions */}
           {recentes.length > 0 && (
             <div style={s.card}>
-              <h3 style={s.cardTitle}><Shield size={16} /> Dernières actions ({Math.min(recentes.length, 30)})</h3>
+              <h3 style={s.cardTitle}>
+                <Shield size={16} /> Journal d'activité
+                <span style={{ fontWeight: 400, fontSize: '0.78rem', color: 'var(--text-tertiary)', marginLeft: '0.4rem' }}>
+                  ({formatEntier(filteredActions.length)}{filteredActions.length !== recentes.length ? ` / ${formatEntier(recentes.length)}` : ''})
+                </span>
+              </h3>
               <div style={{ overflowX: 'auto' }}>
                 <table style={s.table}>
                   <thead>
@@ -366,7 +447,13 @@ export default function AuditActivite() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recentes.slice(0, 30).map((entry, i) => {
+                    {paginatedActions.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ ...s.td, textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>
+                          Aucune action ne correspond aux filtres
+                        </td>
+                      </tr>
+                    ) : paginatedActions.map((entry, i) => {
                       const dateStr = entry.executeLe
                         ? new Date(entry.executeLe).toLocaleString('fr-FR', {
                             day: '2-digit', month: '2-digit', year: 'numeric',
@@ -375,7 +462,7 @@ export default function AuditActivite() {
                         : '—';
 
                       return (
-                        <tr key={entry.id || i}>
+                        <tr key={entry.id || (startIdx + i)}>
                           <td style={s.td}>
                             <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{dateStr}</span>
                           </td>
@@ -413,6 +500,29 @@ export default function AuditActivite() {
                   </tbody>
                 </table>
               </div>
+              {/* Pagination */}
+              {filteredActions.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 1rem', fontSize: '0.78rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--glass-border)' }}>
+                  <span>{startIdx + 1}–{endIdx} sur {formatEntier(filteredActions.length)} actions</span>
+                  <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                    <select value={limit} onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
+                      style={{ padding: '0.3rem 0.4rem', border: '1px solid var(--glass-border)', borderRadius: '6px', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.78rem' }}>
+                      <option value={30}>30 / page</option>
+                      <option value={50}>50 / page</option>
+                      <option value={100}>100 / page</option>
+                    </select>
+                    <button disabled={safePage <= 1} onClick={() => setPage(p => p - 1)}
+                      style={{ ...paginBtnStyle, opacity: safePage <= 1 ? 0.4 : 1, cursor: safePage <= 1 ? 'default' : 'pointer' }}>
+                      ← Précédent
+                    </button>
+                    <span style={{ padding: '0.3rem 0.5rem' }}>Page {safePage}/{totalPages}</span>
+                    <button disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)}
+                      style={{ ...paginBtnStyle, opacity: safePage >= totalPages ? 0.4 : 1, cursor: safePage >= totalPages ? 'default' : 'pointer' }}>
+                      Suivant →
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>

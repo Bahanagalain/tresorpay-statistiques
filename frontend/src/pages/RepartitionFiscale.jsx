@@ -1,5 +1,5 @@
 import WeaveSpinner from '../components/ui/WeaveSpinner';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart as RechartsPie, Pie, Cell,
@@ -392,6 +392,7 @@ export default function RepartitionFiscale() {
   const [sortDir, setSortDir] = useState('desc');
   const [selectedDomaine, setSelectedDomaine] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
+  const [filterMinistere, setFilterMinistere] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -406,10 +407,20 @@ export default function RepartitionFiscale() {
     else { setSortCol(col); setSortDir('desc'); }
   };
 
+  const uniqueMinisteres = useMemo(() => {
+    const set = new Set();
+    services.forEach(s => { if (s.ministereNom) set.add(s.ministereNom); });
+    return [...set].sort();
+  }, [services]);
+
   const currentData = tab === 'services' ? services : domaines;
-  const searchField = 'nom';
   const filtered = currentData
-    .filter(r => !search || (r[searchField] || '').toLowerCase().includes(search.toLowerCase()))
+    .filter(r => {
+      if (tab === 'services' && filterMinistere && r.ministereNom !== filterMinistere) return false;
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return (r.nom || '').toLowerCase().includes(q) || (r.ministereNom || '').toLowerCase().includes(q);
+    })
     .sort((a, b) => {
       const va = a[sortCol] ?? 0, vb = b[sortCol] ?? 0;
       if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
@@ -501,8 +512,8 @@ export default function RepartitionFiscale() {
       </div>
 
       <div className="fiscal-tabs">
-        <button className={`fiscal-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => { setTab('services'); setSearch(''); }}>Services ({services.length})</button>
-        <button className={`fiscal-tab ${tab === 'domaines' ? 'active' : ''}`} onClick={() => { setTab('domaines'); setSearch(''); }}>Domaines ({domaines.length})</button>
+        <button className={`fiscal-tab ${tab === 'services' ? 'active' : ''}`} onClick={() => { setTab('services'); setSearch(''); setFilterMinistere(''); }}>Services ({services.length})</button>
+        <button className={`fiscal-tab ${tab === 'domaines' ? 'active' : ''}`} onClick={() => { setTab('domaines'); setSearch(''); setFilterMinistere(''); }}>Domaines ({domaines.length})</button>
         <span className="fiscal-tab-total">Total : {fmtFull(totalMontant)}</span>
       </div>
 
@@ -514,6 +525,28 @@ export default function RepartitionFiscale() {
         </div>
         <span className="cdi-count">{filtered.length} élément(s)</span>
       </div>
+
+      {tab === 'services' && (
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+          <select
+            value={filterMinistere}
+            onChange={e => setFilterMinistere(e.target.value)}
+            style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
+          >
+            <option value="">Tous les ministeres</option>
+            {uniqueMinisteres.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+
+          {filterMinistere && (
+            <button
+              onClick={() => setFilterMinistere('')}
+              style={{ padding: '0.3rem 0.6rem', border: '1px solid var(--glass-border)', borderRadius: '6px', background: 'none', color: '#DC2626', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              <X size={12} /> Effacer
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="card cdi-table-card cdi-table-scroll cdi-table-scroll-compact">
         <table className="cdi-perf-table">

@@ -23,6 +23,17 @@ import {
   computeCitoyens,
   computeAudit,
 } from '../services/computation.service.js';
+import prisma from '../config/prisma.js';
+
+function extractScope(utilisateur) {
+  if (!utilisateur) return {};
+  if (utilisateur.estSuperAdmin) return {}; // Super admin sees everything
+  return {
+    niveau: utilisateur.niveau,
+    ministereId: utilisateur.ministereId || null,
+    orgUnitId: utilisateur.orgUnitId || null,
+  };
+}
 
 export default async function analyticsRoutes(fastify) {
   // All routes require authentication
@@ -52,7 +63,8 @@ export default async function analyticsRoutes(fastify) {
     },
   }, async (request) => {
     const { date_debut, date_fin } = request.query;
-    const data = await computeDashboard(date_debut || null, date_fin || null);
+    const scope = extractScope(request.utilisateur);
+    const data = await computeDashboard(date_debut || null, date_fin || null, scope);
     return { datas: data, message: 'Dashboard récupéré avec succès' };
   });
 
@@ -72,7 +84,8 @@ export default async function analyticsRoutes(fastify) {
     },
   }, async (request) => {
     const { date_debut, date_fin } = request.query;
-    const data = await computeKpi(date_debut || null, date_fin || null);
+    const scope = extractScope(request.utilisateur);
+    const data = await computeKpi(date_debut || null, date_fin || null, scope);
     return { datas: data, message: 'KPI calculés avec succès' };
   });
 
@@ -92,7 +105,8 @@ export default async function analyticsRoutes(fastify) {
     },
   }, async (request) => {
     const { date_debut, date_fin } = request.query;
-    const data = await computeEvolution(date_debut || null, date_fin || null);
+    const scope = extractScope(request.utilisateur);
+    const data = await computeEvolution(date_debut || null, date_fin || null, scope);
     return { datas: data, message: 'Évolution calculée avec succès' };
   });
 
@@ -112,7 +126,8 @@ export default async function analyticsRoutes(fastify) {
     },
   }, async (request) => {
     const { date_debut, date_fin } = request.query;
-    const data = await computeRepartitionMinisteres(date_debut || null, date_fin || null);
+    const scope = extractScope(request.utilisateur);
+    const data = await computeRepartitionMinisteres(date_debut || null, date_fin || null, scope);
     return { datas: data, message: 'Répartition ministères calculée avec succès' };
   });
 
@@ -496,5 +511,56 @@ export default async function analyticsRoutes(fastify) {
     const { date_debut, date_fin } = request.query;
     const data = await computeAudit(date_debut || null, date_fin || null);
     return { datas: data, message: 'Audit récupéré' };
+  });
+
+  // ─── Mon périmètre ─────────────────────────────────
+  fastify.get('/mon-perimetre', {
+    schema: {
+      tags: ['Analytics'],
+      summary: 'Dashboard scopé au périmètre de l\'utilisateur',
+      security: [{ bearerAuth: [] }],
+      querystring: {
+        type: 'object',
+        properties: {
+          date_debut: { type: 'string', format: 'date' },
+          date_fin:   { type: 'string', format: 'date' },
+        },
+      },
+    },
+  }, async (request) => {
+    const { date_debut, date_fin } = request.query;
+    const scope = extractScope(request.utilisateur);
+    const u = request.utilisateur;
+
+    const result = {
+      perimetre: {
+        niveau: u.niveau,
+        ministereId: u.ministereId || null,
+        orgUnitId: u.orgUnitId || null,
+        ministereNom: null,
+        orgUnitNom: null,
+      },
+    };
+
+    // Resolve names
+    if (u.ministereId) {
+      const m = await prisma.ministere.findUnique({ where: { id: parseInt(u.ministereId) }, select: { nomFr: true } });
+      result.perimetre.ministereNom = m?.nomFr || null;
+    }
+    if (u.orgUnitId) {
+      const o = await prisma.orgUnit.findUnique({ where: { id: parseInt(u.orgUnitId) }, select: { nomFr: true } });
+      result.perimetre.orgUnitNom = o?.nomFr || null;
+    }
+
+    // Get scoped KPI + evolution
+    const [kpi, evolution] = await Promise.all([
+      computeKpi(date_debut || null, date_fin || null, scope),
+      computeEvolution(date_debut || null, date_fin || null, scope),
+    ]);
+
+    result.kpi = kpi;
+    result.evolution = evolution;
+
+    return { datas: result };
   });
 }

@@ -1,21 +1,13 @@
-.alertes-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-.alerte-summary-card { display: flex; align-items: center; gap: 1rem; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1rem 1.2rem; }
+.alertes-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.alerte-summary-card { display: flex; align-items: center; gap: 1rem; background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1rem 1.2rem; transition: transform 0.15s, box-shadow 0.15s; }
+.alerte-summary-card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .alerte-summary-card.critical { border-left: 3px solid #DC2626; color: #DC2626; }
 .alerte-summary-card.warning { border-left: 3px solid #D97706; color: #D97706; }
 .alerte-summary-card.info { border-left: 3px solid var(--accent-dgi); color: var(--accent-dgi); }
 .alerte-summary-num { display: block; font-size: 1.4rem; font-weight: 800; color: var(--text-primary); }
 .alerte-summary-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); }
 
-.alerte-section { margin-bottom: 1.5rem; }
-.alerte-critical-title { color: #DC2626 !important; }
-.alerte-warning-title { color: #D97706 !important; }
-
-.alerte-list { display: flex; flex-direction: column; gap: 0.5rem; }
-.alerte-item { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem 1rem; border-radius: var(--radius-sm); }
-.alerte-item.critical { background: rgba(220,38,38,0.06); color: #DC2626; }
-.alerte-item.warning { background: rgba(217,119,6,0.06); color: #D97706; }
-.alerte-content { flex: 1; }
-.alerte-cat { display: block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; }
-.alerte-msg { display: block; font-size: 0.82rem; color: var(--text-primary); margin-top: 0.15rem; }
+.alerte-list { display: flex; flex-direction: column; gap: 0; }
 
 @media (max-width: 900px) { .alertes-summary { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 500px) { .alertes-summary { grid-template-columns: 1fr; } }

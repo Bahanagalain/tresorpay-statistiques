@@ -37,6 +37,19 @@ export default function CommandPalette({ open, onClose, avisItems = [], cdiItems
   const results = useMemo(() => {
     const q = query.toLowerCase();
     const cmds = COMMANDS.filter(c => !q || c.label.toLowerCase().includes(q));
+
+    // If query >= 3 chars, add a "search submissions" shortcut at the top
+    if (query.trim().length >= 3) {
+      cmds.unshift({
+        id: '__search_soumissions__',
+        label: `Rechercher "${query.trim()}" dans les soumissions`,
+        icon: Search,
+        group: 'Recherche',
+        action: 'search_soumissions',
+        path: `/activite-citoyens?search=${encodeURIComponent(query.trim())}`,
+      });
+    }
+
     return cmds;
   }, [avisItems, cdiItems, query]);
 
@@ -61,7 +74,7 @@ export default function CommandPalette({ open, onClose, avisItems = [], cdiItems
 
   const runCommand = (cmd) => {
     if (!cmd) return;
-    if (cmd.action === 'nav') navigate(cmd.path);
+    if (cmd.action === 'nav' || cmd.action === 'search_soumissions') navigate(cmd.path);
     onClose();
   };
 

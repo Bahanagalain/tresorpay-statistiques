@@ -125,7 +125,7 @@ async function requetePPBrute(path) {
   if (!cachedToken) {
     cachedToken = await authentifierPP();
   }
-  if (!cachedToken) throw new Error("Impossible de s'authentifier aupres du payment-platform");
+  if (!cachedToken) throw new Error("Impossible de s'authentifier aupres du payment-platform — verifier PP_REMOTE_USERNAME/PP_REMOTE_PASSWORD et que le compte est SUPER_ADMIN");
 
   let response = await fetch(`${PP_API_URL}${path}`, {
     headers: { Authorization: `Bearer ${cachedToken}`, Accept: 'application/json' },

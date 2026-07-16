@@ -6,7 +6,7 @@ import logoCameroun from '/images/logo-cameroun.png';
 import {
   fetchKpi, fetchEvolution, fetchRepartitionMinisteres, fetchRepartitionServices,
   fetchRepartitionDomaines, fetchTelemetrieRegions, fetchSoumissions,
-  fetchCitoyens,
+  fetchCitoyens, fetchPartenaires,
 } from '../api/analyticsApi';
 
 const loadImage = (src) => new Promise((resolve, reject) => {
@@ -102,6 +102,10 @@ export async function fetchSubjectData(subjectId, config) {
         page++;
       }
       return all;
+    }
+    case 'partenaires': {
+      const res = await fetchPartenaires(range);
+      return Array.isArray(res) ? res : (res?.plateformes || []);
     }
     default: return [];
   }

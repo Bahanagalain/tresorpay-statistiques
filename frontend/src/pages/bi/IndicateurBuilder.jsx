@@ -236,7 +236,7 @@ export default function IndicateurBuilder() {
                 type="text"
                 value={form.libelle}
                 onChange={e => handleLibelleChange(e.target.value)}
-                placeholder="Ex: Taux de recouvrement"
+                placeholder="Ex: Taux de paiement"
               />
 
               {/* Code */}
@@ -245,7 +245,7 @@ export default function IndicateurBuilder() {
                 type="text"
                 value={form.code}
                 onChange={e => setForm(prev => ({ ...prev, code: e.target.value }))}
-                placeholder="taux_recouvrement"
+                placeholder="taux_paiement"
               />
 
               {/* Dataset */}

@@ -192,6 +192,41 @@ export const REPORT_SUBJECTS = [
       { id: 'statut', label: 'Filtrer par statut', options: ['TOUS', 'PAID', 'PENDING', 'OVERDUE'] },
     ],
   },
+  {
+    id: 'partenaires',
+    name: 'Plateformes Partenaires',
+    icon: 'Handshake',
+    description: 'Performance et transactions des plateformes partenaires',
+    fetchKey: 'partenaires',
+    columns: [
+      { id: 'index', label: 'N°', required: true },
+      { id: 'nom', label: 'Plateforme', required: true },
+      { id: 'code', label: 'Code', default: true },
+      { id: 'statut', label: 'Statut', default: true },
+      { id: 'ministere', label: 'Ministère', default: true },
+      { id: 'totalDemandes', label: 'Total Demandes', default: true, type: 'number' },
+      { id: 'montantPaye', label: 'Montant Payé', default: true, type: 'amount' },
+      { id: 'tauxSucces', label: 'Taux Succès (%)', default: true, type: 'number' },
+    ],
+    pdfSections: [
+      { id: 'kpi_bar', label: 'Bandeau KPI (Plateformes, Demandes, Taux)', default: true },
+      { id: 'table_full', label: 'Tableau complet des plateformes', default: true },
+    ],
+    chartAxes: {
+      x: [{ id: 'nom', label: 'Plateforme' }],
+      y: [
+        { id: 'totalDemandes', label: 'Demandes', color: '#6366F1' },
+        { id: 'montantPaye', label: 'Montant Payé', color: '#059669' },
+        { id: 'tauxSucces', label: 'Taux Succès (%)', color: '#D97706' },
+      ],
+      supportedTypes: ['bar', 'horizontal_bar', 'pie', 'donut', 'kpi_cards'],
+    },
+    kpiFields: [
+      { id: 'plateformes', label: 'Plateformes', compute: (rows) => rows.length, type: 'number' },
+      { id: 'demandes', label: 'Total Demandes', compute: (rows) => rows.reduce((s, r) => s + (r.totalDemandes || 0), 0), type: 'number' },
+      { id: 'montant', label: 'Montant Total Payé', compute: (rows) => rows.reduce((s, r) => s + (r.montantPaye || 0), 0), type: 'amount' },
+    ],
+  },
 ];
 
 export const FORMAT_OPTIONS = [

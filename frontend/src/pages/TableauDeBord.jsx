@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { usePresentMode } from '../components/layout/MainLayout';
+import { useAuth } from '../components/auth/AuthProvider';
 import GaugeChart from '../components/ui/GaugeChart';
 import DrillDownModal from '../components/ui/DrillDownModal';
 import WeaveSpinner from '../components/ui/WeaveSpinner';
@@ -18,6 +19,7 @@ import { exportToPDF, exportToExcel } from '../utils/exportUtils';
 import {
   fetchDashboard,
   fetchMinistereDetail,
+  fetchMonPerimetre,
   lancerSynchronisation,
 } from '../api/analyticsApi';
 import { invalidateCache } from '../api/cache';
@@ -25,6 +27,35 @@ import { getDateRangeFromPreset } from '../utils/dateUtils';
 import { usePeriodFilter, setPeriodState } from '../hooks/usePeriodFilter';
 import { formatEntier, formatMontant } from '../utils/format';
 import './TableauDeBord.css';
+
+// ─── Profils utilisateur ────────────────────────────────────
+function getUserProfile(user) {
+  if (!user) return 'VISITEUR';
+  if (user.est_super_admin) return 'DIRECTEUR';
+  const niveau = (user.niveau || '').toUpperCase();
+  if (niveau === 'CENTRAL') return 'SUPERVISEUR';
+  if (niveau === 'REGIONAL') return 'MINISTRE';
+  if (niveau === 'DEPARTEMENTAL' || niveau === 'CDI') return 'REGIONAL';
+  return 'AGENT';
+}
+
+function getProfileLabel(profile) {
+  const labels = {
+    DIRECTEUR: 'Direction Générale',
+    SUPERVISEUR: 'Supervision Nationale',
+    MINISTRE: 'Périmètre Ministériel',
+    REGIONAL: 'Périmètre Régional',
+    AGENT: 'Agent',
+    VISITEUR: 'Visiteur',
+  };
+  return labels[profile] || profile;
+}
+
+const TAB_DEFS = [
+  { id: 'overview', label: "Vue d'ensemble", icon: 'LayoutDashboard' },
+  { id: 'perimetre', label: 'Mon périmètre', icon: 'Building2', needsScope: true },
+  { id: 'alertes', label: 'Alertes', icon: 'AlertTriangle' },
+];
 
 // ─── Utilitaires ────────────────────────────────────────────
 const fmt = (n) =>
@@ -108,9 +139,9 @@ function Sparkline({ data, color }) {
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────
-function KpiCard({ icon: Icon, label, value, numericValue, sub, variant = 'default', trend }) {
+function KpiCard({ icon: Icon, label, value, numericValue, sub, variant = 'default', trend, sparklineData }) {
   const count = useCountUp(numericValue ?? 0);
-  const sparkData  = SPARKLINE_SEEDS[variant] || SPARKLINE_SEEDS.default;
+  const sparkData  = sparklineData?.length ? sparklineData : (SPARKLINE_SEEDS[variant] || SPARKLINE_SEEDS.default);
   const sparkColor = SPARKLINE_COLORS[variant] || '#6366F1';
   const displayVal = numericValue !== undefined
     ? (value.includes('FCFA') ? fmtEntier(count) + ' FCFA' : fmtEntier(count))
@@ -155,6 +186,9 @@ const CustomTooltip = ({ active, payload, label }) => {
 // ─── PAGE PRINCIPALE ─────────────────────────────────────────
 export default function TableauDeBord() {
   const { slideshowActive, slideshowDateRange } = usePresentMode();
+  const { user } = useAuth();
+  const userProfile = useMemo(() => getUserProfile(user), [user]);
+  const hasScope = user?.ministere || user?.orgUnit;
 
   const { state: periodState } = usePeriodFilter();
   const datePreset      = periodState.preset;
@@ -164,6 +198,7 @@ export default function TableauDeBord() {
   const setCustomStartDate = (v) => setPeriodState({ preset: 'custom', customStart: v });
   const setCustomEndDate   = (v) => setPeriodState({ preset: 'custom', customEnd: v });
 
+  const [activeTab, setActiveTab] = useState('overview');
   const [syncing, setSyncing]             = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [reloadNonce, setReloadNonce]     = useState(0);
@@ -177,7 +212,19 @@ export default function TableauDeBord() {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError]     = useState('');
 
+  // Mon périmètre
+  const [perimetreData, setPerimetreData] = useState(null);
+  const [perimetreLoading, setPerimetreLoading] = useState(false);
+
   const [drillMinistere, setDrillMinistere] = useState(null);
+
+  // Tabs visibles selon le profil
+  const visibleTabs = useMemo(() => {
+    return TAB_DEFS.filter(t => {
+      if (t.needsScope && !hasScope) return false;
+      return true;
+    });
+  }, [hasScope]);
 
   // ── Date range ────────────────────────────────────────────
   const manualDateRange = useMemo(
@@ -248,6 +295,28 @@ export default function TableauDeBord() {
       controller.abort();
     };
   }, [dateRange.endDate, dateRange.startDate, reloadNonce]);
+
+  // ── Load "Mon périmètre" data ────────────────────────────
+  useEffect(() => {
+    if (activeTab !== 'perimetre' || !hasScope) return;
+    let isMounted = true;
+    const controller = new AbortController();
+
+    async function loadPerimetre() {
+      setPerimetreLoading(true);
+      try {
+        const data = await fetchMonPerimetre(dateRange, controller.signal);
+        if (isMounted) setPerimetreData(data);
+      } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
+      } finally {
+        if (isMounted) setPerimetreLoading(false);
+      }
+    }
+
+    loadPerimetre();
+    return () => { isMounted = false; controller.abort(); };
+  }, [activeTab, hasScope, dateRange.endDate, dateRange.startDate]);
 
   // ── Derived data ──────────────────────────────────────────
   const top10Ministeres = useMemo(
@@ -389,7 +458,11 @@ export default function TableauDeBord() {
         <div className="header-left">
           <div>
             <h1 className="dgi-page__title">Tableau de Bord</h1>
-            <p className="dgi-page__sub">Plateforme de recettes non fiscales — Statistiques & Analytiques</p>
+            <p className="dgi-page__sub">
+              Plateforme de recettes non fiscales — {getProfileLabel(userProfile)}
+              {user?.ministere?.nomFr && <> · {user.ministere.nomFr}</>}
+              {user?.orgUnit?.nomFr && !user?.ministere && <> · {user.orgUnit.nomFr}</>}
+            </p>
           </div>
         </div>
         <div className="header-right">
@@ -449,6 +522,21 @@ export default function TableauDeBord() {
         </div>
       </div>
 
+      {/* ── Tab bar ── */}
+      {visibleTabs.length > 1 && (
+        <div className="tdb-tab-bar">
+          {visibleTabs.map(tab => (
+            <button
+              key={tab.id}
+              className={`tdb-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ── Error banner ── */}
       {analyticsError && (
         <div className="active-filters-bar" style={{ borderColor: 'rgba(220,38,38,0.2)', color: '#DC2626' }}>
@@ -461,57 +549,183 @@ export default function TableauDeBord() {
         </div>
       )}
 
+      {/* ═══════════ ONGLET: MON PERIMETRE ═══════════ */}
+      {activeTab === 'perimetre' && hasScope && (
+        <div className="tdb-perimetre-tab">
+          {perimetreLoading ? (
+            <WeaveSpinner size={60} message="Chargement de votre périmètre..." />
+          ) : perimetreData ? (
+            <>
+              <div className="tdb-perimetre-header">
+                <Building2 size={20} />
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.1rem' }}>
+                    {perimetreData.perimetre?.ministereNom || perimetreData.perimetre?.orgUnitNom || 'Mon périmètre'}
+                  </h2>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Niveau : {perimetreData.perimetre?.niveau || user?.niveau}
+                  </p>
+                </div>
+              </div>
+
+              {/* KPI scoped */}
+              <div className="kpi-grid" style={{ flexShrink: 0 }}>
+                <KpiCard icon={TrendingUp} label="Montant Encaissé" value={fmtFull(perimetreData.kpi?.totalRevenus || 0)} numericValue={perimetreData.kpi?.totalRevenus || 0} sub={`Soumis : ${fmtFull(perimetreData.kpi?.montantTotalSoumis || 0)}`} variant="primary" trend={perimetreData.kpi?.progressionMoisPrecedent} />
+                <KpiCard icon={FileText} label="Soumissions" value={fmtEntier(perimetreData.kpi?.totalSoumissions || 0)} numericValue={perimetreData.kpi?.totalSoumissions || 0} variant="default" />
+                <KpiCard icon={CheckCircle} label="Payées" value={fmtEntier(perimetreData.kpi?.soumissionsPayees || 0)} numericValue={perimetreData.kpi?.soumissionsPayees || 0} variant="success" />
+                <KpiCard icon={Clock} label="En Attente" value={fmtEntier(perimetreData.kpi?.soumissionsEnAttente || 0)} numericValue={perimetreData.kpi?.soumissionsEnAttente || 0} variant="warning" />
+              </div>
+
+              {/* Evolution scoped */}
+              {perimetreData.evolution?.length > 0 && (
+                <div className="chart-card" data-glow="blue" style={{ marginTop: '1rem' }}>
+                  <div className="chart-card__header">
+                    <h2 className="chart-title">Évolution — Mon périmètre</h2>
+                  </div>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <AreaChart data={perimetreData.evolution} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gpPaye" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="periode" tick={{ fontSize: 12 }}/>
+                      <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }}/>
+                      <Tooltip content={<CustomTooltip/>}/>
+                      <Legend/>
+                      <Area type="monotone" dataKey="paye" name="Payé" stroke="#059669" fill="url(#gpPaye)" strokeWidth={2} />
+                      <Area type="monotone" dataKey="enAttente" name="En attente" stroke="#D97706" fill="none" strokeWidth={2} />
+                      <Area type="monotone" dataKey="echoue" name="Échoué" stroke="#DC2626" fill="none" strokeWidth={1.5} strokeDasharray="4 3" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+              <Building2 size={32} style={{ opacity: 0.4 }}/>
+              <p style={{ marginTop: '0.5rem' }}>Aucune donnée disponible pour votre périmètre.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════ ONGLET: ALERTES ═══════════ */}
+      {activeTab === 'alertes' && (
+        <div className="tdb-alertes-tab">
+          {alertes.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+              <CheckCircle size={32} style={{ color: '#059669', opacity: 0.6 }}/>
+              <p style={{ marginTop: '0.5rem' }}>Aucune alerte active. Tous les indicateurs sont normaux.</p>
+            </div>
+          ) : (
+            <div className="tdb-alertes-full">
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                <div className="card" style={{ padding: '1rem 1.5rem', borderLeft: '3px solid #DC2626', flex: '1 1 200px' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Alertes Critiques</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#DC2626' }}>{alertes.filter(a => a.type === 'danger').length}</div>
+                </div>
+                <div className="card" style={{ padding: '1rem 1.5rem', borderLeft: '3px solid #D97706', flex: '1 1 200px' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Avertissements</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#D97706' }}>{alertes.filter(a => a.type === 'attention').length}</div>
+                </div>
+                <div className="card" style={{ padding: '1rem 1.5rem', borderLeft: '3px solid #2563EB', flex: '1 1 200px' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{alertes.length}</div>
+                </div>
+              </div>
+              {alertes.map((alerte, i) => (
+                <div className={`tdb-alert-item tdb-alert--${(alerte.type || alerte.severite || 'info').toLowerCase()}`} key={i} style={{ marginBottom: '0.5rem' }}>
+                  <AlertTriangle size={14}/>
+                  <div className="tdb-alert-item__body">
+                    <span className="tdb-alert-item__title">{alerte.titre || alerte.title}</span>
+                    <span className="tdb-alert-item__desc">{alerte.message || alerte.description}</span>
+                  </div>
+                  <span className="tdb-alert-item__time">{alerte.date || alerte.createdAt}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════ ONGLET: VUE D'ENSEMBLE ═══════════ */}
+      {activeTab === 'overview' && <>
+
       {/* ── KPI Cards ── */}
       <div className="kpi-grid" style={{ flexShrink: 0 }}>
-        <KpiCard
-          icon={TrendingUp}
-          label="Total Revenus"
-          value={fmtFull(kpi.totalRevenus)}
-          numericValue={kpi.totalRevenus}
-          sub={analyticsLoading ? 'Chargement...' : periodLabel}
-          variant="primary"
-          trend={kpi.progressionMoisPrecedent}
-        />
-        <KpiCard
-          icon={FileText}
-          label="Total Soumissions"
-          value={fmtEntier(kpi.totalSoumissions)}
-          numericValue={kpi.totalSoumissions}
-          sub={analyticsLoading ? 'Chargement...' : periodLabel}
-          variant="default"
-        />
-        <KpiCard
-          icon={CheckCircle}
-          label="Soumissions Payées"
-          value={fmtEntier(kpi.soumissionsPayees)}
-          numericValue={kpi.soumissionsPayees}
-          sub={fmtFull(kpi.totalRevenus)}
-          variant="success"
-        />
-        <KpiCard
-          icon={Clock}
-          label="En Attente"
-          value={fmtEntier(kpi.soumissionsEnAttente)}
-          numericValue={kpi.soumissionsEnAttente}
-          sub={periodLabel}
-          variant="warning"
-        />
-        <KpiCard
-          icon={XCircle}
-          label="Échouées"
-          value={fmtEntier(kpi.soumissionsEchouees)}
-          numericValue={kpi.soumissionsEchouees}
-          sub={periodLabel}
-          variant="danger"
-        />
-        <KpiCard
-          icon={TrendingUp}
-          label="Taux de Paiement"
-          value={`${kpi.tauxPaiement}%`}
-          numericValue={kpi.tauxPaiement}
-          sub="Objectif : 90%"
-          variant="default"
-        />
+        {(() => {
+          // Construire les sparklines réelles depuis les données d'évolution
+          const sparkPaye = chartEvol.map(e => ({ v: e.paye || 0 }));
+          const sparkTotal = chartEvol.map(e => ({ v: (e.paye || 0) + (e.enAttente || 0) + (e.echoue || 0) + (e.partiel || 0) }));
+          const sparkAttente = chartEvol.map(e => ({ v: e.enAttente || 0 }));
+          const sparkEchoue = chartEvol.map(e => ({ v: e.echoue || 0 }));
+          const sparkTaux = chartEvol.map(e => {
+            const tot = (e.paye || 0) + (e.enAttente || 0) + (e.echoue || 0);
+            return { v: tot > 0 ? Math.round(((e.paye || 0) / tot) * 100) : 0 };
+          });
+          return (
+            <>
+              <KpiCard
+                icon={TrendingUp}
+                label="Montant Encaissé"
+                value={fmtFull(kpi.totalRevenus)}
+                numericValue={kpi.totalRevenus}
+                sub={analyticsLoading ? 'Chargement...' : `Soumis : ${fmtFull(kpi.montantTotalSoumis || 0)}`}
+                variant="primary"
+                trend={kpi.progressionMoisPrecedent}
+                sparklineData={sparkPaye}
+              />
+              <KpiCard
+                icon={FileText}
+                label="Total Soumissions"
+                value={fmtEntier(kpi.totalSoumissions)}
+                numericValue={kpi.totalSoumissions}
+                sub={analyticsLoading ? 'Chargement...' : periodLabel}
+                variant="default"
+                sparklineData={sparkTotal}
+              />
+              <KpiCard
+                icon={CheckCircle}
+                label="Soumissions Payées"
+                value={fmtEntier(kpi.soumissionsPayees)}
+                numericValue={kpi.soumissionsPayees}
+                sub={fmtFull(kpi.totalRevenus)}
+                variant="success"
+                sparklineData={sparkPaye}
+              />
+              <KpiCard
+                icon={Clock}
+                label="En Attente"
+                value={fmtEntier(kpi.soumissionsEnAttente)}
+                numericValue={kpi.soumissionsEnAttente}
+                sub={periodLabel}
+                variant="warning"
+                sparklineData={sparkAttente}
+              />
+              <KpiCard
+                icon={XCircle}
+                label="Échouées"
+                value={fmtEntier(kpi.soumissionsEchouees)}
+                numericValue={kpi.soumissionsEchouees}
+                sub={periodLabel}
+                variant="danger"
+                sparklineData={sparkEchoue}
+              />
+              <KpiCard
+                icon={TrendingUp}
+                label="Taux de Paiement"
+                value={`${kpi.tauxPaiement}%`}
+                numericValue={kpi.tauxPaiement}
+                sub="Objectif : 90%"
+                variant="default"
+                sparklineData={sparkTaux}
+              />
+            </>
+          );
+        })()}
       </div>
 
       {/* ── Charts: Evolution + Gauge ── */}
@@ -721,6 +935,8 @@ export default function TableauDeBord() {
           </div>
         )}
       </div>
+
+      </>}
     </div>
   );
 }

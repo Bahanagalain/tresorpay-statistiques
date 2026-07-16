@@ -87,7 +87,7 @@ function FeedbackBanner({ feedback }) {
 }
 
 const GLOW_COLOR_PRESETS = [
-  { label: 'Vert DGI', hue: 150 },
+  { label: 'Vert Trésor', hue: 150 },
   { label: 'Bleu',     hue: 220 },
   { label: 'Violet',   hue: 280 },
   { label: 'Orange',   hue: 30  },
@@ -451,13 +451,13 @@ export default function Parametres() {
                 </div>
                 {user?.region && (
                   <div className="param-field param-field--readonly">
-                    <label>Région fiscale</label>
+                    <label>Région</label>
                     <div className="param-value">{user.region.nom || user.region.id}</div>
                   </div>
                 )}
                 {user?.cdi && (
                   <div className="param-field param-field--readonly">
-                    <label>Centre CDI</label>
+                    <label>Ministère</label>
                     <div className="param-value">{user.cdi.nom || user.cdi.id}</div>
                   </div>
                 )}
@@ -530,7 +530,7 @@ export default function Parametres() {
             <section className="param-card">
               <div className="param-card__head">
                 <h3>Rapport quotidien par email</h3>
-                <p>Recevez chaque jour un résumé des collectes avec ventilation par région et par CDI.</p>
+                <p>Recevez chaque jour un résumé des collectes avec ventilation par région et par ministère.</p>
               </div>
               <div className="param-card__body">
                 <div className="param-toggle-row">

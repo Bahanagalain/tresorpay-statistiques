@@ -403,7 +403,8 @@ export default function PerformanceCDI() {
             <tr>
               <th className="col-index">#</th>
               <th className="sortable" onClick={() => handleSort('nom')}>Ministère <SortIcon col="nom" sortCol={sortCol} sortDir={sortDir} /></th>
-              <th className="sortable text-right" onClick={() => handleSort('montant')}>Montant Total <SortIcon col="montant" sortCol={sortCol} sortDir={sortDir} /></th>
+              <th className="sortable text-right" onClick={() => handleSort('montant')}>Montant Soumis <SortIcon col="montant" sortCol={sortCol} sortDir={sortDir} /></th>
+              <th className="sortable text-right" onClick={() => handleSort('montantPaye')}>Montant Payé <SortIcon col="montantPaye" sortCol={sortCol} sortDir={sortDir} /></th>
               <th className="sortable text-center" onClick={() => handleSort('nombreSoumissions')}>Soumissions <SortIcon col="nombreSoumissions" sortCol={sortCol} sortDir={sortDir} /></th>
               <th className="sortable text-center" onClick={() => handleSort('tauxPaiement')}>Taux <SortIcon col="tauxPaiement" sortCol={sortCol} sortDir={sortDir} /></th>
               <th>Performance</th>
@@ -411,9 +412,10 @@ export default function PerformanceCDI() {
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={6} className="empty-row"><div className="empty-state"><Search size={32} /><p>Aucun ministère trouvé.</p></div></td></tr>
+              <tr><td colSpan={7} className="empty-row"><div className="empty-state"><Search size={32} /><p>Aucun ministère trouvé.</p></div></td></tr>
             ) : filtered.map((m, i) => {
               const taux = m.tauxPaiement || 0;
+              const montantPaye = m.montantPaye || 0;
               return (
                 <tr key={m.ministereId} className="cdi-perf-row" onClick={() => setSelectedMinistere(m.ministereId)}>
                   <td className="col-index">{i + 1}</td>
@@ -422,6 +424,7 @@ export default function PerformanceCDI() {
                     <span>{m.nom}</span>
                   </td>
                   <td className="text-right montant-cell">{fmtFull(m.montant)}</td>
+                  <td className="text-right montant-cell" style={{ color: montantPaye > 0 ? '#059669' : 'var(--text-tertiary)' }}>{fmtFull(montantPaye)}</td>
                   <td className="text-center">{m.nombreSoumissions}</td>
                   <td className="text-center">
                     <span className={`taux-badge ${taux >= 50 ? 'good' : taux >= 25 ? 'mid' : 'bad'}`}>{taux}%</span>

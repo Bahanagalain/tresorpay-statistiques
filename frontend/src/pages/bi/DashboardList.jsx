@@ -29,8 +29,8 @@ export default function DashboardList() {
   const sorted = useMemo(() => {
     const list = [...filtered];
     if (sortBy === 'title') list.sort((a, b) => (a.titre || '').localeCompare(b.titre || ''));
-    else if (sortBy === 'widgets') list.sort((a, b) => (b.widgets?.length || 0) - (a.widgets?.length || 0));
-    else list.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
+    else if (sortBy === 'widgets') list.sort((a, b) => (b._count?.widgets ?? b.widgets?.length ?? 0) - (a._count?.widgets ?? a.widgets?.length ?? 0));
+    else list.sort((a, b) => new Date(b.modifieLe || b.updatedAt || b.creeLe || b.createdAt || 0) - new Date(a.modifieLe || a.updatedAt || a.creeLe || a.createdAt || 0));
     return list;
   }, [filtered, sortBy]);
 
@@ -166,9 +166,9 @@ export default function DashboardList() {
                 </button>
               </div>
               <div className="bi-card-meta">
-                {dash.widgets?.length || 0} widget{(dash.widgets?.length || 0) > 1 ? 's' : ''} &middot;{' '}
-                Modifié {dash.updatedAt ? new Date(dash.updatedAt).toLocaleDateString('fr-FR') : '—'}
-                {dash.proprietaire && ` · ${dash.proprietaire}`}
+                {dash._count?.widgets ?? dash.widgets?.length ?? 0} widget{(dash._count?.widgets ?? dash.widgets?.length ?? 0) > 1 ? 's' : ''} &middot;{' '}
+                Modifié {(dash.modifieLe || dash.updatedAt) ? new Date(dash.modifieLe || dash.updatedAt).toLocaleDateString('fr-FR') : '—'}
+                {dash.proprietaire?.nomComplet && ` · ${dash.proprietaire.nomComplet}`}
               </div>
               {dash.description && (
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>

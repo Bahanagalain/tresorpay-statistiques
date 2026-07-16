@@ -352,6 +352,12 @@ export async function fetchAudit(range, signal) {
   return unwrap(raw);
 }
 
+// ─── Mon perimetre (dashboard scope) ─────────────────
+export async function fetchMonPerimetre(range, signal) {
+  const raw = await cachedGet('/analytics/mon-perimetre', buildAnalyticsDateParams(range), signal);
+  return unwrap(raw);
+}
+
 // ─── Explorateur de donnees ───────────────────────────
 export async function fetchExplorerDimensions(params = {}, signal) {
   const raw = await apiGet('/analytics/explorer/dimensions', params, { signal });

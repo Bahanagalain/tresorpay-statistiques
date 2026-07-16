@@ -10,7 +10,7 @@ import { apiFetch } from '../api/httpClient';
 import './Administration.css';
 
 const NIVEAUX = ['CENTRAL', 'REGIONAL', 'CDI'];
-const NIVEAU_LABELS = { CENTRAL: 'Central', REGIONAL: 'Régional', CDI: 'CDI' };
+const NIVEAU_LABELS = { CENTRAL: 'Central', REGIONAL: 'Régional', CDI: 'Départemental' };
 const NIVEAU_COLORS = { CENTRAL: '#B8860B', REGIONAL: '#2563EB', CDI: '#059669' };
 
 function NiveauBadge({ niveau }) {
@@ -105,9 +105,9 @@ function UserFormModal({ isOpen, onClose, onSaved, user, roles, regions, cdis })
     else if (form.mot_de_passe && form.mot_de_passe.length < 6) errors.mot_de_passe = 'Le mot de passe doit contenir au moins 6 caractères';
     if (!form.nom_complet.trim()) errors.nom_complet = 'Le nom complet est requis';
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Format d\'email invalide';
-    if (form.niveau === 'REGIONAL' && !form.region_fiscale_id) errors.region_fiscale_id = 'La région fiscale est requise pour le niveau Régional';
-    if (form.niveau === 'CDI' && !form.region_fiscale_id) errors.region_fiscale_id = 'Sélectionnez d\'abord une région fiscale';
-    if (form.niveau === 'CDI' && form.region_fiscale_id && !form.cdi_id) errors.cdi_id = 'Le CDI est requis pour le niveau CDI';
+    if (form.niveau === 'REGIONAL' && !form.region_fiscale_id) errors.region_fiscale_id = 'La région est requise pour le niveau Régional';
+    if (form.niveau === 'CDI' && !form.region_fiscale_id) errors.region_fiscale_id = 'Sélectionnez d\'abord une région';
+    if (form.niveau === 'CDI' && form.region_fiscale_id && !form.cdi_id) errors.cdi_id = 'Le ministère est requis pour le niveau Départemental';
     if (form.codes_roles.length === 0) errors.codes_roles = 'Sélectionnez au moins un rôle';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -226,7 +226,7 @@ function UserFormModal({ isOpen, onClose, onSaved, user, roles, regions, cdis })
 
             {form.niveau !== 'CENTRAL' && (
               <div className={`adm-field${formErrors.region_fiscale_id ? ' adm-field--error' : ''}`}>
-                <label>Région fiscale {form.niveau !== 'CENTRAL' ? '*' : ''}</label>
+                <label>Région {form.niveau !== 'CENTRAL' ? '*' : ''}</label>
                 <select value={form.region_fiscale_id} onChange={e => { update('region_fiscale_id', e.target.value); setFormErrors(p => ({...p, region_fiscale_id: '', cdi_id: ''})); }}
                   required={form.niveau !== 'CENTRAL'}>
                   <option value="">— Sélectionner une région —</option>
@@ -238,17 +238,17 @@ function UserFormModal({ isOpen, onClose, onSaved, user, roles, regions, cdis })
 
             {form.niveau === 'CDI' && (
               <div className={`adm-field${formErrors.cdi_id ? ' adm-field--error' : ''}`}>
-                <label>CDI *</label>
+                <label>Ministère *</label>
                 <select value={form.cdi_id}
                   onChange={e => { update('cdi_id', e.target.value); setFormErrors(p => ({...p, cdi_id: ''})); }}
                   required
                   disabled={!form.region_fiscale_id}
                   className={!form.region_fiscale_id ? 'adm-select--disabled' : ''}
                 >
-                  <option value="">{!form.region_fiscale_id ? '⬆ Sélectionnez d\'abord une région' : '— Sélectionner un CDI —'}</option>
+                  <option value="">{!form.region_fiscale_id ? '⬆ Sélectionnez d\'abord une région' : '— Sélectionner un ministère —'}</option>
                   {filteredCdis.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
                 </select>
-                {!form.region_fiscale_id && <span className="adm-field-hint">Sélectionnez d'abord la région fiscale pour voir les CDIs disponibles</span>}
+                {!form.region_fiscale_id && <span className="adm-field-hint">Sélectionnez d'abord la région pour voir les ministères disponibles</span>}
                 {formErrors.cdi_id && <span className="adm-field-error">{formErrors.cdi_id}</span>}
               </div>
             )}
@@ -471,7 +471,7 @@ export default function Administration({ embedded = false } = {}) {
         <div className="adm-stat-card">
           <Building2 size={18} className="adm-stat-icon" style={{ color: NIVEAU_COLORS.CDI }} />
           <div className="adm-stat-value">{stats.cdi}</div>
-          <div className="adm-stat-label">CDI</div>
+          <div className="adm-stat-label">Départemental</div>
         </div>
       </div>
 

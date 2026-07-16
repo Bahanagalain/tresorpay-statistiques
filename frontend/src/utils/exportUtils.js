@@ -50,7 +50,7 @@ function drawInstitutionalHeader(pdf, w, logoImg) {
   pdf.line(15, 19, w - 15, 19);
 }
 
-export async function exportToPDF(data, filename = 'rapport_DGI.pdf') {
+export async function exportToPDF(data, filename = 'rapport_tresorpay.pdf') {
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const w = pdf.internal.pageSize.getWidth();
 
@@ -69,7 +69,7 @@ export async function exportToPDF(data, filename = 'rapport_DGI.pdf') {
   pdf.setTextColor(15, 30, 45);
   pdf.setFontSize(16);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('TRESOR ANALYTICS - DGI', w / 2, 26, { align: 'center' });
+  pdf.text('TRESOR ANALYTICS', w / 2, 26, { align: 'center' });
 
   pdf.setFontSize(9);
   pdf.setFont('helvetica', 'normal');
@@ -99,7 +99,7 @@ export async function exportToPDF(data, filename = 'rapport_DGI.pdf') {
 
   autoTable(pdf, {
     startY: 41,
-    head: [['Total Recouvré', 'Avis Payés', 'Avis En Attente', 'Avis En Retard', 'Taux Recouvrement']],
+    head: [['Total Encaissé', 'Soumissions Payées', 'En Attente', 'Échouées', 'Taux Paiement']],
     body: kpiRow,
     theme: 'grid',
     headStyles: { fillColor: [40, 50, 60], textColor: 255, fontStyle: 'bold', fontSize: 8, cellPadding: 2, halign: 'center' },
@@ -107,14 +107,14 @@ export async function exportToPDF(data, filename = 'rapport_DGI.pdf') {
     styles: { font: 'helvetica' },
   });
 
-  // ── Avis Table ──
+  // ── Soumissions Table ──
   let finalY = pdf.lastAutoTable ? pdf.lastAutoTable.finalY : 55;
   pdf.setFontSize(11);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(40, 40, 40);
-  pdf.text('Registre Détaillé des Avis Fiscaux', 15, finalY + 8);
+  pdf.text('Registre Détaillé des Soumissions', 15, finalY + 8);
 
-  const tableHeaders = ['N°', 'N° Avis', 'Contribuable', 'NUI', 'Centre CDI', 'Montant (FCFA)', 'Date', 'Statut'];
+  const tableHeaders = ['N°', 'Code unique', 'Soumetteur', 'Email', 'Ministère', 'Montant (FCFA)', 'Date', 'Statut'];
   const tableData = data.avisList.map((a, i) => [
     (i + 1).toString(),
     a.numero,
@@ -193,7 +193,7 @@ export async function exportGenericPDF({ title, subtitle, headers, rows, filenam
 }
 
 // ─── Export Excel ─────────────────────────────────────────────
-export function exportToExcel(data, headers, sheetName = 'DGI Export', filename = 'export.xlsx') {
+export function exportToExcel(data, headers, sheetName = 'TresorPay Export', filename = 'export.xlsx') {
   const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheetName);

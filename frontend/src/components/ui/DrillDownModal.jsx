@@ -79,7 +79,7 @@ export default function DrillDownModal({ cdi, dateRange, onClose }) {
         setAvis(rows);
       } catch (loadError) {
         if (!isMounted || loadError?.name === 'AbortError') return;
-        setError(loadError?.message || 'Impossible de charger le détail du CDI.');
+        setError(loadError?.message || 'Impossible de charger le détail du ministère.');
         setAvis([]);
       } finally {
         if (isMounted) {
@@ -161,7 +161,7 @@ export default function DrillDownModal({ cdi, dateRange, onClose }) {
               <p className="ddm-sub">
                 Analyse détaillée
                 {' — '}
-                {loading ? 'Chargement des avis…' : `${avis.length} avis d'imposition`}
+                {loading ? 'Chargement des soumissions…' : `${avis.length} soumission(s)`}
               </p>
             </div>
           </div>
@@ -181,17 +181,17 @@ export default function DrillDownModal({ cdi, dateRange, onClose }) {
 
         <div className="ddm-kpis">
           <div className="ddm-kpi">
-            <span className="ddm-kpi__label">Montant total émis</span>
+            <span className="ddm-kpi__label">Montant total soumis</span>
             <span className="ddm-kpi__value" style={{ color: '#059669' }}>{fmt(metrics.total)} FCFA</span>
           </div>
           <div className="ddm-kpi">
-            <span className="ddm-kpi__label">Taux recouvrement</span>
+            <span className="ddm-kpi__label">Taux de paiement</span>
             <span className="ddm-kpi__value" style={{ color: metrics.taux >= 80 ? '#059669' : metrics.taux >= 60 ? '#D97706' : '#DC2626' }}>
               {metrics.taux}%
             </span>
           </div>
           <div className="ddm-kpi">
-            <span className="ddm-kpi__label">Avis total</span>
+            <span className="ddm-kpi__label">Soumissions</span>
             <span className="ddm-kpi__value">{avis.length}</span>
           </div>
         </div>
@@ -232,14 +232,14 @@ export default function DrillDownModal({ cdi, dateRange, onClose }) {
                 >
                   {metrics.pieData.map((entry, index) => <Cell key={`${entry.name}-${index}`} fill={entry.fill} />)}
                 </Pie>
-                <Tooltip formatter={(value, name) => [`${value} avis`, name]} />
+                <Tooltip formatter={(value, name) => [`${value} soumission(s)`, name]} />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
           {metrics.imputData.length > 0 && (
             <div className="ddm-chart-block">
-              <h3 className="ddm-section-title">Imputations fiscales</h3>
+              <h3 className="ddm-section-title">Répartition par service</h3>
               <ResponsiveContainer width="100%" height={160}>
                 <BarChart data={metrics.imputData} layout="vertical" margin={{ left: 4, right: 16 }}>
                   <XAxis type="number" hide />
@@ -259,14 +259,14 @@ export default function DrillDownModal({ cdi, dateRange, onClose }) {
         </div>
 
         <div className="ddm-avis-section">
-          <h3 className="ddm-section-title">Liste des avis — {cdi}</h3>
+          <h3 className="ddm-section-title">Liste des soumissions — {cdi}</h3>
           <div className="ddm-table-wrapper">
             <table className="ddm-table">
               <thead>
                 <tr>
-                  <th>N° Avis</th>
-                  <th>Contribuable</th>
-                  <th>NUI</th>
+                  <th>Code unique</th>
+                  <th>Soumetteur</th>
+                  <th>Email</th>
                   <th className="text-right">Montant</th>
                   <th>Statut</th>
                   <th>Date</th>
@@ -276,7 +276,7 @@ export default function DrillDownModal({ cdi, dateRange, onClose }) {
                 {loading ? (
                   <tr className="ddm-row">
                     <td colSpan={6} style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>
-                      Chargement des avis…
+                      Chargement des soumissions…
                     </td>
                   </tr>
                 ) : error ? (
@@ -309,7 +309,7 @@ export default function DrillDownModal({ cdi, dateRange, onClose }) {
                 ) : (
                   <tr className="ddm-row">
                     <td colSpan={6} style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>
-                      Aucun avis trouvé pour ce CDI sur la période sélectionnée.
+                      Aucune soumission trouvée pour ce ministère sur la période sélectionnée.
                     </td>
                   </tr>
                 )}

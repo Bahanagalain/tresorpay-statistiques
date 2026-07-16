@@ -20,8 +20,35 @@ function buildDateFilter(dateDebut, dateFin) {
   return Object.keys(filter).length > 0 ? filter : undefined;
 }
 
-function buildSoumissionWhere(dateDebut, dateFin, extra = {}) {
-  const where = { ...extra };
+/**
+ * Construit le filtre de perimetre utilisateur.
+ * @param {Object} scope - { niveau, ministereId, orgUnitId }
+ * @returns {Object} Prisma where conditions additionnelles
+ */
+function buildScopeFilter(scope) {
+  if (!scope) return {};
+  const { niveau, ministereId, orgUnitId } = scope;
+
+  // CENTRAL or super admin: no filter
+  if (!niveau || niveau === 'CENTRAL') return {};
+
+  const filters = {};
+
+  // REGIONAL: filter by ministry
+  if (ministereId) {
+    filters.ministereId = parseInt(ministereId) || undefined;
+  }
+
+  // DEPARTEMENTAL/CDI: filter by org unit
+  if (orgUnitId) {
+    filters.orgUnitId = parseInt(orgUnitId) || undefined;
+  }
+
+  return filters;
+}
+
+function buildSoumissionWhere(dateDebut, dateFin, extra = {}, scope = {}) {
+  const where = { ...extra, ...buildScopeFilter(scope) };
   const dateFilter = buildDateFilter(dateDebut, dateFin);
   if (dateFilter) where.dateSoumission = dateFilter;
   return where;
@@ -41,8 +68,8 @@ function formatMoisLabel(date) {
 // KPI GLOBAUX
 // ═══════════════════════════════════════════════════════════════
 
-export async function computeKpi(dateDebut, dateFin) {
-  const where = buildSoumissionWhere(dateDebut, dateFin);
+export async function computeKpi(dateDebut, dateFin, scope) {
+  const where = buildSoumissionWhere(dateDebut, dateFin, {}, scope);
 
   // Compter par statut
   const [totalAgg, payeAgg, enAttenteAgg, partielAgg, echoueAgg] = await Promise.all([
@@ -72,6 +99,7 @@ export async function computeKpi(dateDebut, dateFin) {
   const soumissionsEnAttente = enAttenteAgg._count || 0;
   const soumissionsPartielles = partielAgg._count || 0;
   const soumissionsEchouees = echoueAgg._count || 0;
+  const montantTotalSoumis = toNumber(totalAgg._sum?.montant);
   const totalRevenus = toNumber(payeAgg._sum?.montant) + toNumber(partielAgg._sum?.montant);
   const tauxPaiement = totalSoumissions > 0 ? (soumissionsPayees / totalSoumissions) * 100 : 0;
 
@@ -85,7 +113,7 @@ export async function computeKpi(dateDebut, dateFin) {
     const prevFin = new Date(debut.getTime() - 1);
 
     const prevAgg = await prisma.soumission.aggregate({
-      where: buildSoumissionWhere(prevDebut.toISOString(), prevFin.toISOString(), { statutPaiement: 'PAID' }),
+      where: buildSoumissionWhere(prevDebut.toISOString(), prevFin.toISOString(), { statutPaiement: 'PAID' }, scope),
       _sum: { montant: true },
     });
     const prevRevenus = toNumber(prevAgg._sum?.montant);
@@ -99,15 +127,17 @@ export async function computeKpi(dateDebut, dateFin) {
     const debutMoisPrec = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const finMoisPrec = new Date(debutMoisCourant.getTime() - 1);
 
+    const scopeFilter = buildScopeFilter(scope);
     const [courantAgg, precAgg] = await Promise.all([
       prisma.soumission.aggregate({
-        where: { dateSoumission: { gte: debutMoisCourant }, statutPaiement: 'PAID' },
+        where: { dateSoumission: { gte: debutMoisCourant }, statutPaiement: 'PAID', ...scopeFilter },
         _sum: { montant: true },
       }),
       prisma.soumission.aggregate({
         where: {
           dateSoumission: { gte: debutMoisPrec, lte: finMoisPrec },
           statutPaiement: 'PAID',
+          ...scopeFilter,
         },
         _sum: { montant: true },
       }),
@@ -121,6 +151,7 @@ export async function computeKpi(dateDebut, dateFin) {
 
   return {
     totalRevenus,
+    montantTotalSoumis,
     totalSoumissions,
     soumissionsPayees,
     soumissionsEnAttente,
@@ -135,8 +166,8 @@ export async function computeKpi(dateDebut, dateFin) {
 // EVOLUTION TEMPORELLE
 // ═══════════════════════════════════════════════════════════════
 
-export async function computeEvolution(dateDebut, dateFin) {
-  const where = buildSoumissionWhere(dateDebut, dateFin);
+export async function computeEvolution(dateDebut, dateFin, scope) {
+  const where = buildSoumissionWhere(dateDebut, dateFin, {}, scope);
 
   const soumissions = await prisma.soumission.findMany({
     where,
@@ -194,8 +225,8 @@ export async function computeEvolution(dateDebut, dateFin) {
 // REPARTITION PAR MINISTERES
 // ═══════════════════════════════════════════════════════════════
 
-export async function computeRepartitionMinisteres(dateDebut, dateFin) {
-  const where = buildSoumissionWhere(dateDebut, dateFin, { ministereId: { not: null } });
+export async function computeRepartitionMinisteres(dateDebut, dateFin, scope) {
+  const where = buildSoumissionWhere(dateDebut, dateFin, { ministereId: { not: null } }, scope);
 
   const groupes = await prisma.soumission.groupBy({
     by: ['ministereId'],
@@ -213,27 +244,30 @@ export async function computeRepartitionMinisteres(dateDebut, dateFin) {
   const ministeresMap = {};
   for (const m of ministeres) ministeresMap[m.id] = m;
 
-  // Compter les payes par ministere
+  // Compter et sommer les payes par ministere
   const payesGroupes = await prisma.soumission.groupBy({
     by: ['ministereId'],
     where: { ...where, statutPaiement: 'PAID' },
     _count: true,
+    _sum: { montant: true },
   });
   const payesMap = {};
-  for (const p of payesGroupes) payesMap[p.ministereId] = p._count;
+  for (const p of payesGroupes) payesMap[p.ministereId] = { count: p._count, montant: toNumber(p._sum?.montant) };
 
   return groupes
     .map((g) => {
       const m = ministeresMap[g.ministereId] || {};
       const total = g._count || 0;
-      const payes = payesMap[g.ministereId] || 0;
+      const payesInfo = payesMap[g.ministereId] || { count: 0, montant: 0 };
       return {
         ministereId: g.ministereId,
         nom: m.nomFr || 'Inconnu',
         shortName: m.shortName || null,
         montant: toNumber(g._sum?.montant),
+        montantPaye: payesInfo.montant,
         nombreSoumissions: total,
-        tauxPaiement: total > 0 ? Math.round((payes / total) * 10000) / 100 : 0,
+        soumissionsPayees: payesInfo.count,
+        tauxPaiement: total > 0 ? Math.round((payesInfo.count / total) * 10000) / 100 : 0,
         couleur: m.couleur || null,
       };
     })
@@ -244,8 +278,8 @@ export async function computeRepartitionMinisteres(dateDebut, dateFin) {
 // DETAIL MINISTERE
 // ═══════════════════════════════════════════════════════════════
 
-export async function computeMinistereDetail(ministereId, dateDebut, dateFin) {
-  const where = buildSoumissionWhere(dateDebut, dateFin, { ministereId });
+export async function computeMinistereDetail(ministereId, dateDebut, dateFin, scope) {
+  const where = buildSoumissionWhere(dateDebut, dateFin, { ministereId }, scope);
 
   const [ministere, kpiAgg, payeAgg] = await Promise.all([
     prisma.ministere.findUnique({
@@ -262,30 +296,42 @@ export async function computeMinistereDetail(ministereId, dateDebut, dateFin) {
 
   if (!ministere) return null;
 
-  // Services du ministere
-  const servicesGroupes = await prisma.soumission.groupBy({
-    by: ['serviceId'],
-    where: { ...where, serviceId: { not: null } },
-    _count: true,
-    _sum: { montant: true },
-  });
+  // Services du ministere — inclure TOUS les services actifs, meme sans soumission
+  const [servicesGroupes, allServices] = await Promise.all([
+    prisma.soumission.groupBy({
+      by: ['serviceId'],
+      where: { ...where, serviceId: { not: null } },
+      _count: true,
+      _sum: { montant: true },
+    }),
+    prisma.serviceGouv.findMany({
+      where: { ministereId, estActif: true },
+      select: { id: true, nomFr: true, nomEn: true, montant: true },
+      orderBy: { nomFr: 'asc' },
+    }),
+  ]);
 
-  const serviceIds = servicesGroupes.map((g) => g.serviceId).filter(Boolean);
-  const services = await prisma.serviceGouv.findMany({
-    where: { id: { in: serviceIds } },
-    select: { id: true, nomFr: true },
-  });
-  const servicesMap = {};
-  for (const s of services) servicesMap[s.id] = s;
-
-  const servicesDetail = servicesGroupes
-    .map((g) => ({
-      serviceId: g.serviceId,
-      nom: servicesMap[g.serviceId]?.nomFr || 'Inconnu',
+  // Indexer les stats par serviceId
+  const statsMap = {};
+  for (const g of servicesGroupes) {
+    statsMap[g.serviceId] = {
       montant: toNumber(g._sum?.montant),
       nombreSoumissions: g._count || 0,
-    }))
-    .sort((a, b) => b.montant - a.montant);
+    };
+  }
+
+  const servicesDetail = allServices
+    .map((svc) => {
+      const stats = statsMap[svc.id];
+      return {
+        serviceId: svc.id,
+        nom: svc.nomFr || 'Inconnu',
+        montant: stats ? stats.montant : 0,
+        nombreSoumissions: stats ? stats.nombreSoumissions : 0,
+        tauxPaiement: 0,
+      };
+    })
+    .sort((a, b) => b.montant - a.montant || a.nom.localeCompare(b.nom));
 
   // Evolution mensuelle du ministere
   const soumissions = await prisma.soumission.findMany({
@@ -1273,11 +1319,11 @@ export async function computeMonitoring(dateDebut, dateFin) {
 // DASHBOARD COMPLET (batch)
 // ═══════════════════════════════════════════════════════════════
 
-export async function computeDashboard(dateDebut, dateFin) {
+export async function computeDashboard(dateDebut, dateFin, scope) {
   const [kpi, evolution, ministeres, services, domaines, regions, alertes] = await Promise.all([
-    computeKpi(dateDebut, dateFin),
-    computeEvolution(dateDebut, dateFin),
-    computeRepartitionMinisteres(dateDebut, dateFin),
+    computeKpi(dateDebut, dateFin, scope),
+    computeEvolution(dateDebut, dateFin, scope),
+    computeRepartitionMinisteres(dateDebut, dateFin, scope),
     computeRepartitionServices(dateDebut, dateFin),
     computeRepartitionDomaines(dateDebut, dateFin),
     computeTelemetrieRegions(dateDebut, dateFin),

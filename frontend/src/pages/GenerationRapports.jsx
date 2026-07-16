@@ -94,12 +94,12 @@ function StepBreadcrumb({ steps, step, stepWord }) {
 // ─── Main Component ──────────────────────────────────────────
 // ─── Standard Report Templates ──────────────────────────────
 const STANDARD_TEMPLATES = [
-  { id: 'cdis', icon: Building2, titleKey: 'reports.templates.cdiPerf', descKey: 'reports.templates.cdiPerfDesc', color: '#2563EB', hasEntities: true, entityLabel: 'CDIs' },
+  { id: 'ministeres', icon: Building2, titleKey: 'reports.templates.cdiPerf', descKey: 'reports.templates.cdiPerfDesc', color: '#2563EB', hasEntities: true, entityLabel: 'Ministères' },
   { id: 'regions', icon: Map, titleKey: 'reports.templates.regionalSummary', descKey: 'reports.templates.regionalSummaryDesc', color: '#14B8A6', hasEntities: true, entityLabel: 'Régions' },
-  { id: 'taxes', icon: PieChart, titleKey: 'reports.templates.fiscalDist', descKey: 'reports.templates.fiscalDistDesc', color: '#8B5CF6' },
-  { id: 'contribuables', icon: Users, titleKey: 'reports.templates.taxpayerAnalysis', descKey: 'reports.templates.taxpayerAnalysisDesc', color: '#EC4899' },
-  { id: 'avis', icon: FileText, titleKey: 'reports.templates.noticeRegistry', descKey: 'reports.templates.noticeRegistryDesc', color: '#059669' },
-  { id: 'communes', icon: Target, titleKey: 'reports.templates.taxCollection', descKey: 'reports.templates.taxCollectionDesc', color: '#D97706', hasEntities: true, entityLabel: 'Communes' },
+  { id: 'services', icon: PieChart, titleKey: 'reports.templates.fiscalDist', descKey: 'reports.templates.fiscalDistDesc', color: '#8B5CF6' },
+  { id: 'domaines', icon: Target, titleKey: 'reports.templates.taxpayerAnalysis', descKey: 'reports.templates.taxpayerAnalysisDesc', color: '#EC4899' },
+  { id: 'soumissions', icon: FileText, titleKey: 'reports.templates.noticeRegistry', descKey: 'reports.templates.noticeRegistryDesc', color: '#059669' },
+  { id: 'partenaires', icon: Users, titleKey: 'reports.templates.taxCollection', descKey: 'reports.templates.taxCollectionDesc', color: '#D97706' },
 ];
 
 function computePeriod(id) {

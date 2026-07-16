@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Lock, User, ArrowRight, MoonStar, SunMedium, Languages } from 'lucide-react';
+import { Lock, User, ArrowRight, MoonStar, SunMedium, Languages, Eye, EyeOff } from 'lucide-react';
 import { useTheme } from '../components/theme/ThemeProvider';
 import { useAuth } from '../components/auth/AuthProvider';
 import { useTranslation } from '../i18n/LanguageProvider';
@@ -39,65 +39,118 @@ function useLoginRateLimit() {
   return { recordFailure, isLocked, countdown, attemptsLeft: MAX_ATTEMPTS - attempts };
 }
 
-/* ── Animated flowing lines canvas ──────────────────────────── */
-function FlowingLines() {
+/* ── Animated particle network canvas ──────────────────────── */
+function ParticleNetwork() {
   const canvasRef = useRef(null);
+  const mouseRef = useRef({ x: -1000, y: -1000 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
+    const resize = () => { canvas.width = canvas.offsetWidth * 2; canvas.height = canvas.offsetHeight * 2; ctx.scale(2, 2); };
     resize();
     window.addEventListener('resize', resize);
 
-    const LINES = [
-      { color: '#2563eb', speed: 0.7,  amplitude: 22, phase: 0,   yBase: 0.30, width: 2.2, dashLen: 18, gapLen: 10 },
-      { color: '#D97706', speed: 0.50, amplitude: 18, phase: 2.1, yBase: 0.50, width: 2.0, dashLen: 22, gapLen: 14 },
-      { color: '#0d9488', speed: 0.65, amplitude: 25, phase: 4.2, yBase: 0.70, width: 1.8, dashLen: 14, gapLen: 8  },
-      { color: '#2563eb', speed: 0.40, amplitude: 12, phase: 1.0, yBase: 0.18, width: 1.4, dashLen: 8,  gapLen: 18 },
-      { color: '#0d9488', speed: 0.85, amplitude: 16, phase: 3.3, yBase: 0.85, width: 1.3, dashLen: 20, gapLen: 12 },
-      { color: '#fbbf24', speed: 0.55, amplitude: 20, phase: 5.1, yBase: 0.60, width: 2.0, dashLen: 16, gapLen: 9  },
-    ];
+    const COLORS = ['#059669', '#2563EB', '#D97706', '#0d9488', '#6366F1'];
+    const PARTICLE_COUNT = 55;
+    const CONNECTION_DIST = 140;
+    const MOUSE_DIST = 180;
 
-    let t = 0, raf;
+    const particles = Array.from({ length: PARTICLE_COUNT }, () => ({
+      x: Math.random() * canvas.offsetWidth,
+      y: Math.random() * canvas.offsetHeight,
+      vx: (Math.random() - 0.5) * 0.6,
+      vy: (Math.random() - 0.5) * 0.6,
+      r: Math.random() * 2.5 + 1,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      pulse: Math.random() * Math.PI * 2,
+    }));
+
+    const handleMouse = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+    canvas.addEventListener('mousemove', handleMouse);
+
+    let raf;
     const draw = () => {
-      const W = canvas.width, H = canvas.height;
+      const W = canvas.offsetWidth, H = canvas.offsetHeight;
       ctx.clearRect(0, 0, W, H);
-      LINES.forEach(line => {
-        ctx.beginPath();
-        ctx.setLineDash([line.dashLen, line.gapLen]);
-        ctx.lineWidth = line.width;
-        ctx.strokeStyle = line.color + 'a0';
-        const steps = 120;
-        for (let i = 0; i <= steps; i++) {
-          const x = (i / steps) * W;
-          const y = line.yBase * H
-            + Math.sin((i / steps) * Math.PI * 3.5 + t * line.speed + line.phase) * line.amplitude
-            + Math.sin((i / steps) * Math.PI * 6 + t * line.speed * 0.5 + line.phase) * (line.amplitude * 0.3);
-          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      const mouse = mouseRef.current;
+
+      // Update & draw particles
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.pulse += 0.02;
+        if (p.x < 0 || p.x > W) p.vx *= -1;
+        if (p.y < 0 || p.y > H) p.vy *= -1;
+
+        // Mouse repulsion
+        const dmx = p.x - mouse.x, dmy = p.y - mouse.y;
+        const dm = Math.sqrt(dmx * dmx + dmy * dmy);
+        if (dm < MOUSE_DIST && dm > 0) {
+          const force = (MOUSE_DIST - dm) / MOUSE_DIST * 0.015;
+          p.vx += (dmx / dm) * force;
+          p.vy += (dmy / dm) * force;
         }
-        ctx.stroke();
-        const dotX = ((t * line.speed * 55 + LINES.indexOf(line) * 100) % (W + 30)) - 15;
-        const pr = (dotX + 15) / (W + 30);
-        const dotY = line.yBase * H
-          + Math.sin(pr * Math.PI * 3.5 + t * line.speed + line.phase) * line.amplitude
-          + Math.sin(pr * Math.PI * 6 + t * line.speed * 0.5 + line.phase) * (line.amplitude * 0.3);
-        const grad = ctx.createRadialGradient(dotX, dotY, 0, dotX, dotY, 9);
-        grad.addColorStop(0, line.color + 'dd');
-        grad.addColorStop(1, line.color + '00');
+
+        // Damping
+        p.vx *= 0.999;
+        p.vy *= 0.999;
+
+        const glow = 0.5 + Math.sin(p.pulse) * 0.3;
         ctx.beginPath();
-        ctx.setLineDash([]);
-        ctx.fillStyle = grad;
-        ctx.arc(dotX, dotY, 9, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.r * (1 + Math.sin(p.pulse) * 0.2), 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = glow;
         ctx.fill();
-      });
-      t += 0.012;
+        ctx.globalAlpha = 1;
+      }
+
+      // Draw connections
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < CONNECTION_DIST) {
+            const opacity = (1 - dist / CONNECTION_DIST) * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = particles[i].color;
+            ctx.globalAlpha = opacity;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+        }
+      }
+
+      // Mouse connections
+      for (const p of particles) {
+        const dx = p.x - mouse.x, dy = p.y - mouse.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < MOUSE_DIST) {
+          const opacity = (1 - dist / MOUSE_DIST) * 0.35;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(mouse.x, mouse.y);
+          ctx.strokeStyle = '#D97706';
+          ctx.globalAlpha = opacity;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+
       raf = requestAnimationFrame(draw);
     };
     draw();
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); canvas.removeEventListener('mousemove', handleMouse); };
   }, []);
 
   return <div className="lp-canvas-wrapper"><canvas ref={canvasRef} className="lp-canvas" /></div>;
@@ -113,6 +166,7 @@ export default function Login() {
   const [loginValue, setLoginValue] = useState('');
   const [password, setPassword] = useState('');
   const [focused, setFocused] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const { recordFailure, isLocked, countdown } = useLoginRateLimit();
   const redirectTo = location.state?.from?.pathname || '/tableau-de-bord';
 
@@ -174,7 +228,7 @@ export default function Login() {
             <h1 className="lp-title">{t('login.title')}<br /><span className="lp-accent">{t('login.accent')}</span></h1>
             <p className="lp-desc">{t('login.desc')}</p>
           </div>
-          <FlowingLines />
+          <ParticleNetwork />
         </div>
 
         {/* Partner logos — bottom left */}
@@ -203,7 +257,10 @@ export default function Login() {
 
             <div className={`lr-field ${focused === 'pw' ? 'lr-field--active' : ''}`}>
               <Lock size={16} className="lr-field-icon" />
-              <input type="password" placeholder={t('login.passwordPlaceholder')} value={password} onChange={e => setPassword(e.target.value)} onFocus={() => setFocused('pw')} onBlur={() => setFocused(null)} className="lr-input" required autoComplete="current-password" />
+              <input type={showPassword ? 'text' : 'password'} placeholder={t('login.passwordPlaceholder')} value={password} onChange={e => setPassword(e.target.value)} onFocus={() => setFocused('pw')} onBlur={() => setFocused(null)} className="lr-input" required autoComplete="current-password" />
+              <button type="button" className="lr-eye-btn" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
 
             {isLocked && (

@@ -10,9 +10,10 @@ import { AuthProvider } from './components/auth/AuthProvider.jsx'
 import { LanguageProvider } from './i18n/LanguageProvider.jsx'
 import { installSourceDeterrence } from './security/sourceDeterrence.js'
 
-if (import.meta.env.PROD) {
-  installSourceDeterrence()
-}
+// Source deterrence desactive temporairement pour debug
+// if (import.meta.env.PROD) {
+//   installSourceDeterrence()
+// }
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -390,6 +390,22 @@
   color: var(--text-tertiary);
 }
 
+/* Eye toggle button */
+.lr-eye-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 0.2rem;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+.lr-eye-btn:hover {
+  color: var(--text-primary);
+}
+
 /* Submit button */
 .lr-btn {
   display: flex;

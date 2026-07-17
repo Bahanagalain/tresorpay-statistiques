@@ -144,35 +144,35 @@ function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {},
 
       {/* KPI Cards */}
       <div className="cdi-detail-kpis">
-        <div className="cdi-dkpi" data-glow="green">
+        <div className="cdi-dkpi">
           <Activity size={18} style={{ color: '#2563EB' }} />
           <div>
             <span className="cdi-dkpi-val"><CountUp end={totalDemandes} separator=" " duration={0.8} /></span>
             <span className="cdi-dkpi-label">Total Demandes</span>
           </div>
         </div>
-        <div className="cdi-dkpi" data-glow="green">
+        <div className="cdi-dkpi">
           <CheckCircle size={18} style={{ color: '#059669' }} />
           <div>
             <span className="cdi-dkpi-val"><CountUp end={demandesPayees} separator=" " duration={0.8} /></span>
             <span className="cdi-dkpi-label">Payées</span>
           </div>
         </div>
-        <div className="cdi-dkpi" data-glow="green">
+        <div className="cdi-dkpi">
           <XCircle size={18} style={{ color: '#DC2626' }} />
           <div>
             <span className="cdi-dkpi-val"><CountUp end={demandesEchouees} separator=" " duration={0.8} /></span>
             <span className="cdi-dkpi-label">Échouées</span>
           </div>
         </div>
-        <div className="cdi-dkpi" data-glow="green">
+        <div className="cdi-dkpi">
           <CreditCard size={18} style={{ color: '#059669' }} />
           <div>
             <span className="cdi-dkpi-val">{fmtFull(montantPaye)}</span>
             <span className="cdi-dkpi-label">Montant Payé</span>
           </div>
         </div>
-        <div className="cdi-dkpi" data-glow="green">
+        <div className="cdi-dkpi">
           <div className={`taux-circle ${tauxSucces >= 50 ? 'good' : tauxSucces >= 25 ? 'mid' : 'bad'}`}>{tauxSucces}%</div>
           <div>
             <span className="cdi-dkpi-val">{demandesPayees} / {totalDemandes}</span>
@@ -184,7 +184,7 @@ function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {},
       {/* Charts Grid */}
       <div className="overview-grid">
         {/* Status PieChart */}
-        <div className="card" data-glow="blue">
+        <div className="card">
           <h3 className="card-title">Répartition par Statut</h3>
           {statutPieData.length > 0 ? (
             <>
@@ -210,7 +210,7 @@ function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {},
         </div>
 
         {/* Payment Methods BarChart */}
-        <div className="card" data-glow="blue">
+        <div className="card">
           <h3 className="card-title"><CreditCard size={14} /> Méthodes de Paiement</h3>
           {methodeData.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
@@ -228,7 +228,7 @@ function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {},
 
       {/* Monthly Evolution */}
       {evolutionData.length > 0 && (
-        <div className="card" data-glow="blue" style={{ marginTop: '1rem' }}>
+        <div className="card" style={{ marginTop: '1rem' }}>
           <h3 className="card-title"><TrendingUp size={14} /> Évolution Mensuelle</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={evolutionData}>
@@ -246,7 +246,7 @@ function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {},
 
       {/* Recent Demands Table */}
       {dernieresDemandes.length > 0 && (
-        <div className="card cdi-table-card cdi-table-scroll" data-glow="blue" style={{ marginTop: '1rem', padding: 0 }}>
+        <div className="card cdi-table-card cdi-table-scroll" style={{ marginTop: '1rem', padding: 0 }}>
           <h3 className="card-title" style={{ padding: '1rem 1rem 0.5rem' }}>20 dernières demandes</h3>
           <table className="cdi-detail-table">
             <thead>
@@ -402,7 +402,7 @@ export default function ConformiteRIB() {
             <div
               key={p.id || p.code}
               className="card"
-              data-glow="green"
+             
               style={{ cursor: 'pointer', padding: '1rem 1.2rem', transition: 'transform 0.15s, box-shadow 0.15s' }}
               onClick={() => setSelectedId(p.id || p.code)}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}

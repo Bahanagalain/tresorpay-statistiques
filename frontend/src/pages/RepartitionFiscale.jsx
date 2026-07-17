@@ -132,7 +132,7 @@ function ServiceDetailPanel({ serviceId, dateRange, onBack }) {
 
       {/* Charts */}
       <div className="overview-grid">
-        <div className="card" data-glow="blue">
+        <div className="card">
           <h3 className="card-title">Evolution Mensuelle des Revenus</h3>
           {evolution.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -147,7 +147,7 @@ function ServiceDetailPanel({ serviceId, dateRange, onBack }) {
           ) : <p className="no-data-msg">Pas assez de données</p>}
         </div>
 
-        <div className="card" data-glow="blue">
+        <div className="card">
           <h3 className="card-title">Répartition par Statut</h3>
           {pieStatut.length > 0 ? (
             <>
@@ -316,7 +316,7 @@ function DomaineDetailPanel({ domaineId, dateRange, onBack }) {
 
       {/* Charts */}
       <div className="overview-grid">
-        <div className="card" data-glow="blue">
+        <div className="card">
           <h3 className="card-title">Evolution Mensuelle des Revenus</h3>
           {evolution.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -331,7 +331,7 @@ function DomaineDetailPanel({ domaineId, dateRange, onBack }) {
           ) : <p className="no-data-msg">Pas assez de données</p>}
         </div>
 
-        <div className="card" data-glow="blue">
+        <div className="card">
           <h3 className="card-title"><Layers size={14} /> Services dans ce domaine</h3>
           {services.slice(0, 8).map((s, i) => (
             <div key={i} className="overview-rank-item">
@@ -346,7 +346,7 @@ function DomaineDetailPanel({ domaineId, dateRange, onBack }) {
 
       {/* Services table */}
       {services.length > 0 && (
-        <div className="card cdi-table-card" data-glow="green">
+        <div className="card cdi-table-card">
           <table className="cdi-detail-table">
             <thead>
               <tr>

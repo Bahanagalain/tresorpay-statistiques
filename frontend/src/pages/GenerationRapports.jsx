@@ -196,7 +196,7 @@ function StandardReportsTab({ t, history, setHistory }) {
         {STANDARD_TEMPLATES.map(tpl => {
           const Icon = tpl.icon;
           return (
-            <div key={tpl.id} className="rg-std-card" data-glow="green" onClick={() => openModal(tpl)}>
+            <div key={tpl.id} className="rg-std-card" onClick={() => openModal(tpl)}>
               <div className="rg-std-card__icon" style={{ background: `${tpl.color}14`, color: tpl.color }}>
                 <Icon size={26} />
               </div>
@@ -545,7 +545,7 @@ export default function GenerationRapports() {
                 {FORMAT_OPTIONS.map(f => {
                   const Icon = FORMAT_ICON[f.id] || FileText;
                   return (
-                    <div key={f.id} className="rg-std-card" data-glow="green" onClick={() => { setExportFormat(f.id); setStep(1); }}>
+                    <div key={f.id} className="rg-std-card" onClick={() => { setExportFormat(f.id); setStep(1); }}>
                       <div className="rg-std-card__icon" style={{ background: 'var(--accent-dgi-dim)', color: 'var(--accent-dgi)' }}><Icon size={26} /></div>
                       <strong className="rg-std-card__title">{f.label}</strong>
                       <span className="rg-std-card__desc">{f.description}</span>

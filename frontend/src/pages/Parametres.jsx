@@ -589,7 +589,7 @@ export default function Parametres() {
               <div className="param-card__body">
                 <div
                   className="param-preview"
-                  data-glow="custom"
+                 
                   style={{ '--user-glow-hue': appearance.glowHue }}
                 >
                   <div className="param-preview__content">

@@ -109,10 +109,10 @@ function MinistereDetailPanel({ ministereId, dateRange: initialDateRange = {}, o
       </div>
 
       <div className="cdi-detail-kpis">
-        <div className="cdi-dkpi" data-glow="green"><DollarSign size={18} className="text-dgi" /><div><span className="cdi-dkpi-val">{fmtFull(detail.totalRevenus)}</span><span className="cdi-dkpi-label">Revenus collectés</span></div></div>
-        <div className="cdi-dkpi" data-glow="green"><FileText size={18} className="text-info" /><div><span className="cdi-dkpi-val">{detail.totalSoumissions}</span><span className="cdi-dkpi-label">Soumissions</span></div></div>
-        <div className="cdi-dkpi" data-glow="green"><CheckCircle size={18} className="text-success" /><div><span className="cdi-dkpi-val">{detail.soumissionsPayees}</span><span className="cdi-dkpi-label">Payées</span></div></div>
-        <div className="cdi-dkpi" data-glow="green">
+        <div className="cdi-dkpi"><DollarSign size={18} className="text-dgi" /><div><span className="cdi-dkpi-val">{fmtFull(detail.totalRevenus)}</span><span className="cdi-dkpi-label">Revenus collectés</span></div></div>
+        <div className="cdi-dkpi"><FileText size={18} className="text-info" /><div><span className="cdi-dkpi-val">{detail.totalSoumissions}</span><span className="cdi-dkpi-label">Soumissions</span></div></div>
+        <div className="cdi-dkpi"><CheckCircle size={18} className="text-success" /><div><span className="cdi-dkpi-val">{detail.soumissionsPayees}</span><span className="cdi-dkpi-label">Payées</span></div></div>
+        <div className="cdi-dkpi">
           <div className={`taux-circle ${taux >= 50 ? 'good' : taux >= 25 ? 'mid' : 'bad'}`}>{taux}%</div>
           <div><span className="cdi-dkpi-val">{detail.soumissionsPayees} / {detail.totalSoumissions}</span><span className="cdi-dkpi-label">Taux de paiement</span></div>
         </div>
@@ -138,7 +138,7 @@ function MinistereDetailPanel({ ministereId, dateRange: initialDateRange = {}, o
         <div className="cdi-tab-content">
           <div className="overview-grid">
             {/* Evolution */}
-            <div className="card" data-glow="blue">
+            <div className="card">
               <h3 className="card-title">Évolution Mensuelle</h3>
               {detail.evolution && detail.evolution.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -156,7 +156,7 @@ function MinistereDetailPanel({ ministereId, dateRange: initialDateRange = {}, o
             </div>
 
             {/* Donut statuts */}
-            <div className="card" data-glow="blue">
+            <div className="card">
               <h3 className="card-title">Répartition Statuts</h3>
               <ResponsiveContainer width="100%" height={180}>
                 <RechartsPie>
@@ -176,7 +176,7 @@ function MinistereDetailPanel({ ministereId, dateRange: initialDateRange = {}, o
 
           {/* Top 5 Services */}
           <div className="overview-grid">
-            <div className="card" data-glow="blue">
+            <div className="card">
               <h3 className="card-title"><PieChart size={14} /> Top 5 Services</h3>
               {(detail.services || []).slice(0, 5).map((s, i) => (
                 <div key={i} className="overview-rank-item" onClick={() => { setActiveTab('services'); setSelectedService(s.serviceId); }}>
@@ -188,7 +188,7 @@ function MinistereDetailPanel({ ministereId, dateRange: initialDateRange = {}, o
               ))}
             </div>
 
-            <div className="card" data-glow="blue">
+            <div className="card">
               <h3 className="card-title"><FileText size={14} /> Résumé</h3>
               <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <div className="overview-rank-item">
@@ -220,7 +220,7 @@ function MinistereDetailPanel({ ministereId, dateRange: initialDateRange = {}, o
             <span>{(detail.services || []).length} services</span>
             <span>Total : <strong>{fmtFull(detail.totalRevenus)}</strong></span>
           </div>
-          <div className="card cdi-table-card" data-glow="blue">
+          <div className="card cdi-table-card">
             <table className="cdi-detail-table">
               <thead>
                 <tr><th>ID</th><th>Service</th><th className="text-right">Montant</th><th className="text-center">Soumissions</th></tr>
@@ -270,7 +270,7 @@ function MinistereDetailPanel({ ministereId, dateRange: initialDateRange = {}, o
         <div className="cdi-tab-content">
           {/* Evolution stacked */}
           {detail.evolution && detail.evolution.length > 0 && (
-            <div className="card" data-glow="blue">
+            <div className="card">
               <h3 className="card-title">Performance Mensuelle (Payé / En attente / Échoué)</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={detail.evolution}>
@@ -288,7 +288,7 @@ function MinistereDetailPanel({ ministereId, dateRange: initialDateRange = {}, o
 
           {/* Comparaison — évolution du ministère */}
           {comparison?.evolution?.length > 0 && (
-            <div className="card" data-glow="blue">
+            <div className="card">
               <h3 className="card-title"><Building2 size={14} /> Évolution — {comparison.ministere?.nomFr || 'Ministère'}</h3>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={comparison.evolution}>
@@ -397,7 +397,7 @@ export default function PerformanceCDI() {
       </div>
 
       {/* Table — internal scroll */}
-      <div className="card cdi-table-card cdi-table-scroll" data-glow="green">
+      <div className="card cdi-table-card cdi-table-scroll">
         <table className="cdi-perf-table">
           <thead>
             <tr>

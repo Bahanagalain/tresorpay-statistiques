@@ -145,11 +145,11 @@ export default function CartographieRegionale() {
                   {detailView === 'overview' && (
                     <>
                       <div className="cdi-detail-kpis" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-                        <div className="cdi-dkpi" data-glow="green"><DollarSign size={16} className="text-dgi" /><div><span className="cdi-dkpi-val">{fmtFull(d.totalRevenus)}</span><span className="cdi-dkpi-label">Revenus</span></div></div>
-                        <div className="cdi-dkpi" data-glow="green"><CheckCircle size={16} className="text-success" /><div><span className="cdi-dkpi-val">{d.soumissionsPayees}</span><span className="cdi-dkpi-label">Payées</span></div></div>
-                        <div className="cdi-dkpi" data-glow="green"><FileText size={16} className="text-info" /><div><span className="cdi-dkpi-val">{d.totalSoumissions}</span><span className="cdi-dkpi-label">Soumissions</span></div></div>
-                        <div className="cdi-dkpi" data-glow="green"><Building2 size={16} className="text-info" /><div><span className="cdi-dkpi-val">{(d.departements || []).length}</span><span className="cdi-dkpi-label">Départements</span></div></div>
-                        <div className="cdi-dkpi" data-glow="green">
+                        <div className="cdi-dkpi"><DollarSign size={16} className="text-dgi" /><div><span className="cdi-dkpi-val">{fmtFull(d.totalRevenus)}</span><span className="cdi-dkpi-label">Revenus</span></div></div>
+                        <div className="cdi-dkpi"><CheckCircle size={16} className="text-success" /><div><span className="cdi-dkpi-val">{d.soumissionsPayees}</span><span className="cdi-dkpi-label">Payées</span></div></div>
+                        <div className="cdi-dkpi"><FileText size={16} className="text-info" /><div><span className="cdi-dkpi-val">{d.totalSoumissions}</span><span className="cdi-dkpi-label">Soumissions</span></div></div>
+                        <div className="cdi-dkpi"><Building2 size={16} className="text-info" /><div><span className="cdi-dkpi-val">{(d.departements || []).length}</span><span className="cdi-dkpi-label">Départements</span></div></div>
+                        <div className="cdi-dkpi">
                           <div className={`taux-circle ${d.tauxPaiement >= 50 ? 'good' : d.tauxPaiement >= 25 ? 'mid' : 'bad'}`}>{d.tauxPaiement}%</div>
                           <div><span className="cdi-dkpi-val">{d.soumissionsPayees} / {d.totalSoumissions}</span><span className="cdi-dkpi-label">Taux</span></div>
                         </div>

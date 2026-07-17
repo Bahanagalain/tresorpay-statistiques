@@ -1,0 +1,378 @@
+/* ── KPI Row ──────────────────────────────────── */
+.audit-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.audit-kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 1.1rem 1.3rem;
+}
+
+.audit-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.audit-kpi-body { display: flex; flex-direction: column; }
+.audit-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+.audit-kpi-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+/* ── Charts Row ──────────────────────────────── */
+.audit-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.audit-chart-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 1.2rem;
+}
+
+.audit-card-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.audit-empty {
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 2rem;
+  font-size: 0.82rem;
+}
+
+/* ── Tooltip ─────────────────────────────────── */
+.audit-tooltip {
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.78rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+.audit-tooltip-label {
+  margin: 0;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.3rem;
+}
+
+/* ── Pie legend ──────────────────────────────── */
+.audit-pie-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.8rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+.audit-pie-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+}
+.audit-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.audit-legend-name { color: var(--text-secondary); }
+.audit-legend-val { color: var(--text-primary); }
+
+/* ── Top acteurs ─────────────────────────────── */
+.audit-actors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.audit-actor-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.audit-actor-rank {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--bg-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.audit-actor-info { flex: 1; min-width: 0; }
+.audit-actor-email {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+.audit-actor-bar-wrap {
+  width: 100%;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--glass-border);
+  overflow: hidden;
+}
+.audit-actor-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #2563EB, #8B5CF6);
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+.audit-actor-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  min-width: 32px;
+  text-align: right;
+}
+
+/* ── Journal header ──────────────────────────── */
+.audit-journal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.audit-journal-count {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  margin-left: 0.4rem;
+}
+
+.audit-journal-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.audit-search-wrap {
+  position: relative;
+}
+.audit-search-icon {
+  position: absolute;
+  left: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+}
+.audit-search-input {
+  padding: 0.4rem 0.6rem 0.4rem 1.8rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  outline: none;
+  width: 160px;
+  transition: border-color 0.15s, width 0.2s;
+}
+.audit-search-input:focus {
+  border-color: var(--accent-dgi);
+  width: 200px;
+}
+
+.audit-filter-select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.audit-clear-btn {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  background: none;
+  color: #DC2626;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ── Table ────────────────────────────────────── */
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.audit-table thead th {
+  text-align: left;
+  padding: 0.6rem 1rem;
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  background: var(--bg-base);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.audit-table tbody tr {
+  transition: background 0.1s;
+}
+.audit-table tbody tr:hover {
+  background: var(--bg-base);
+}
+.audit-table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid var(--glass-border);
+}
+.audit-table td {
+  padding: 0.5rem 1rem;
+  vertical-align: middle;
+  color: var(--text-primary);
+}
+
+.audit-date-cell {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.audit-actor-cell-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.audit-actor-cell-email {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
+.audit-action-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.audit-entity-cell {
+  font-size: 0.78rem;
+}
+
+.audit-route-code {
+  font-size: 0.7rem;
+  background: var(--bg-base);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  word-break: break-all;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.audit-method-badge {
+  display: inline-block;
+  padding: 0.12rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  font-family: monospace;
+}
+.audit-method-badge[data-method="GET"] { background: rgba(37,99,235,0.1); color: #2563EB; }
+.audit-method-badge[data-method="POST"] { background: rgba(5,150,105,0.1); color: #059669; }
+.audit-method-badge[data-method="PUT"] { background: rgba(217,119,6,0.1); color: #D97706; }
+.audit-method-badge[data-method="PATCH"] { background: rgba(139,92,246,0.1); color: #8B5CF6; }
+.audit-method-badge[data-method="DELETE"] { background: rgba(220,38,38,0.1); color: #DC2626; }
+
+/* ── Pagination ──────────────────────────────── */
+.audit-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--glass-border);
+}
+.audit-pagination-controls {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+.audit-page-btn {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.audit-page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.audit-page-indicator {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+/* ── Responsive ──────────────────────────────── */
+@media (max-width: 1100px) {
+  .audit-charts-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .audit-chart-actors {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 768px) {
+  .audit-kpi-row { grid-template-columns: 1fr; }
+  .audit-charts-row { grid-template-columns: 1fr; }
+  .audit-journal-header { flex-direction: column; align-items: stretch; }
+}

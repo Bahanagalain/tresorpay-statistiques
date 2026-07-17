@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import {
   Handshake, Building2, CheckCircle, XCircle, Clock, ChevronLeft,
-  Search, X, Activity, ArrowUp, ArrowDown, ArrowUpDown, TrendingUp, CreditCard,
+  Search, X, Activity, ArrowUp, ArrowDown, ArrowUpDown, TrendingUp, CreditCard, AlertTriangle,
 } from 'lucide-react';
 import CountUp from '../components/ui/CountUp';
 import { fetchPartenaires, fetchPartenaireDetail } from '../api/analyticsApi';
@@ -282,6 +282,7 @@ function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {},
 export default function ConformiteRIB() {
   const [partenaires, setPartenaires] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [sortCol, setSortCol] = useState('montantPaye');
   const [sortDir, setSortDir] = useState('desc');
@@ -290,9 +291,10 @@ export default function ConformiteRIB() {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     fetchPartenaires(dateRange)
-      .then(setPartenaires)
-      .catch(console.error)
+      .then(data => setPartenaires(Array.isArray(data) ? data : []))
+      .catch(err => { console.error(err); setError(err.message || 'Erreur de chargement'); })
       .finally(() => setLoading(false));
   }, [dateRange]);
 
@@ -347,6 +349,20 @@ export default function ConformiteRIB() {
 
   if (loading) {
     return <div className="page-container"><div className="exec-loading"><WeaveSpinner message="Chargement des plateformes..." /></div></div>;
+  }
+
+  if (error) {
+    return (
+      <div className="page-container">
+        <div className="page-header"><h1 className="page-title"><Handshake size={24} /> Plateformes Partenaires</h1></div>
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+          <AlertTriangle size={40} style={{ marginBottom: '1rem', color: '#D97706' }} />
+          <p style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>Erreur de chargement</p>
+          <p style={{ fontSize: '0.85rem' }}>{error}</p>
+          <button onClick={() => { setError(null); setLoading(true); fetchPartenaires(dateRange).then(d => setPartenaires(Array.isArray(d) ? d : [])).catch(e => setError(e.message)).finally(() => setLoading(false)); }} style={{ marginTop: '1rem', padding: '0.5rem 1.5rem', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}>Réessayer</button>
+        </div>
+      </div>
+    );
   }
 
   return (

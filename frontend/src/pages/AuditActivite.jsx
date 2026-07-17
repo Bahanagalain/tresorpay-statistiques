@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Shield, Users, Activity, FileText, Clock, Search, X } from 'lucide-react';
+import { Shield, Users, Activity, FileText, Clock, Search, X, BarChart3 } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import WeaveSpinner from '../components/ui/WeaveSpinner';
 import DatePresetFilter from '../components/ui/DatePresetFilter';
@@ -11,6 +11,7 @@ import CountUp from '../components/ui/CountUp';
 import { fetchAudit } from '../api/analyticsApi';
 import { getCurrentPeriodRange } from '../hooks/usePeriodFilter';
 import { formatEntier } from '../utils/format';
+import './AuditActivite.css';
 
 // ─── Couleurs d'actions ────────────────────────────────────
 const ACTION_COLORS = {
@@ -25,65 +26,14 @@ function getActionColor(action) {
   return ACTION_COLORS[action?.toUpperCase()] || '#6B7280';
 }
 
-// ─── Styles réutilisables ──────────────────────────────────
-const s = {
-  card: {
-    background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
-    borderRadius: '14px', padding: '1.4rem',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-  },
-  cardTitle: {
-    fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)',
-    margin: '0 0 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem',
-  },
-  kpiCard: (color) => ({
-    background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
-    borderRadius: '14px', padding: '1.2rem 1.4rem',
-    borderLeft: `3px solid ${color}`,
-    display: 'flex', flexDirection: 'column', gap: '0.5rem',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-  }),
-  badge: (action) => ({
-    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-    padding: '0.15rem 0.55rem', borderRadius: '999px', fontSize: '0.68rem',
-    fontWeight: 700, background: `${getActionColor(action)}15`,
-    color: getActionColor(action),
-  }),
-  table: {
-    width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem',
-  },
-  th: {
-    textAlign: 'left', padding: '0.6rem 0.8rem', fontWeight: 700,
-    color: 'var(--text-secondary)', borderBottom: '2px solid var(--glass-border)',
-    fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em',
-  },
-  td: {
-    padding: '0.5rem 0.8rem', borderBottom: '1px solid var(--glass-border)',
-    color: 'var(--text-primary)', verticalAlign: 'middle',
-  },
-  methodBadge: (method) => {
-    const colors = { GET: '#2563EB', POST: '#059669', PUT: '#D97706', PATCH: '#8B5CF6', DELETE: '#DC2626' };
-    const c = colors[(method || '').toUpperCase()] || '#6B7280';
-    return {
-      display: 'inline-block', padding: '0.1rem 0.4rem', borderRadius: '4px',
-      fontSize: '0.65rem', fontWeight: 800, fontFamily: 'monospace',
-      background: `${c}15`, color: c,
-    };
-  },
-};
-
 // ─── Tooltip personnalisé ──────────────────────────────────
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{
-      background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
-      borderRadius: '10px', padding: '0.6rem 0.8rem', fontSize: '0.78rem',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-    }}>
-      <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.3rem' }}>{label}</p>
+    <div className="audit-tooltip">
+      <p className="audit-tooltip-label">{label}</p>
       {payload.map((p, i) => (
-        <p key={i} style={{ margin: '2px 0', color: p.color || p.fill }}>
+        <p key={i} style={{ margin: '2px 0', color: p.color || p.fill, fontSize: '0.8rem' }}>
           {p.name}: <strong>{formatEntier(p.value)}</strong>
         </p>
       ))}
@@ -95,45 +45,15 @@ const PieTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0];
   return (
-    <div style={{
-      background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
-      borderRadius: '10px', padding: '0.5rem 0.7rem', fontSize: '0.78rem',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-    }}>
-      <p style={{ margin: 0, color: d.payload?.fill || 'var(--text-primary)' }}>
+    <div className="audit-tooltip">
+      <p style={{ margin: 0, color: d.payload?.fill || 'var(--text-primary)', fontSize: '0.82rem' }}>
         {d.name}: <strong>{formatEntier(d.value)}</strong>
       </p>
     </div>
   );
 };
 
-// ─── KPI Card ──────────────────────────────────────────────
-function KpiCard({ icon: Icon, label, value, color }) {
-  return (
-    <div style={s.kpiCard(color)}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: '10px',
-          background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Icon size={17} style={{ color }} />
-        </div>
-        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{label}</span>
-      </div>
-      <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-        <CountUp end={value} duration={1.4} separator=" " />
-      </div>
-    </div>
-  );
-}
-
 // ─── PAGE PRINCIPALE ───────────────────────────────────────
-const paginBtnStyle = {
-  padding: '0.3rem 0.6rem', border: '1px solid var(--glass-border)',
-  borderRadius: '6px', background: 'var(--bg-surface)', color: 'var(--text-primary)',
-  fontSize: '0.78rem', cursor: 'pointer',
-};
-
 export default function AuditActivite() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -241,75 +161,49 @@ export default function AuditActivite() {
       ) : (
         <>
           {/* KPI Cards */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '1rem', marginBottom: '1.5rem',
-          }}>
-            <KpiCard icon={Activity} label="Total actions" value={total} color="#2563EB" />
-            <KpiCard icon={Users} label="Acteurs uniques" value={topActeurs.length} color="#8B5CF6" />
-            <KpiCard icon={FileText} label="Types d'entité" value={parEntite.length} color="#059669" />
-          </div>
-
-          {/* Filter bar */}
-          <div className="card" style={{ padding: '0.8rem 1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <div style={{ position: 'relative', flex: '1 1 200px' }}>
-              <Search size={14} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
-              <input
-                type="text"
-                placeholder="Rechercher par email, action, entité..."
-                value={searchText}
-                onChange={e => { setSearchText(e.target.value); setPage(1); }}
-                style={{ width: '100%', padding: '0.4rem 0.6rem 0.4rem 2rem', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.8rem' }}
-              />
+          <div className="audit-kpi-row">
+            <div className="audit-kpi-card">
+              <div className="audit-kpi-icon" style={{ background: 'rgba(37,99,235,0.1)', color: '#2563EB' }}>
+                <Activity size={20} />
+              </div>
+              <div className="audit-kpi-body">
+                <span className="audit-kpi-label">Total actions</span>
+                <span className="audit-kpi-value"><CountUp end={total} duration={1.4} separator=" " /></span>
+              </div>
             </div>
-            <select value={filterAction} onChange={e => { setFilterAction(e.target.value); setPage(1); }}
-              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.8rem' }}>
-              <option value="">Toutes les actions</option>
-              <option value="LOGIN">LOGIN</option>
-              <option value="CREATE">CREATE</option>
-              <option value="UPDATE">UPDATE</option>
-              <option value="DELETE">DELETE</option>
-              <option value="SUBMIT">SUBMIT</option>
-              <option value="APPROVE">APPROVE</option>
-              <option value="PUBLISH">PUBLISH</option>
-              <option value="REJECT">REJECT</option>
-            </select>
-            <select value={filterEntite} onChange={e => { setFilterEntite(e.target.value); setPage(1); }}
-              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.8rem' }}>
-              <option value="">Tous les types</option>
-              <option value="AdminUser">AdminUser</option>
-              <option value="Service">Service</option>
-              <option value="FormDefinition">FormDefinition</option>
-              <option value="form">form</option>
-              <option value="service">service</option>
-              <option value="domain">domain</option>
-              <option value="revenue-group">revenue-group</option>
-              <option value="user">user</option>
-            </select>
-            {(searchText || filterAction || filterEntite) && (
-              <button onClick={() => { setSearchText(''); setFilterAction(''); setFilterEntite(''); setPage(1); }}
-                style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--glass-border)', borderRadius: '8px', background: 'none', color: '#DC2626', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <X size={12} /> Effacer
-              </button>
-            )}
+            <div className="audit-kpi-card">
+              <div className="audit-kpi-icon" style={{ background: 'rgba(139,92,246,0.1)', color: '#8B5CF6' }}>
+                <Users size={20} />
+              </div>
+              <div className="audit-kpi-body">
+                <span className="audit-kpi-label">Acteurs uniques</span>
+                <span className="audit-kpi-value"><CountUp end={topActeurs.length} duration={1.4} separator=" " /></span>
+              </div>
+            </div>
+            <div className="audit-kpi-card">
+              <div className="audit-kpi-icon" style={{ background: 'rgba(5,150,105,0.1)', color: '#059669' }}>
+                <FileText size={20} />
+              </div>
+              <div className="audit-kpi-body">
+                <span className="audit-kpi-label">Types d'entité</span>
+                <span className="audit-kpi-value"><CountUp end={parEntite.length} duration={1.4} separator=" " /></span>
+              </div>
+            </div>
           </div>
 
-          {/* Two columns: Actions par type + Par entité */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-            gap: '1rem', marginBottom: '1.5rem',
-          }}>
+          {/* Charts row: 3-column layout */}
+          <div className="audit-charts-row">
             {/* Bar chart — Actions par type */}
-            <div style={s.card}>
-              <h3 style={s.cardTitle}><Activity size={16} /> Actions par type</h3>
+            <div className="audit-chart-card audit-chart-bar">
+              <h3 className="audit-card-title"><BarChart3 size={16} /> Actions par type</h3>
               {barData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={barData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="action" tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={v => formatEntier(v)} tick={{ fontSize: 11 }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="nombre" name="Actions" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1200}>
+                  <BarChart data={barData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--glass-border)" />
+                    <XAxis dataKey="action" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+                    <YAxis tickFormatter={v => formatEntier(v)} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
+                    <Bar dataKey="nombre" name="Actions" radius={[6, 6, 0, 0]} isAnimationActive animationDuration={1200}>
                       {barData.map((entry, i) => (
                         <Cell key={i} fill={entry.fill} />
                       ))}
@@ -317,21 +211,21 @@ export default function AuditActivite() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <p style={{ color: 'var(--text-tertiary)', textAlign: 'center', padding: '2rem' }}>Aucune donnée</p>
+                <p className="audit-empty">Aucune donnée</p>
               )}
             </div>
 
             {/* Pie chart — Par type d'entité */}
-            <div style={s.card}>
-              <h3 style={s.cardTitle}><FileText size={16} /> Par type d'entité</h3>
+            <div className="audit-chart-card audit-chart-pie">
+              <h3 className="audit-card-title"><FileText size={16} /> Par type d'entité</h3>
               {pieData.length > 0 ? (
                 <>
                   <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
                       <Pie
                         data={pieData} cx="50%" cy="50%"
-                        innerRadius={55} outerRadius={85}
-                        dataKey="value" stroke="none"
+                        innerRadius={50} outerRadius={80}
+                        dataKey="value" stroke="var(--bg-surface)" strokeWidth={2}
                         isAnimationActive animationDuration={1200}
                       >
                         {pieData.map((entry, i) => (
@@ -341,115 +235,123 @@ export default function AuditActivite() {
                       <Tooltip content={<PieTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div style={{
-                    display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center',
-                    marginTop: '0.5rem',
-                  }}>
+                  <div className="audit-pie-legend">
                     {pieData.map((d, i) => (
-                      <div key={i} style={{
-                        display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem',
-                      }}>
-                        <span style={{
-                          width: 8, height: 8, borderRadius: '50%', background: d.fill,
-                          display: 'inline-block', flexShrink: 0,
-                        }} />
-                        <span style={{ color: 'var(--text-secondary)' }}>{d.name}</span>
-                        <strong style={{ color: 'var(--text-primary)' }}>{formatEntier(d.value)}</strong>
+                      <div key={i} className="audit-pie-legend-item">
+                        <span className="audit-legend-dot" style={{ background: d.fill }} />
+                        <span className="audit-legend-name">{d.name}</span>
+                        <strong className="audit-legend-val">{formatEntier(d.value)}</strong>
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
-                <p style={{ color: 'var(--text-tertiary)', textAlign: 'center', padding: '2rem' }}>Aucune donnée</p>
+                <p className="audit-empty">Aucune donnée</p>
+              )}
+            </div>
+
+            {/* Top acteurs — integrated */}
+            <div className="audit-chart-card audit-chart-actors">
+              <h3 className="audit-card-title"><Users size={16} /> Top acteurs</h3>
+              {topActeurs.length > 0 ? (
+                <div className="audit-actors-list">
+                  {topActeurs.slice(0, 8).map((acteur, i) => (
+                    <div key={acteur.email || i} className="audit-actor-row">
+                      <span className="audit-actor-rank">{i + 1}</span>
+                      <div className="audit-actor-info">
+                        <span className="audit-actor-email">{acteur.email}</span>
+                        <div className="audit-actor-bar-wrap">
+                          <div
+                            className="audit-actor-bar"
+                            style={{ width: `${(acteur.nombre / maxActeur) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className="audit-actor-count">{formatEntier(acteur.nombre)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="audit-empty">Aucun acteur</p>
               )}
             </div>
           </div>
 
-          {/* Top acteurs */}
-          {topActeurs.length > 0 && (
-            <div style={{ ...s.card, marginBottom: '1.5rem' }}>
-              <h3 style={s.cardTitle}><Users size={16} /> Top acteurs</h3>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={s.table}>
-                  <thead>
-                    <tr>
-                      <th style={{ ...s.th, width: 40 }}>#</th>
-                      <th style={s.th}>Email</th>
-                      <th style={{ ...s.th, textAlign: 'right', width: 120 }}>Actions</th>
-                      <th style={{ ...s.th, width: '40%' }}>Performance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topActeurs.map((acteur, i) => (
-                      <tr key={acteur.email || i}>
-                        <td style={{ ...s.td, fontWeight: 700, color: 'var(--text-tertiary)' }}>{i + 1}</td>
-                        <td style={{ ...s.td, fontWeight: 600 }}>{acteur.email}</td>
-                        <td style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{formatEntier(acteur.nombre)}</td>
-                        <td style={s.td}>
-                          <div style={{
-                            width: '100%', height: 8, borderRadius: 4,
-                            background: 'var(--glass-border)', overflow: 'hidden',
-                          }}>
-                            <div style={{
-                              width: `${(acteur.nombre / maxActeur) * 100}%`, height: '100%',
-                              background: 'linear-gradient(90deg, #2563EB, #8B5CF6)',
-                              borderRadius: 4, transition: 'width 0.8s ease',
-                            }} />
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
           {/* Timeline chart */}
           {evolution.length > 0 && (
-            <div style={{ ...s.card, marginBottom: '1.5rem' }}>
-              <h3 style={s.cardTitle}><Clock size={16} /> Timeline d'activité</h3>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={evolution} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={v => formatEntier(v)} tick={{ fontSize: 11 }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar
-                    dataKey="nombre" name="Actions"
-                    fill="#2563EB" radius={[4, 4, 0, 0]}
-                    isAnimationActive animationDuration={1200}
-                  />
+            <div className="audit-chart-card" style={{ marginBottom: '1.5rem' }}>
+              <h3 className="audit-card-title"><Clock size={16} /> Timeline d'activité</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={evolution} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--glass-border)" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={v => formatEntier(v)} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
+                  <Bar dataKey="nombre" name="Actions" fill="#2563EB" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1200} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           )}
 
-          {/* Dernières actions */}
+          {/* Filter bar */}
           {recentes.length > 0 && (
-            <div style={s.card}>
-              <h3 style={s.cardTitle}>
-                <Shield size={16} /> Journal d'activité
-                <span style={{ fontWeight: 400, fontSize: '0.78rem', color: 'var(--text-tertiary)', marginLeft: '0.4rem' }}>
-                  ({formatEntier(filteredActions.length)}{filteredActions.length !== recentes.length ? ` / ${formatEntier(recentes.length)}` : ''})
-                </span>
-              </h3>
+            <div className="audit-chart-card" style={{ padding: 0 }}>
+              {/* Toolbar */}
+              <div className="audit-journal-header">
+                <h3 className="audit-card-title" style={{ margin: 0 }}>
+                  <Shield size={16} /> Journal d'activité
+                  <span className="audit-journal-count">
+                    {formatEntier(filteredActions.length)}{filteredActions.length !== recentes.length ? ` / ${formatEntier(recentes.length)}` : ''}
+                  </span>
+                </h3>
+                <div className="audit-journal-filters">
+                  <div className="audit-search-wrap">
+                    <Search size={13} className="audit-search-icon" />
+                    <input
+                      type="text"
+                      placeholder="Rechercher..."
+                      value={searchText}
+                      onChange={e => { setSearchText(e.target.value); setPage(1); }}
+                      className="audit-search-input"
+                    />
+                  </div>
+                  <select value={filterAction} onChange={e => { setFilterAction(e.target.value); setPage(1); }} className="audit-filter-select">
+                    <option value="">Toutes les actions</option>
+                    {['LOGIN', 'CREATE', 'UPDATE', 'DELETE', 'SUBMIT', 'APPROVE', 'PUBLISH', 'REJECT'].map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                  <select value={filterEntite} onChange={e => { setFilterEntite(e.target.value); setPage(1); }} className="audit-filter-select">
+                    <option value="">Tous les types</option>
+                    {['AdminUser', 'Service', 'FormDefinition', 'form', 'service', 'domain', 'revenue-group', 'user'].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  {(searchText || filterAction || filterEntite) && (
+                    <button onClick={() => { setSearchText(''); setFilterAction(''); setFilterEntite(''); setPage(1); }} className="audit-clear-btn">
+                      <X size={12} /> Effacer
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Table */}
               <div style={{ overflowX: 'auto' }}>
-                <table style={s.table}>
+                <table className="audit-table">
                   <thead>
                     <tr>
-                      <th style={s.th}>Date</th>
-                      <th style={s.th}>Acteur</th>
-                      <th style={s.th}>Action</th>
-                      <th style={s.th}>Type Entité</th>
-                      <th style={s.th}>Route</th>
-                      <th style={s.th}>Méthode</th>
+                      <th>Date</th>
+                      <th>Acteur</th>
+                      <th>Action</th>
+                      <th>Type Entité</th>
+                      <th>Route</th>
+                      <th>Méthode</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginatedActions.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={{ ...s.td, textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-tertiary)' }}>
                           Aucune action ne correspond aux filtres
                         </td>
                       </tr>
@@ -463,33 +365,28 @@ export default function AuditActivite() {
 
                       return (
                         <tr key={entry.id || (startIdx + i)}>
-                          <td style={s.td}>
-                            <span style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>{dateStr}</span>
+                          <td>
+                            <span className="audit-date-cell">{dateStr}</span>
                           </td>
-                          <td style={{ ...s.td, fontWeight: 600, maxWidth: 200 }}>
-                            <div style={{ fontSize: '0.78rem' }}>{entry.acteurNom || '—'}</div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>{entry.acteurEmail || ''}</div>
+                          <td>
+                            <div className="audit-actor-cell-name">{entry.acteurNom || '—'}</div>
+                            <div className="audit-actor-cell-email">{entry.acteurEmail || ''}</div>
                           </td>
-                          <td style={s.td}>
-                            <span style={s.badge(entry.action)}>
+                          <td>
+                            <span className="audit-action-badge" style={{
+                              background: `${getActionColor(entry.action)}12`,
+                              color: getActionColor(entry.action),
+                            }}>
                               {entry.action || '—'}
                             </span>
                           </td>
-                          <td style={{ ...s.td, fontSize: '0.78rem' }}>
-                            {entry.typeEntite || '—'}
+                          <td className="audit-entity-cell">{entry.typeEntite || '—'}</td>
+                          <td>
+                            <code className="audit-route-code">{entry.cheminRoute || '—'}</code>
                           </td>
-                          <td style={s.td}>
-                            <code style={{
-                              fontSize: '0.7rem', background: 'var(--bg-base)',
-                              padding: '0.1rem 0.35rem', borderRadius: '4px',
-                              wordBreak: 'break-all',
-                            }}>
-                              {entry.cheminRoute || '—'}
-                            </code>
-                          </td>
-                          <td style={s.td}>
+                          <td>
                             {entry.methodeHttp ? (
-                              <span style={s.methodBadge(entry.methodeHttp)}>
+                              <span className="audit-method-badge" data-method={entry.methodeHttp}>
                                 {entry.methodeHttp}
                               </span>
                             ) : '—'}
@@ -500,24 +397,22 @@ export default function AuditActivite() {
                   </tbody>
                 </table>
               </div>
+
               {/* Pagination */}
               {filteredActions.length > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 1rem', fontSize: '0.78rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--glass-border)' }}>
+                <div className="audit-pagination">
                   <span>{startIdx + 1}–{endIdx} sur {formatEntier(filteredActions.length)} actions</span>
-                  <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                    <select value={limit} onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
-                      style={{ padding: '0.3rem 0.4rem', border: '1px solid var(--glass-border)', borderRadius: '6px', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '0.78rem' }}>
+                  <div className="audit-pagination-controls">
+                    <select value={limit} onChange={e => { setLimit(Number(e.target.value)); setPage(1); }} className="audit-filter-select">
                       <option value={30}>30 / page</option>
                       <option value={50}>50 / page</option>
                       <option value={100}>100 / page</option>
                     </select>
-                    <button disabled={safePage <= 1} onClick={() => setPage(p => p - 1)}
-                      style={{ ...paginBtnStyle, opacity: safePage <= 1 ? 0.4 : 1, cursor: safePage <= 1 ? 'default' : 'pointer' }}>
+                    <button disabled={safePage <= 1} onClick={() => setPage(p => p - 1)} className="audit-page-btn">
                       ← Précédent
                     </button>
-                    <span style={{ padding: '0.3rem 0.5rem' }}>Page {safePage}/{totalPages}</span>
-                    <button disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)}
-                      style={{ ...paginBtnStyle, opacity: safePage >= totalPages ? 0.4 : 1, cursor: safePage >= totalPages ? 'default' : 'pointer' }}>
+                    <span className="audit-page-indicator">Page {safePage}/{totalPages}</span>
+                    <button disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)} className="audit-page-btn">
                       Suivant →
                     </button>
                   </div>

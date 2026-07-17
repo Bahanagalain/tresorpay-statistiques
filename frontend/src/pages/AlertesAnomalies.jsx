@@ -1,7 +1,7 @@
 import WeaveSpinner from '../components/ui/WeaveSpinner';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, AlertCircle, Activity, Shield, TrendingDown, DollarSign, RefreshCw, ChevronRight, Search, X, Filter } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Activity, Shield, TrendingDown, DollarSign, RefreshCw, ChevronRight, Search, X, Filter, Bell } from 'lucide-react';
 import { fetchAlertes } from '../api/analyticsApi';
 import { formatEntier } from '../utils/format';
 import ExportButtons from '../components/ui/ExportButtons';
@@ -68,19 +68,16 @@ export default function AlertesAnomalies() {
   const filteredAlertes = useMemo(() => {
     let result = alertes;
 
-    // Type filter
     if (typeFilter === 'critique') {
       result = result.filter(a => a.type === 'danger');
     } else if (typeFilter === 'avertissement') {
       result = result.filter(a => a.type === 'attention');
     }
 
-    // Category filter
     if (categorieFilter !== 'tous') {
       result = result.filter(a => a.categorie === categorieFilter);
     }
 
-    // Search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(a =>
@@ -139,183 +136,151 @@ export default function AlertesAnomalies() {
         <ExportButtons getData={getExportData} title="Alertes & Anomalies" filenameBase="Alertes" />
       </div>
 
-      {/* Summary cards */}
+      {/* Summary cards — design épuré */}
       <div className="alertes-summary">
-        <div className="alerte-summary-card critical" onClick={() => { setTypeFilter('critique'); setCategorieFilter('tous'); }} style={{ cursor: 'pointer' }}>
-          <AlertCircle size={24} />
-          <div>
-            <span className="alerte-summary-num">{critiques.length}</span>
-            <span className="alerte-summary-label">Alertes Critiques</span>
+        <button
+          type="button"
+          className={`alertes-metric-card ${typeFilter === 'critique' ? 'active' : ''}`}
+          onClick={() => { setTypeFilter(typeFilter === 'critique' ? 'tous' : 'critique'); setCategorieFilter('tous'); }}
+        >
+          <div className="alertes-metric-icon alertes-metric-icon--danger">
+            <AlertCircle size={20} />
           </div>
-        </div>
-        <div className="alerte-summary-card warning" onClick={() => { setTypeFilter('avertissement'); setCategorieFilter('tous'); }} style={{ cursor: 'pointer' }}>
-          <AlertTriangle size={24} />
-          <div>
-            <span className="alerte-summary-num">{warnings.length}</span>
-            <span className="alerte-summary-label">Avertissements</span>
+          <div className="alertes-metric-body">
+            <span className="alertes-metric-value">{critiques.length}</span>
+            <span className="alertes-metric-label">Alertes critiques</span>
           </div>
-        </div>
-        <div className="alerte-summary-card info" onClick={() => { setTypeFilter('tous'); setCategorieFilter('tous'); }} style={{ cursor: 'pointer' }}>
-          <Shield size={24} />
-          <div>
-            <span className="alerte-summary-num">{alertes.length}</span>
-            <span className="alerte-summary-label">Total alertes</span>
+        </button>
+        <button
+          type="button"
+          className={`alertes-metric-card ${typeFilter === 'avertissement' ? 'active' : ''}`}
+          onClick={() => { setTypeFilter(typeFilter === 'avertissement' ? 'tous' : 'avertissement'); setCategorieFilter('tous'); }}
+        >
+          <div className="alertes-metric-icon alertes-metric-icon--warning">
+            <AlertTriangle size={20} />
           </div>
-        </div>
+          <div className="alertes-metric-body">
+            <span className="alertes-metric-value">{warnings.length}</span>
+            <span className="alertes-metric-label">Avertissements</span>
+          </div>
+        </button>
+        <button
+          type="button"
+          className={`alertes-metric-card ${typeFilter === 'tous' ? 'active' : ''}`}
+          onClick={() => { setTypeFilter('tous'); setCategorieFilter('tous'); }}
+        >
+          <div className="alertes-metric-icon alertes-metric-icon--total">
+            <Bell size={20} />
+          </div>
+          <div className="alertes-metric-body">
+            <span className="alertes-metric-value">{alertes.length}</span>
+            <span className="alertes-metric-label">Total alertes</span>
+          </div>
+        </button>
       </div>
 
       {/* Filters bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
-        marginBottom: '1.2rem', padding: '0.75rem 1rem',
-        background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
-        borderRadius: '10px',
-      }}>
-        {/* Search */}
-        <div style={{ position: 'relative', flex: '1 1 220px', minWidth: '180px' }}>
-          <Search size={14} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+      <div className="alertes-toolbar">
+        <div className="alertes-search-wrap">
+          <Search size={14} className="alertes-search-icon" />
           <input
             type="text"
             placeholder="Rechercher une alerte..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%', padding: '0.4rem 0.5rem 0.4rem 2rem',
-              border: '1px solid var(--glass-border)', borderRadius: '6px',
-              background: 'var(--bg-primary)', color: 'var(--text-primary)',
-              fontSize: '0.8rem', outline: 'none',
-            }}
+            className="alertes-search-input"
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} style={{
-              position: 'absolute', right: '0.4rem', top: '50%', transform: 'translateY(-50%)',
-              background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', padding: 0, display: 'flex',
-            }}>
+            <button onClick={() => setSearchQuery('')} className="alertes-search-clear">
               <X size={13} />
             </button>
           )}
         </div>
 
-        {/* Type filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+        <div className="alertes-filters">
           <Filter size={13} style={{ color: 'var(--text-tertiary)' }} />
-          <select
-            value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value)}
-            style={{
-              padding: '0.4rem 0.5rem', border: '1px solid var(--glass-border)',
-              borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)',
-              fontSize: '0.8rem', cursor: 'pointer', outline: 'none',
-            }}
-          >
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="alertes-select">
             <option value="tous">Tous les types</option>
             <option value="critique">Critique</option>
             <option value="avertissement">Avertissement</option>
           </select>
+          <select value={categorieFilter} onChange={e => setCategorieFilter(e.target.value)} className="alertes-select">
+            <option value="tous">Toutes les catégories</option>
+            {categories.map(cat => (
+              <option key={cat} value={cat}>{CATEGORIE_LABELS[cat] || cat}</option>
+            ))}
+          </select>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="alertes-clear-btn">
+              <X size={12} /> Réinitialiser
+            </button>
+          )}
         </div>
-
-        {/* Category filter */}
-        <select
-          value={categorieFilter}
-          onChange={e => setCategorieFilter(e.target.value)}
-          style={{
-            padding: '0.4rem 0.5rem', border: '1px solid var(--glass-border)',
-            borderRadius: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)',
-            fontSize: '0.8rem', cursor: 'pointer', outline: 'none',
-          }}
-        >
-          <option value="tous">Toutes les catégories</option>
-          {categories.map(cat => (
-            <option key={cat} value={cat}>{CATEGORIE_LABELS[cat] || cat}</option>
-          ))}
-        </select>
-
-        {/* Clear filters */}
-        {hasActiveFilters && (
-          <button onClick={clearFilters} style={{
-            padding: '0.35rem 0.6rem', borderRadius: '6px',
-            border: '1px solid var(--glass-border)', background: 'none',
-            color: 'var(--text-secondary)', fontSize: '0.75rem',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.3rem',
-          }}>
-            <X size={12} /> Réinitialiser
-          </button>
-        )}
-
-        {/* Result count */}
-        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+        <span className="alertes-count">
           {filteredAlertes.length} alerte{filteredAlertes.length !== 1 ? 's' : ''}
           {hasActiveFilters && ` sur ${alertes.length}`}
         </span>
       </div>
 
-      {/* Unified alert list */}
+      {/* Alert list — tableau structuré */}
       {filteredAlertes.length > 0 && (
-        <div className="alerte-list">
-          {filteredAlertes.map((a, i) => {
-            const Icon = CATEGORIE_ICONS[a.categorie] || AlertTriangle;
-            const isDanger = a.type === 'danger';
-            const borderColor = isDanger ? '#DC2626' : '#D97706';
-            const iconColor = isDanger ? '#DC2626' : '#D97706';
+        <div className="alertes-table-card">
+          <table className="alertes-table">
+            <thead>
+              <tr>
+                <th style={{ width: 44 }}></th>
+                <th>Alerte</th>
+                <th>Catégorie</th>
+                <th style={{ textAlign: 'right' }}>Valeur</th>
+                <th style={{ textAlign: 'right' }}>Date</th>
+                <th style={{ width: 130 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAlertes.map((a, i) => {
+                const Icon = CATEGORIE_ICONS[a.categorie] || AlertTriangle;
+                const isDanger = a.type === 'danger';
 
-            return (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: '0.8rem',
-                padding: '0.8rem 1rem',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--glass-border)',
-                borderLeft: `3px solid ${borderColor}`,
-                borderRadius: '10px',
-                marginBottom: '0.5rem',
-              }}>
-                <div style={{ flexShrink: 0, marginTop: '0.1rem' }}>
-                  {isDanger
-                    ? <AlertCircle size={18} style={{ color: iconColor }} />
-                    : <AlertTriangle size={18} style={{ color: iconColor }} />
-                  }
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                      {a.titre}
-                    </span>
-                    <span style={{
-                      fontSize: '0.62rem', fontWeight: 600, textTransform: 'uppercase',
-                      letterSpacing: '0.04em', padding: '0.1rem 0.4rem', borderRadius: '4px',
-                      background: isDanger ? 'rgba(220,38,38,0.1)' : 'rgba(217,119,6,0.1)',
-                      color: isDanger ? '#DC2626' : '#D97706',
-                    }}>
-                      {isDanger ? 'Critique' : 'Avertissement'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    {a.description}
-                  </div>
-                  {a.valeur && (
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', marginTop: '0.3rem' }}>
-                      Valeur : {a.valeur}
-                    </div>
-                  )}
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Icon size={11} style={{ opacity: 0.6 }} />
-                    {CATEGORIE_LABELS[a.categorie] || a.categorie}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem', flexShrink: 0 }}>
-                  {a.date && (
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{a.date}</span>
-                  )}
-                  <button onClick={() => handleAlertAction(a)} style={{
-                    padding: '0.25rem 0.6rem', borderRadius: '6px', border: '1px solid var(--glass-border)',
-                    background: 'none', color: 'var(--text-secondary)', fontSize: '0.72rem', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '0.3rem', whiteSpace: 'nowrap',
-                  }}>
-                    {getActionLabel(a.categorie)} <ChevronRight size={11} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+                return (
+                  <tr key={i} className={isDanger ? 'alertes-row--danger' : 'alertes-row--warning'}>
+                    <td className="alertes-td-icon">
+                      <span className={`alertes-severity-dot ${isDanger ? 'danger' : 'warning'}`}>
+                        {isDanger ? <AlertCircle size={15} /> : <AlertTriangle size={15} />}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="alertes-cell-title">
+                        {a.titre}
+                        <span className={`alertes-type-tag ${isDanger ? 'danger' : 'warning'}`}>
+                          {isDanger ? 'Critique' : 'Avertissement'}
+                        </span>
+                      </div>
+                      <div className="alertes-cell-desc">{a.description}</div>
+                    </td>
+                    <td>
+                      <span className="alertes-cat-badge">
+                        <Icon size={12} />
+                        {CATEGORIE_LABELS[a.categorie] || a.categorie}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.82rem' }}>
+                      {a.valeur ?? '—'}
+                    </td>
+                    <td style={{ textAlign: 'right', fontSize: '0.75rem', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+                      {a.date || '—'}
+                    </td>
+                    <td>
+                      {ACTION_ROUTES[a.categorie] && (
+                        <button onClick={() => handleAlertAction(a)} className="alertes-action-btn">
+                          {getActionLabel(a.categorie)} <ChevronRight size={12} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -325,11 +290,7 @@ export default function AlertesAnomalies() {
           <Search size={36} style={{ color: 'var(--text-tertiary)', marginBottom: '0.8rem' }} />
           <h3 style={{ color: 'var(--text-primary)', fontSize: '0.95rem', marginBottom: '0.3rem' }}>Aucun résultat</h3>
           <p style={{ color: 'var(--text-tertiary)', fontSize: '0.82rem' }}>Aucune alerte ne correspond aux filtres sélectionnés.</p>
-          <button onClick={clearFilters} style={{
-            marginTop: '0.8rem', padding: '0.4rem 1rem', borderRadius: '6px',
-            border: '1px solid var(--glass-border)', background: 'none',
-            color: 'var(--accent-dgi)', fontSize: '0.8rem', cursor: 'pointer',
-          }}>
+          <button onClick={clearFilters} className="alertes-clear-btn" style={{ marginTop: '0.8rem' }}>
             Réinitialiser les filtres
           </button>
         </div>

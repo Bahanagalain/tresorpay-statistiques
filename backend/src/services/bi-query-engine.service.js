@@ -113,7 +113,7 @@ export async function executerRequete(req) {
   const debut = Date.now();
   const {
     dataset: datasetCode = 'soumissions',
-    dimensions: dimKeys = [],
+    dimensions: dimKeys,
     mesures = [{ type: 'COUNT' }],
     filtres = {},
     granularite,
@@ -134,7 +134,7 @@ export async function executerRequete(req) {
   const joins = [];
   let joinIdx = 0;
 
-  for (const dimKey of dimKeys) {
+  for (const dimKey of (Array.isArray(dimKeys) ? dimKeys : [])) {
     const parsed = parseDimension(dimKey, ds, granularite);
     if (!parsed) continue;
     dims.push(parsed);

@@ -63,6 +63,45 @@ const TAB_DEFS = [
 const YEAR_COLORS = ['#059669', '#2563EB', '#D97706', '#DC2626', '#8B5CF6'];
 const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 
+// Opérateurs de paiement — couleurs distinctes
+const OPERATEURS = [
+  { key: 'orangeMoney',  label: 'Orange Money',       color: '#FF6600' },
+  { key: 'mtnMomo',      label: 'MTN Mobile Money',   color: '#FFCC00' },
+  { key: 'expressPay',   label: 'Express Exchange',    color: '#E91E8C' },
+  { key: 'bcPme',        label: 'BC-PME',              color: '#4CAF50' },
+  { key: 'scb',          label: 'SCB Cameroun',        color: '#1A237E' },
+  { key: 'ecobank',      label: 'Ecobank',             color: '#0288D1' },
+  { key: 'autres',       label: 'Autres',              color: '#FF9800' },
+];
+
+// Générer données mock par jour avec opérateurs
+function generateDailyOperatorData() {
+  const data = [];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  // 30 derniers jours
+  for (let d = 29; d >= 0; d--) {
+    const date = new Date(year, month, now.getDate() - d);
+    const dayLabel = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+    const base = isWeekend ? 0.3 : 1;
+    // Plus d'activité vers la fin du mois
+    const trend = 0.5 + (30 - d) / 30;
+    data.push({
+      jour: dayLabel,
+      orangeMoney:  Math.round((Math.random() * 25 + 5) * base * trend),
+      mtnMomo:      Math.round((Math.random() * 20 + 3) * base * trend),
+      expressPay:   Math.round((Math.random() * 6) * base * trend),
+      bcPme:        Math.round((Math.random() * 4) * base * trend),
+      scb:          Math.round((Math.random() * 3) * base * trend),
+      ecobank:      Math.round((Math.random() * 5) * base * trend),
+      autres:       Math.round((Math.random() * 4) * base * trend),
+    });
+  }
+  return data;
+}
+
 // ─── Utilitaires ────────────────────────────────────────────
 const fmt = (n) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)} M`
@@ -576,6 +615,9 @@ export default function TableauDeBord() {
   const sparkTotal = useMemo(() => chartEvol.map(e => ({ v: (e.paye || 0) + (e.enAttente || 0) + (e.echoue || 0) + (e.partiel || 0) })), [chartEvol]);
   const sparkAttente = useMemo(() => chartEvol.map(e => ({ v: e.enAttente || 0 })), [chartEvol]);
 
+  // ── Données journalières par opérateur (mock pour démo) ───
+  const dailyOperatorData = useMemo(() => generateDailyOperatorData(), []);
+
   // ── Render helper: Ministere detail panel content ─────────
   const renderMinistereDetail = () => {
     const d = drillMinistereData;
@@ -909,49 +951,75 @@ export default function TableauDeBord() {
             />
           </div>
 
-          {/* Evolution chart (3/4) + Gauge (1/4) */}
-          <div className="charts-row charts-row--3-1 charts-row--fill">
-            <div className="chart-card">
-              <div className="chart-card__header">
-                <div>
-                  <h2 className="chart-title">Evolution Mensuelle des Recettes</h2>
-                  <span className="chart-sub">{evolutionLabel}</span>
-                </div>
-                <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
+          {/* Tendance journalière par opérateur de paiement */}
+          <div className="chart-card" style={{ flex: 1, minHeight: 0 }}>
+            <div className="chart-card__header">
+              <div>
+                <h2 className="chart-title">Tendance des Paiements par Opérateur</h2>
+                <span className="chart-sub">30 derniers jours — ventilé par moyen de paiement</span>
               </div>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartEvol} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--glass-border)" />
-                  <XAxis dataKey="periode" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CustomTooltip/>} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-                  <Legend />
-                  <Bar dataKey="echoue" name="Échoué" stackId="stack" fill="#DC2626" isAnimationActive animationDuration={1000} />
-                  <Bar dataKey="enAttente" name="En attente" stackId="stack" fill="#D97706" isAnimationActive animationDuration={1000} />
-                  <Bar dataKey="paye" name="Payé" stackId="stack" fill="#059669" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1000} />
-                </BarChart>
-              </ResponsiveContainer>
+              <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
+            </div>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dailyOperatorData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--glass-border)" />
+                <XAxis dataKey="jour" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} interval={1} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip/>} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
+                <Legend wrapperStyle={{ fontSize: '0.72rem' }} />
+                {OPERATEURS.map((op, i) => (
+                  <Bar
+                    key={op.key}
+                    dataKey={op.key}
+                    name={op.label}
+                    stackId="ops"
+                    fill={op.color}
+                    radius={i === OPERATEURS.length - 1 ? [2, 2, 0, 0] : undefined}
+                    isAnimationActive
+                    animationDuration={800}
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Gauge taux de paiement — en bas */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', flexShrink: 0 }}>
+            <div className="chart-card" style={{ padding: '0.5rem 0.8rem' }}>
+              <div className="chart-card__header" style={{ marginBottom: '0.2rem' }}>
+                <h2 className="chart-title">Taux de Paiement</h2>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <GaugeChart value={kpi.tauxPaiement} max={100} label="Paiement" color="#059669" size={120} thickness={12}/>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>
+                  <div><span className="gauge-dot" style={{ background:'#DC2626', display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginRight: 6 }}/>&lt;50% Critique</div>
+                  <div><span className="gauge-dot" style={{ background:'#D97706', display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginRight: 6 }}/>50–74% Attention</div>
+                  <div><span className="gauge-dot" style={{ background:'#059669', display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginRight: 6 }}/>&ge;75% Objectif</div>
+                  <div style={{ marginTop: '0.25rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.25rem' }}>
+                    Écart : <strong style={{ color: paymentGap > 0 ? '#D97706' : '#059669' }}>
+                      {paymentGap > 0 ? `+${paymentGap.toFixed(1)} pts` : 'Atteint'}
+                    </strong>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="chart-card gauge-card">
-              <div className="chart-card__header">
-                <h2 className="chart-title">Taux de Paiement</h2>
-                <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
+            {/* Mini evolution mensuelle */}
+            <div className="chart-card" style={{ padding: '0.5rem 0.8rem' }}>
+              <div className="chart-card__header" style={{ marginBottom: '0.2rem' }}>
+                <h2 className="chart-title">Évolution Mensuelle</h2>
+                <span className="chart-sub">{evolutionLabel}</span>
               </div>
-              <div className="gauge-center">
-                <GaugeChart value={kpi.tauxPaiement} max={100} label="Paiement" color="#059669" size={180} thickness={16}/>
-              </div>
-              <div className="gauge-legend">
-                <div className="gauge-legend-item"><span className="gauge-dot" style={{ background:'#DC2626' }}/> &lt;50% Critique</div>
-                <div className="gauge-legend-item"><span className="gauge-dot" style={{ background:'#D97706' }}/> 50–74% Attention</div>
-                <div className="gauge-legend-item"><span className="gauge-dot" style={{ background:'#059669' }}/> &ge;75% Objectif</div>
-              </div>
-              <div className="gauge-target">
-                Objectif : 90% — Ecart :{' '}
-                <strong style={{ color: paymentGap > 0 ? '#D97706' : '#059669' }}>
-                  {paymentGap > 0 ? `+${paymentGap.toFixed(1)} pts necessaires` : 'Objectif atteint'}
-                </strong>
-              </div>
+              <ResponsiveContainer width="100%" height={100}>
+                <BarChart data={chartEvol} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <XAxis dataKey="periode" tick={{ fontSize: 9, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                  <YAxis hide />
+                  <Tooltip content={<CustomTooltip/>} />
+                  <Bar dataKey="echoue" name="Échoué" stackId="s" fill="#DC2626" />
+                  <Bar dataKey="enAttente" name="En attente" stackId="s" fill="#D97706" />
+                  <Bar dataKey="paye" name="Payé" stackId="s" fill="#059669" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>

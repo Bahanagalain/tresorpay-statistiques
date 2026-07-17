@@ -916,30 +916,16 @@ export default function TableauDeBord() {
                 <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
               </div>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartEvol} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gpaid" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="gattente" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#D97706" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#D97706" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="gechoue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#DC2626" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#DC2626" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="periode" tick={{ fontSize: 12 }}/>
-                  <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }}/>
-                  <Tooltip content={<CustomTooltip/>}/>
-                  <Legend/>
-                  <Area type="monotone" dataKey="paye" name="Paye" stroke="#059669" fill="url(#gpaid)" strokeWidth={2} isAnimationActive animationDuration={1400}/>
-                  <Area type="monotone" dataKey="enAttente" name="En attente" stroke="#D97706" fill="url(#gattente)" strokeWidth={2} isAnimationActive animationDuration={1600}/>
-                  <Area type="monotone" dataKey="echoue" name="Echoue" stroke="#DC2626" fill="url(#gechoue)" strokeWidth={2} isAnimationActive animationDuration={1800}/>
-                </AreaChart>
+                <BarChart data={chartEvol} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--glass-border)" />
+                  <XAxis dataKey="periode" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<CustomTooltip/>} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
+                  <Legend />
+                  <Bar dataKey="paye" name="Payé" fill="#059669" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1000} />
+                  <Bar dataKey="enAttente" name="En attente" fill="#D97706" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1200} />
+                  <Bar dataKey="echoue" name="Échoué" fill="#DC2626" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1400} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
 

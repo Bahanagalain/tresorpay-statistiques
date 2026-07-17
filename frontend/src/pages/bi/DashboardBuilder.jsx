@@ -392,7 +392,6 @@ function DashboardBuilderInner() {
             cols={{ lg: 12, md: 6, sm: 1 }}
             rowHeight={80}
             compactType="vertical"
-            preventCollision={true}
             onLayoutChange={handleLayoutChange}
             draggableHandle=".bi-widget-card-header"
             isResizable
@@ -475,6 +474,7 @@ function DashboardBuilderInner() {
               breakpoints={{ lg: 1200, md: 768, sm: 0 }}
               cols={{ lg: 12, md: 6, sm: 1 }}
               rowHeight={90}
+              compactType="vertical"
               isDraggable={false}
               isResizable={false}
             >

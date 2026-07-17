@@ -1030,19 +1030,19 @@ export default function TableauDeBord() {
         <div className="tdb-tab-content" style={{ overflow: 'auto' }}>
           {/* Bandeau KPI compact */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', flexShrink: 0 }}>
-            <div className="tdb-mini-kpi-card" style={{ borderLeft: '3px solid #059669' }}>
+            <div className="tdb-mini-kpi-card">
               <div className="tdb-mini-kpi-card__label">Montant Encaissé</div>
               <div className="tdb-mini-kpi-card__value" style={{ color: '#059669' }}>{fmt(kpi.totalRevenus)} FCFA</div>
             </div>
-            <div className="tdb-mini-kpi-card" style={{ borderLeft: '3px solid #6366F1' }}>
+            <div className="tdb-mini-kpi-card">
               <div className="tdb-mini-kpi-card__label">Soumissions Payées</div>
               <div className="tdb-mini-kpi-card__value">{fmtEntier(kpi.soumissionsPayees)}</div>
             </div>
-            <div className="tdb-mini-kpi-card" style={{ borderLeft: '3px solid #D97706' }}>
+            <div className="tdb-mini-kpi-card">
               <div className="tdb-mini-kpi-card__label">En Attente</div>
               <div className="tdb-mini-kpi-card__value" style={{ color: '#D97706' }}>{fmtEntier(kpi.soumissionsEnAttente)}</div>
             </div>
-            <div className="tdb-mini-kpi-card" style={{ borderLeft: '3px solid #DC2626' }}>
+            <div className="tdb-mini-kpi-card">
               <div className="tdb-mini-kpi-card__label">Échouées</div>
               <div className="tdb-mini-kpi-card__value" style={{ color: '#DC2626' }}>{fmtEntier(kpi.soumissionsEchouees)}</div>
             </div>
@@ -1231,7 +1231,7 @@ export default function TableauDeBord() {
                   {yearKpis.map((yk, i) => (
                     <div key={yk.year} style={{
                       background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
-                      borderRadius: 10, padding: '0.8rem 1rem', borderLeft: `4px solid ${YEAR_COLORS[i % YEAR_COLORS.length]}`,
+                      borderRadius: 10, padding: '0.8rem 1rem',
                     }}>
                       <div style={{ fontSize: '0.72rem', fontWeight: 700, color: YEAR_COLORS[i % YEAR_COLORS.length], textTransform: 'uppercase', letterSpacing: '0.04em' }}>{yk.year}</div>
                       <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)' }}>{fmtFull(yk.totalRevenus)}</div>
@@ -1361,19 +1361,19 @@ export default function TableauDeBord() {
             <>
               {/* Alert summary cards */}
               <div style={{ display: 'flex', gap: '0.6rem', flexShrink: 0 }}>
-                <div className="tdb-mini-kpi-card" style={{ flex: 1, borderLeft: '3px solid #DC2626' }}>
+                <div className="tdb-mini-kpi-card" style={{ flex: 1 }}>
                   <div className="tdb-mini-kpi-card__label">Alertes Critiques</div>
                   <div className="tdb-mini-kpi-card__value" style={{ color: '#DC2626' }}>
                     {alertes.filter(a => a.type === 'danger' || a.severite === 'critical').length}
                   </div>
                 </div>
-                <div className="tdb-mini-kpi-card" style={{ flex: 1, borderLeft: '3px solid #D97706' }}>
+                <div className="tdb-mini-kpi-card" style={{ flex: 1 }}>
                   <div className="tdb-mini-kpi-card__label">Avertissements</div>
                   <div className="tdb-mini-kpi-card__value" style={{ color: '#D97706' }}>
                     {alertes.filter(a => a.type === 'attention' || a.severite === 'warning').length}
                   </div>
                 </div>
-                <div className="tdb-mini-kpi-card" style={{ flex: 1, borderLeft: '3px solid #2563EB' }}>
+                <div className="tdb-mini-kpi-card" style={{ flex: 1 }}>
                   <div className="tdb-mini-kpi-card__label">Total</div>
                   <div className="tdb-mini-kpi-card__value">{alertes.length}</div>
                 </div>

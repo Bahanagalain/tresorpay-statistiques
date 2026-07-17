@@ -863,7 +863,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
-  border-left: 4px solid #059669;
+  border-left: none;
 }
 
 /* ── Alertes tab ─────────────────────────────────────────── */

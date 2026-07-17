@@ -234,28 +234,8 @@
 
 [data-theme="dark"] .kpi-card:hover { border-color: rgba(255,255,255,0.15); box-shadow: 0 12px 30px -8px rgba(0,0,0,0.3); }
 
-/* Glow variants */
-.kpi-card::before {
-  content: '';
-  position: absolute;
-  top: -20px;
-  right: -20px;
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  opacity: 0.12;
-  filter: blur(25px);
-  z-index: 0;
-  pointer-events: none;
-  transition: opacity 0.3s;
-}
-.kpi-card:hover::before { opacity: 0.18; }
-.kpi-primary::before { background: var(--accent-dgi); }
-.kpi-success::before { background: #059669; }
-.kpi-warning::before { background: #D97706; }
-.kpi-danger::before  { background: #DC2626; }
-.kpi-info::before    { background: #2563EB; }
-.kpi-default::before { background: #6366F1; }
+/* Clean flat design — no glow blobs */
+.kpi-card::before { display: none; }
 
 /* Staggered card animations */
 .kpi-card:nth-child(1) { animation-delay: 0ms;   }

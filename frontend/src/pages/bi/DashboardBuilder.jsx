@@ -97,34 +97,19 @@ function DashboardBuilderInner() {
   };
 
   // Build layouts from widgets
-  // Les positions sont stockées en base via gridX/gridY/gridW/gridH
+  // Toujours recalculer pour éviter les chevauchements
   const getLayouts = useCallback(() => {
     if (!dashboard?.widgets) return { lg: [], md: [], sm: [] };
     const widgets = dashboard.widgets;
 
-    // Vérifier si les positions sont valides (pas tous à 0,0)
-    const hasValidPositions = widgets.some(w => (w.gridX > 0 || w.gridY > 0));
-
-    const buildLg = () => {
-      if (hasValidPositions) {
-        // Utiliser les positions sauvegardées en base
-        return widgets.map(w => ({
-          i: String(w.id),
-          x: w.gridX ?? 0,
-          y: w.gridY ?? 0,
-          w: w.gridW || 6,
-          h: w.gridH || 4,
-          minW: 2,
-          minH: 2,
-        }));
-      }
-      // Aucune position valide : calculer un placement automatique
-      const colHeights = new Array(12).fill(0);
+    // Placement automatique sans chevauchement (bin-packing)
+    const autoPlace = (cols) => {
+      const colHeights = new Array(cols).fill(0);
       return widgets.map(w => {
-        const wW = w.gridW || 6;
+        const wW = Math.min(w.gridW || 6, cols);
         const wH = w.gridH || 4;
         let bestX = 0, bestY = Infinity;
-        for (let x = 0; x <= 12 - wW; x++) {
+        for (let x = 0; x <= cols - wW; x++) {
           let maxH = 0;
           for (let c = x; c < x + wW; c++) maxH = Math.max(maxH, colHeights[c]);
           if (maxH < bestY) { bestY = maxH; bestX = x; }
@@ -135,16 +120,8 @@ function DashboardBuilderInner() {
     };
 
     return {
-      lg: buildLg(),
-      md: widgets.map((w, i) => ({
-        i: String(w.id),
-        x: (i % 2) * 3,
-        y: Math.floor(i / 2) * (w.gridH || 4),
-        w: Math.min(w.gridW || 6, 6),
-        h: w.gridH || 4,
-        minW: 2,
-        minH: 2,
-      })),
+      lg: autoPlace(12),
+      md: autoPlace(6),
       sm: widgets.map((w, i) => ({
         i: String(w.id),
         x: 0,

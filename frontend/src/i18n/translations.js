@@ -32,7 +32,7 @@ const translations = {
 
     // ── Login ──
     login: {
-      title: 'TresorPay',
+      title: 'Statistiques TresorPay',
       accent: 'RECETTES NON FISCALES',
       desc: "Supervision en temps réel des recettes non fiscales, suivi des paiements et tableau de bord stratégique de la DGTCFM.",
       accessRestricted: 'Accès réservé aux agents autorisés DGTCFM',
@@ -528,7 +528,7 @@ const translations = {
 
     // ── Login ──
     login: {
-      title: 'TresorPay',
+      title: 'TresorPay Statistics',
       accent: 'NON-TAX REVENUE',
       desc: 'Real-time monitoring of non-tax revenues, payment tracking and DGTCFM strategic dashboard.',
       accessRestricted: 'Access restricted to authorized DGTCFM agents',

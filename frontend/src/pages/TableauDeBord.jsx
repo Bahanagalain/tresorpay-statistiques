@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import {
@@ -53,11 +53,15 @@ function getProfileLabel(profile) {
 
 const TAB_DEFS = [
   { id: 'overview', label: "Vue d'ensemble" },
-  { id: 'ministeres', label: 'Ministeres & Services' },
-  { id: 'regions', label: 'Regions' },
-  { id: 'perimetre', label: 'Mon perimetre', needsScope: true },
+  { id: 'ministeres', label: 'Ministères & Services' },
+  { id: 'comparaison', label: 'Comparaison' },
+  { id: 'regions', label: 'Régions' },
+  { id: 'perimetre', label: 'Mon périmètre', needsScope: true },
   { id: 'alertes', label: 'Alertes' },
 ];
+
+const YEAR_COLORS = ['#059669', '#2563EB', '#D97706', '#DC2626', '#8B5CF6'];
+const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 
 // ─── Utilitaires ────────────────────────────────────────────
 const fmt = (n) =>
@@ -922,9 +926,9 @@ export default function TableauDeBord() {
                   <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip/>} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
                   <Legend />
-                  <Bar dataKey="paye" name="Payé" fill="#059669" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1000} />
-                  <Bar dataKey="enAttente" name="En attente" fill="#D97706" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1200} />
-                  <Bar dataKey="echoue" name="Échoué" fill="#DC2626" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1400} />
+                  <Bar dataKey="echoue" name="Échoué" stackId="stack" fill="#DC2626" isAnimationActive animationDuration={1000} />
+                  <Bar dataKey="enAttente" name="En attente" stackId="stack" fill="#D97706" isAnimationActive animationDuration={1000} />
+                  <Bar dataKey="paye" name="Payé" stackId="stack" fill="#059669" radius={[4, 4, 0, 0]} isAnimationActive animationDuration={1000} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -955,125 +959,108 @@ export default function TableauDeBord() {
 
       {/* ═══════════ TAB 2: MINISTERES & SERVICES ═══════════ */}
       {activeTab === 'ministeres' && (
-        <div className="tdb-tab-content">
-          {/* Top row: Pie + mini KPI */}
-          <div className="charts-row charts-row--ministeres-top">
-            <div className="chart-card" data-glow="blue">
-              <div className="chart-card__header">
-                <div>
-                  <h2 className="chart-title">Repartition par Statut</h2>
-                  <span className="chart-sub">{fmtEntier(kpi.totalSoumissions)} soumissions au total</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', flex: 1, minHeight: 0 }}>
-                <ResponsiveContainer width="60%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={statutPieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={45}
-                      outerRadius={75}
-                      dataKey="value"
-                      stroke="none"
-                      isAnimationActive
-                      animationDuration={1200}
-                      animationBegin={300}
-                    >
-                      {statutPieData.map((entry, index) => (
-                        <Cell key={index} fill={entry.fill}/>
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${fmtEntier(value)} soumissions`, '']}/>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="pie-legend" style={{ flex: 1, marginTop: 0 }}>
-                  {Object.entries(STATUT_CONFIG).map(([key, cfg]) => {
-                    const count = key === 'PAID' ? kpi.soumissionsPayees
-                      : key === 'PENDING' ? kpi.soumissionsEnAttente
-                      : key === 'PARTIAL' ? kpi.soumissionsPartielles
-                      : kpi.soumissionsEchouees;
-                    if (!count) return null;
-                    return (
-                      <div className="pie-legend-item" key={key}>
-                        <span className="dot" style={{ background: cfg.color }}/> {cfg.label}: <strong>{fmtEntier(count)}</strong>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+        <div className="tdb-tab-content" style={{ overflow: 'auto' }}>
+          {/* Bandeau KPI compact */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', flexShrink: 0 }}>
+            <div className="tdb-mini-kpi-card" style={{ borderLeft: '3px solid #059669' }}>
+              <div className="tdb-mini-kpi-card__label">Montant Encaissé</div>
+              <div className="tdb-mini-kpi-card__value" style={{ color: '#059669' }}>{fmt(kpi.totalRevenus)} FCFA</div>
             </div>
+            <div className="tdb-mini-kpi-card" style={{ borderLeft: '3px solid #6366F1' }}>
+              <div className="tdb-mini-kpi-card__label">Soumissions Payées</div>
+              <div className="tdb-mini-kpi-card__value">{fmtEntier(kpi.soumissionsPayees)}</div>
+            </div>
+            <div className="tdb-mini-kpi-card" style={{ borderLeft: '3px solid #D97706' }}>
+              <div className="tdb-mini-kpi-card__label">En Attente</div>
+              <div className="tdb-mini-kpi-card__value" style={{ color: '#D97706' }}>{fmtEntier(kpi.soumissionsEnAttente)}</div>
+            </div>
+            <div className="tdb-mini-kpi-card" style={{ borderLeft: '3px solid #DC2626' }}>
+              <div className="tdb-mini-kpi-card__label">Échouées</div>
+              <div className="tdb-mini-kpi-card__value" style={{ color: '#DC2626' }}>{fmtEntier(kpi.soumissionsEchouees)}</div>
+            </div>
+          </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div className="tdb-mini-kpi-card">
-                <div className="tdb-mini-kpi-card__label">Montant Encaisse</div>
-                <div className="tdb-mini-kpi-card__value" style={{ color: '#059669' }}>{fmt(kpi.totalRevenus)} FCFA</div>
-              </div>
-              <div className="tdb-mini-kpi-card">
-                <div className="tdb-mini-kpi-card__label">Soumissions Payees</div>
-                <div className="tdb-mini-kpi-card__value">{fmtEntier(kpi.soumissionsPayees)}</div>
-              </div>
-              <div className="tdb-mini-kpi-card">
-                <div className="tdb-mini-kpi-card__label">En Attente</div>
-                <div className="tdb-mini-kpi-card__value" style={{ color: '#D97706' }}>{fmtEntier(kpi.soumissionsEnAttente)}</div>
-              </div>
-              <div className="tdb-mini-kpi-card">
-                <div className="tdb-mini-kpi-card__label">Echouees</div>
-                <div className="tdb-mini-kpi-card__value" style={{ color: '#DC2626' }}>{fmtEntier(kpi.soumissionsEchouees)}</div>
+          {/* Pie répartition statut — compact */}
+          <div className="chart-card" style={{ flexShrink: 0, padding: '0.5rem 0.9rem' }}>
+            <div className="chart-card__header" style={{ marginBottom: '0.2rem' }}>
+              <h2 className="chart-title">Répartition par Statut</h2>
+              <span className="chart-sub">{fmtEntier(kpi.totalSoumissions)} soumissions</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', height: 120 }}>
+              <ResponsiveContainer width="50%" height="100%">
+                <PieChart>
+                  <Pie data={statutPieData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value" stroke="none" isAnimationActive animationDuration={1200}>
+                    {statutPieData.map((entry, index) => <Cell key={index} fill={entry.fill}/>)}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`${fmtEntier(value)} soumissions`, '']}/>
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1.5rem', flex: 1 }}>
+                {Object.entries(STATUT_CONFIG).map(([key, cfg]) => {
+                  const count = key === 'PAID' ? kpi.soumissionsPayees
+                    : key === 'PENDING' ? kpi.soumissionsEnAttente
+                    : key === 'PARTIAL' ? kpi.soumissionsPartielles
+                    : kpi.soumissionsEchouees;
+                  if (!count) return null;
+                  return (
+                    <div className="pie-legend-item" key={key} style={{ margin: 0 }}>
+                      <span className="dot" style={{ background: cfg.color }}/> {cfg.label}: <strong>{fmtEntier(count)}</strong>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
 
-          {/* Bottom row: Top 10 Ministeres + Top 10 Services */}
-          <div className="charts-row charts-row--fill">
-            <div className="chart-card" data-glow="blue">
+          {/* Top 10 Ministères */}
+          <div className="chart-card" style={{ flexShrink: 0 }}>
+            <div className="chart-card__header">
+              <div>
+                <h2 className="chart-title"><Building2 size={16}/> Top 10 Ministères</h2>
+                <span className="chart-sub">Cliquez une barre pour le détail</span>
+              </div>
+              <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
+            </div>
+            <ResponsiveContainer width="100%" height={Math.max(220, top10Ministeres.length * 30)}>
+              <BarChart data={top10Ministeres} layout="vertical" margin={{ left: 10, right: 20 }} onClick={handleMinistereClick} style={{ cursor: 'pointer' }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
+                <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 10 }}/>
+                <YAxis type="category" dataKey="shortName" width={120} tick={{ fontSize: 10 }}/>
+                <Tooltip content={<CustomTooltip/>}/>
+                <Bar dataKey="montant" name="Revenus" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1200}>
+                  {top10Ministeres.map((entry, i) => (
+                    <Cell key={entry.ministereId || i} fill={entry.couleur || `hsl(${160 + i * 14}, 65%, ${40 + i * 2}%)`}/>
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Top 10 Services */}
+          {top10Services.length > 0 && (
+            <div className="chart-card" style={{ flexShrink: 0 }}>
               <div className="chart-card__header">
                 <div>
-                  <h2 className="chart-title"><Building2 size={16}/> Top 10 Ministeres</h2>
-                  <span className="chart-sub">Cliquez une barre pour le detail</span>
+                  <h2 className="chart-title">Top 10 Services</h2>
+                  <span className="chart-sub">Revenus par service</span>
                 </div>
                 <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
               </div>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={top10Ministeres} layout="vertical" margin={{ left: 20, right: 20 }} onClick={handleMinistereClick} style={{ cursor: 'pointer' }}>
+              <ResponsiveContainer width="100%" height={Math.max(220, top10Services.length * 30)}>
+                <BarChart data={top10Services} layout="vertical" margin={{ left: 10, right: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
                   <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 10 }}/>
-                  <YAxis type="category" dataKey="shortName" width={140} tick={{ fontSize: 10 }}/>
+                  <YAxis type="category" dataKey="nom" width={140} tick={{ fontSize: 10 }}/>
                   <Tooltip content={<CustomTooltip/>}/>
-                  <Bar dataKey="montant" name="Revenus" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1200} animationBegin={200}>
-                    {top10Ministeres.map((entry, i) => (
-                      <Cell key={entry.ministereId || i} fill={entry.couleur || `hsl(${160 + i * 14}, 65%, ${40 + i * 2}%)`}/>
+                  <Bar dataKey="montant" name="Revenus" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1400}>
+                    {top10Services.map((item, index) => (
+                      <Cell key={item.serviceId || index} fill={item.couleur || `hsl(${190 + index * 10}, 60%, 45%)`}/>
                     ))}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
-
-            {top10Services.length > 0 && (
-              <div className="chart-card" data-glow="blue">
-                <div className="chart-card__header">
-                  <div>
-                    <h2 className="chart-title">Top 10 Services</h2>
-                    <span className="chart-sub">Revenus par service</span>
-                  </div>
-                  <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
-                </div>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={top10Services} layout="vertical" margin={{ left: 20, right: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
-                    <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 10 }}/>
-                    <YAxis type="category" dataKey="nom" width={160} tick={{ fontSize: 10 }}/>
-                    <Tooltip content={<CustomTooltip/>}/>
-                    <Bar dataKey="montant" name="Revenus" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1400} animationBegin={400}>
-                      {top10Services.map((item, index) => (
-                        <Cell key={item.serviceId || index} fill={item.couleur || `hsl(${190 + index * 10}, 60%, 45%)`}/>
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
 
@@ -1115,6 +1102,99 @@ export default function TableauDeBord() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ═══════════ TAB: COMPARAISON ANNUELLE ═══════════ */}
+      {activeTab === 'comparaison' && (
+        <div className="tdb-tab-content">
+          {(() => {
+            // Construire les données de comparaison par année depuis chartEvol
+            // chartEvol = [{ periode: "Avr 2026", paye: X, enAttente: Y, echoue: Z }, ...]
+            const yearMap = {};
+            chartEvol.forEach(item => {
+              const parts = (item.periode || '').split(' ');
+              const monthStr = parts[0];
+              const year = parts[1] || '2026';
+              const monthIdx = MONTH_LABELS.indexOf(monthStr);
+              const month = monthIdx >= 0 ? monthIdx : parseInt(monthStr) - 1;
+              if (!yearMap[year]) yearMap[year] = {};
+              const total = (item.paye || 0) + (item.enAttente || 0) + (item.echoue || 0) + (item.partiel || 0);
+              yearMap[year][month] = { total, paye: item.paye || 0 };
+            });
+            const years = Object.keys(yearMap).sort();
+            // Construire les données mensuelles (Jan-Déc)
+            const compData = MONTH_LABELS.map((label, idx) => {
+              const entry = { mois: label };
+              years.forEach(y => {
+                entry[`total_${y}`] = yearMap[y]?.[idx]?.total || 0;
+                entry[`paye_${y}`] = yearMap[y]?.[idx]?.paye || 0;
+              });
+              return entry;
+            });
+            // KPI par année
+            const yearKpis = years.map(y => {
+              const vals = Object.values(yearMap[y] || {});
+              const totalRevenus = vals.reduce((s, v) => s + v.paye, 0);
+              const totalSoumis = vals.reduce((s, v) => s + v.total, 0);
+              return { year: y, totalRevenus, totalSoumis, mois: vals.length };
+            });
+
+            return (
+              <>
+                {/* KPI par année */}
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(years.length, 4)}, 1fr)`, gap: '0.75rem', marginBottom: '1rem' }}>
+                  {yearKpis.map((yk, i) => (
+                    <div key={yk.year} style={{
+                      background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
+                      borderRadius: 10, padding: '0.8rem 1rem', borderLeft: `4px solid ${YEAR_COLORS[i % YEAR_COLORS.length]}`,
+                    }}>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: YEAR_COLORS[i % YEAR_COLORS.length], textTransform: 'uppercase', letterSpacing: '0.04em' }}>{yk.year}</div>
+                      <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)' }}>{fmtFull(yk.totalRevenus)}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>
+                        Total soumis : {fmtFull(yk.totalSoumis)} · {yk.mois} mois
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Chart comparaison — revenus payés */}
+                <div className="chart-card" style={{ flex: 1, minHeight: 0 }}>
+                  <div className="chart-card__header">
+                    <div>
+                      <h2 className="chart-title">Comparaison annuelle — Revenus payés</h2>
+                      <span className="chart-sub">Chaque ligne représente une année</span>
+                    </div>
+                    <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
+                  </div>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={compData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--glass-border)" />
+                      <XAxis dataKey="mois" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+                      <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend />
+                      {years.map((y, i) => (
+                        <Line
+                          key={y}
+                          type="monotone"
+                          dataKey={`paye_${y}`}
+                          name={y}
+                          stroke={YEAR_COLORS[i % YEAR_COLORS.length]}
+                          strokeWidth={2.5}
+                          dot={{ r: 4, fill: YEAR_COLORS[i % YEAR_COLORS.length] }}
+                          activeDot={{ r: 6 }}
+                          isAnimationActive
+                          animationDuration={1200}
+                          connectNulls
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 

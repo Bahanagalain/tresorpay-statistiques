@@ -7,18 +7,18 @@ import {
   TrendingUp, TrendingDown, FileText, CheckCircle, Clock,
   AlertTriangle, Building2, Calendar, X,
   RotateCcw, FileSpreadsheet, FileDown, Maximize, RefreshCw,
-  AlertCircle, MapPin, XCircle,
+  AlertCircle, MapPin, XCircle, ChevronRight, ArrowLeft,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { usePresentMode } from '../components/layout/MainLayout';
 import { useAuth } from '../components/auth/AuthProvider';
 import GaugeChart from '../components/ui/GaugeChart';
-import DrillDownModal from '../components/ui/DrillDownModal';
 import WeaveSpinner from '../components/ui/WeaveSpinner';
 import { exportToPDF, exportToExcel } from '../utils/exportUtils';
 import {
   fetchDashboard,
   fetchMinistereDetail,
+  fetchRegionDetail,
   fetchMonPerimetre,
   lancerSynchronisation,
 } from '../api/analyticsApi';
@@ -41,10 +41,10 @@ function getUserProfile(user) {
 
 function getProfileLabel(profile) {
   const labels = {
-    DIRECTEUR: 'Direction Générale',
+    DIRECTEUR: 'Direction Generale',
     SUPERVISEUR: 'Supervision Nationale',
-    MINISTRE: 'Périmètre Ministériel',
-    REGIONAL: 'Périmètre Régional',
+    MINISTRE: 'Perimetre Ministeriel',
+    REGIONAL: 'Perimetre Regional',
     AGENT: 'Agent',
     VISITEUR: 'Visiteur',
   };
@@ -52,9 +52,11 @@ function getProfileLabel(profile) {
 }
 
 const TAB_DEFS = [
-  { id: 'overview', label: "Vue d'ensemble", icon: 'LayoutDashboard' },
-  { id: 'perimetre', label: 'Mon périmètre', icon: 'Building2', needsScope: true },
-  { id: 'alertes', label: 'Alertes', icon: 'AlertTriangle' },
+  { id: 'overview', label: "Vue d'ensemble" },
+  { id: 'ministeres', label: 'Ministeres & Services' },
+  { id: 'regions', label: 'Regions' },
+  { id: 'perimetre', label: 'Mon perimetre', needsScope: true },
+  { id: 'alertes', label: 'Alertes' },
 ];
 
 // ─── Utilitaires ────────────────────────────────────────────
@@ -66,17 +68,17 @@ const fmtFull = (n) => formatMontant(n);
 const fmtEntier = (n) => formatEntier(n);
 
 const STATUT_CONFIG = {
-  PAID:    { label: 'Payé',       color: '#059669', cls: 'orb-paid'    },
+  PAID:    { label: 'Paye',       color: '#059669', cls: 'orb-paid'    },
   PENDING: { label: 'En attente', color: '#D97706', cls: 'orb-pending' },
   PARTIAL: { label: 'Partiel',    color: '#2563EB', cls: 'orb-partial' },
-  FAILED:  { label: 'Échoué',     color: '#DC2626', cls: 'orb-failed'  },
+  FAILED:  { label: 'Echoue',     color: '#DC2626', cls: 'orb-failed'  },
 };
 
 const DATE_PRESETS = [
   { label: "Aujourd'hui", value: 'today' },
   { label: 'Ce mois',     value: 'month' },
   { label: 'Tout',        value: 'all'   },
-  { label: 'Période...',  value: 'custom' },
+  { label: 'Periode...',  value: 'custom' },
 ];
 
 const EMPTY_KPI = {
@@ -183,6 +185,69 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+// ─── Drill-Down Panel (slide-in from right) ──────────────────
+function DrillDownPanel({ title, subtitle, onClose, loading, error, onRetry, children }) {
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="ddm-overlay"
+      ref={overlayRef}
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+    >
+      <div className="ddm-panel animate-slide-from-right">
+        <div className="ddm-header">
+          <div className="ddm-header-left">
+            <button
+              onClick={onClose}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--text-tertiary)', padding: '2px', display: 'flex',
+              }}
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <div>
+              <h2 className="ddm-title">{title}</h2>
+              {subtitle && <p className="ddm-sub">{subtitle}</p>}
+            </div>
+          </div>
+          <button className="ddm-close" onClick={onClose}><X size={18} /></button>
+        </div>
+
+        {error && (
+          <div className="active-filters-bar" style={{ margin: '1rem 1.25rem 0', borderColor: 'rgba(220,38,38,0.2)', color: '#DC2626' }}>
+            <span className="af-label" style={{ color: '#DC2626' }}>
+              <AlertTriangle size={12} /> {error}
+            </span>
+            {onRetry && (
+              <button className="af-reset" onClick={onRetry}>
+                <RotateCcw size={12} /> Reessayer
+              </button>
+            )}
+          </div>
+        )}
+
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '2rem' }}>
+            <WeaveSpinner size={60} message="Chargement..." />
+          </div>
+        ) : (
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0' }}>
+            {children}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── PAGE PRINCIPALE ─────────────────────────────────────────
 export default function TableauDeBord() {
   const { slideshowActive, slideshowDateRange } = usePresentMode();
@@ -212,11 +277,20 @@ export default function TableauDeBord() {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError]     = useState('');
 
-  // Mon périmètre
+  // Mon perimetre
   const [perimetreData, setPerimetreData] = useState(null);
   const [perimetreLoading, setPerimetreLoading] = useState(false);
 
+  // Drill-down state
   const [drillMinistere, setDrillMinistere] = useState(null);
+  const [drillMinistereData, setDrillMinistereData] = useState(null);
+  const [drillMinistereLoading, setDrillMinistereLoading] = useState(false);
+  const [drillMinistereError, setDrillMinistereError] = useState('');
+
+  const [drillRegion, setDrillRegion] = useState(null);
+  const [drillRegionData, setDrillRegionData] = useState(null);
+  const [drillRegionLoading, setDrillRegionLoading] = useState(false);
+  const [drillRegionError, setDrillRegionError] = useState('');
 
   // Tabs visibles selon le profil
   const visibleTabs = useMemo(() => {
@@ -242,13 +316,13 @@ export default function TableauDeBord() {
       if (slideshowDateRange?.startDate && slideshowDateRange?.endDate) {
         return slideshowDateRange.startDate === slideshowDateRange.endDate
           ? slideshowDateRange.startDate
-          : `${slideshowDateRange.startDate} → ${slideshowDateRange.endDate}`;
+          : `${slideshowDateRange.startDate} -> ${slideshowDateRange.endDate}`;
       }
-      return 'Toutes les données';
+      return 'Toutes les donnees';
     }
     if (datePreset === 'custom') {
-      if (customStartDate && customEndDate) return `${customStartDate} → ${customEndDate}`;
-      return 'Période personnalisée';
+      if (customStartDate && customEndDate) return `${customStartDate} -> ${customEndDate}`;
+      return 'Periode personnalisee';
     }
     return DATE_PRESETS.find((p) => p.value === datePreset)?.label || 'Tout';
   }, [customEndDate, customStartDate, datePreset, slideshowActive, slideshowDateRange]);
@@ -296,7 +370,7 @@ export default function TableauDeBord() {
     };
   }, [dateRange.endDate, dateRange.startDate, reloadNonce]);
 
-  // ── Load "Mon périmètre" data ────────────────────────────
+  // ── Load "Mon perimetre" data ────────────────────────────
   useEffect(() => {
     if (activeTab !== 'perimetre' || !hasScope) return;
     let isMounted = true;
@@ -317,6 +391,62 @@ export default function TableauDeBord() {
     loadPerimetre();
     return () => { isMounted = false; controller.abort(); };
   }, [activeTab, hasScope, dateRange.endDate, dateRange.startDate]);
+
+  // ── Load ministere drill-down ─────────────────────────────
+  useEffect(() => {
+    if (!drillMinistere) return;
+    let isMounted = true;
+    const controller = new AbortController();
+
+    async function loadDetail() {
+      setDrillMinistereLoading(true);
+      setDrillMinistereError('');
+      try {
+        const data = await fetchMinistereDetail(
+          drillMinistere.ministereId,
+          dateRange,
+          controller.signal,
+        );
+        if (isMounted) setDrillMinistereData(data);
+      } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
+        setDrillMinistereError(err?.message || 'Impossible de charger le detail.');
+      } finally {
+        if (isMounted) setDrillMinistereLoading(false);
+      }
+    }
+
+    loadDetail();
+    return () => { isMounted = false; controller.abort(); };
+  }, [drillMinistere, dateRange.startDate, dateRange.endDate]);
+
+  // ── Load region drill-down ────────────────────────────────
+  useEffect(() => {
+    if (!drillRegion) return;
+    let isMounted = true;
+    const controller = new AbortController();
+
+    async function loadDetail() {
+      setDrillRegionLoading(true);
+      setDrillRegionError('');
+      try {
+        const data = await fetchRegionDetail(
+          drillRegion.code || drillRegion.orgUnitId,
+          dateRange,
+          controller.signal,
+        );
+        if (isMounted) setDrillRegionData(data);
+      } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
+        setDrillRegionError(err?.message || 'Impossible de charger le detail.');
+      } finally {
+        if (isMounted) setDrillRegionLoading(false);
+      }
+    }
+
+    loadDetail();
+    return () => { isMounted = false; controller.abort(); };
+  }, [drillRegion, dateRange.startDate, dateRange.endDate]);
 
   // ── Derived data ──────────────────────────────────────────
   const top10Ministeres = useMemo(
@@ -350,6 +480,12 @@ export default function TableauDeBord() {
     const entry = data.activePayload[0]?.payload;
     if (!entry?.ministereId) return;
     setDrillMinistere(entry);
+    setDrillMinistereData(null);
+  }, []);
+
+  const handleRegionClick = useCallback((region) => {
+    setDrillRegion(region);
+    setDrillRegionData(null);
   }, []);
 
   const handleExpand = (e) => {
@@ -365,22 +501,22 @@ export default function TableauDeBord() {
   const handleSync = async () => {
     if (syncing) return;
     setSyncing(true);
-    const toastId = toast.loading('Synchronisation des données en cours...');
+    const toastId = toast.loading('Synchronisation des donnees en cours...');
     try {
       const res = await lancerSynchronisation();
       if (res?.skipped) {
-        toast.success('Une synchronisation est déjà en cours, réessayez dans un instant.', { id: toastId });
+        toast.success('Une synchronisation est deja en cours, reessayez dans un instant.', { id: toastId });
         return;
       }
       if (res?.success === false) {
-        toast.error(`Échec de la synchronisation : ${res.error || 'erreur inconnue'}`, { id: toastId });
+        toast.error(`Echec de la synchronisation : ${res.error || 'erreur inconnue'}`, { id: toastId });
         return;
       }
       invalidateCache();
       setReloadNonce((v) => v + 1);
-      toast.success('Données actualisées avec succès.', { id: toastId });
+      toast.success('Donnees actualisees avec succes.', { id: toastId });
     } catch (error) {
-      toast.error(error?.message || 'Échec de la synchronisation des données.', { id: toastId });
+      toast.error(error?.message || 'Echec de la synchronisation des donnees.', { id: toastId });
     } finally {
       setSyncing(false);
     }
@@ -402,7 +538,7 @@ export default function TableauDeBord() {
 
   const handleExportPDF = async () => {
     setExportLoading(true);
-    const toastId = toast.loading('Génération du rapport PDF...');
+    const toastId = toast.loading('Generation du rapport PDF...');
     try {
       const dataForPdf = {
         title: 'Tableau de Bord — Recettes Publiques',
@@ -410,7 +546,7 @@ export default function TableauDeBord() {
         avisList: [],
       };
       await exportToPDF(dataForPdf, getExportFilename('pdf'));
-      toast.success('Rapport PDF exporté avec succès !', { id: toastId });
+      toast.success('Rapport PDF exporte avec succes !', { id: toastId });
     } catch (e) {
       console.error(e);
       toast.error("Erreur lors de l'export PDF", { id: toastId });
@@ -420,15 +556,174 @@ export default function TableauDeBord() {
   };
 
   const handleExportExcel = async () => {
-    const toastId = toast.loading("Préparation de l'export Excel...");
-    const headers = ['Ministère', 'Montant', 'Soumissions', 'Taux Paiement'];
+    const toastId = toast.loading("Preparation de l'export Excel...");
+    const headers = ['Ministere', 'Montant', 'Soumissions', 'Taux Paiement'];
     try {
       const data = ministeres.map((m) => [m.nom, m.montant, m.nombreSoumissions, `${m.tauxPaiement}%`]);
-      exportToExcel(data, headers, 'Ministères', getExportFilename('xlsx'));
-      toast.success('Export Excel téléchargé !', { id: toastId });
+      exportToExcel(data, headers, 'Ministeres', getExportFilename('xlsx'));
+      toast.success('Export Excel telecharge !', { id: toastId });
     } catch (error) {
       toast.error(error?.message || "Erreur lors de l'export Excel", { id: toastId });
     }
+  };
+
+  // ── Build sparkline data from evolution ───────────────────
+  const sparkPaye = useMemo(() => chartEvol.map(e => ({ v: e.paye || 0 })), [chartEvol]);
+  const sparkTotal = useMemo(() => chartEvol.map(e => ({ v: (e.paye || 0) + (e.enAttente || 0) + (e.echoue || 0) + (e.partiel || 0) })), [chartEvol]);
+  const sparkAttente = useMemo(() => chartEvol.map(e => ({ v: e.enAttente || 0 })), [chartEvol]);
+
+  // ── Render helper: Ministere detail panel content ─────────
+  const renderMinistereDetail = () => {
+    const d = drillMinistereData;
+    if (!d) return null;
+    const detailServices = Array.isArray(d.services) ? d.services : [];
+    const detailKpi = d.kpi || d;
+    const revenus = detailKpi.totalRevenus || detailKpi.montant || 0;
+    const soumissions = detailKpi.totalSoumissions || detailKpi.nombreSoumissions || 0;
+    const taux = detailKpi.tauxPaiement || 0;
+
+    return (
+      <>
+        <div className="ddm-kpis">
+          <div className="ddm-kpi">
+            <span className="ddm-kpi__label">Revenus</span>
+            <span className="ddm-kpi__value" style={{ color: '#059669' }}>{fmtFull(revenus)} FCFA</span>
+          </div>
+          <div className="ddm-kpi">
+            <span className="ddm-kpi__label">Soumissions</span>
+            <span className="ddm-kpi__value">{fmtEntier(soumissions)}</span>
+          </div>
+          <div className="ddm-kpi">
+            <span className="ddm-kpi__label">Taux paiement</span>
+            <span className="ddm-kpi__value" style={{ color: taux >= 75 ? '#059669' : taux >= 50 ? '#D97706' : '#DC2626' }}>
+              {taux}%
+            </span>
+          </div>
+        </div>
+
+        <div style={{ padding: '1rem 1.25rem' }}>
+          <h3 className="ddm-section-title">Services ({detailServices.length})</h3>
+          {detailServices.length === 0 ? (
+            <p style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>Aucun service disponible.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {detailServices.map((svc, i) => {
+                const svcMontant = svc.montant || 0;
+                const svcSoum = svc.nombreSoumissions || 0;
+                const svcTaux = svc.tauxPaiement || 0;
+                return (
+                  <div
+                    key={svc.serviceId || i}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.75rem',
+                      padding: '0.6rem 0.8rem',
+                      background: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s, box-shadow 0.15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateX(4px)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {svc.nom}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', marginTop: '0.15rem' }}>
+                        {fmtEntier(svcSoum)} soumissions
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#059669' }}>
+                        {fmt(svcMontant)} FCFA
+                      </div>
+                      <div style={{ fontSize: '0.62rem', color: svcTaux >= 75 ? '#059669' : svcTaux >= 50 ? '#D97706' : '#DC2626', fontWeight: 700 }}>
+                        {svcTaux}% paye
+                      </div>
+                    </div>
+                    <ChevronRight size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  // ── Render helper: Region detail panel content ────────────
+  const renderRegionDetail = () => {
+    const d = drillRegionData;
+    if (!d) return null;
+    const departments = Array.isArray(d.departements) ? d.departements : (Array.isArray(d.children) ? d.children : []);
+    const regKpi = d.kpi || d;
+    const revenus = regKpi.valeur || regKpi.totalRevenus || regKpi.montant || 0;
+    const soumissions = regKpi.nombreSoumissions || regKpi.totalSoumissions || 0;
+
+    return (
+      <>
+        <div className="ddm-kpis">
+          <div className="ddm-kpi">
+            <span className="ddm-kpi__label">Revenus</span>
+            <span className="ddm-kpi__value" style={{ color: '#059669' }}>{fmtFull(revenus)} FCFA</span>
+          </div>
+          <div className="ddm-kpi">
+            <span className="ddm-kpi__label">Soumissions</span>
+            <span className="ddm-kpi__value">{fmtEntier(soumissions)}</span>
+          </div>
+          <div className="ddm-kpi">
+            <span className="ddm-kpi__label">Statut</span>
+            <span className="ddm-kpi__value">{drillRegion?.statut || 'Normal'}</span>
+          </div>
+        </div>
+
+        <div style={{ padding: '1rem 1.25rem' }}>
+          <h3 className="ddm-section-title">Departements ({departments.length})</h3>
+          {departments.length === 0 ? (
+            <p style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>Aucun departement disponible.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {departments.map((dep, i) => {
+                const depMontant = dep.valeur || dep.montant || 0;
+                const depSoum = dep.nombreSoumissions || 0;
+                return (
+                  <div
+                    key={dep.orgUnitId || dep.code || i}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.75rem',
+                      padding: '0.6rem 0.8rem',
+                      background: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: '8px',
+                      transition: 'transform 0.15s',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateX(4px)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
+                  >
+                    <MapPin size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {dep.nom}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', marginTop: '0.1rem' }}>
+                        {fmtEntier(depSoum)} soumissions
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#059669' }}>
+                        {fmt(depMontant)} FCFA
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </>
+    );
   };
 
   // ── Render ────────────────────────────────────────────────
@@ -441,16 +736,35 @@ export default function TableauDeBord() {
   }
 
   return (
-    <div className="dgi-page animate-fade-in" id="tdb-report-content">
+    <div className="dgi-page dgi-page--no-scroll animate-fade-in" id="tdb-report-content">
       <Toaster position="top-right" toastOptions={{ style: { fontSize: '0.82rem', borderRadius: '10px' } }}/>
 
-      {/* ── Drill-down ministère ── */}
+      {/* ── Drill-down ministere panel ── */}
       {drillMinistere && (
-        <DrillDownModal
-          cdi={drillMinistere.nom}
-          dateRange={dateRange}
-          onClose={() => setDrillMinistere(null)}
-        />
+        <DrillDownPanel
+          title={drillMinistere.nom || drillMinistere.shortName}
+          subtitle="Detail du ministere — services et revenus"
+          onClose={() => { setDrillMinistere(null); setDrillMinistereData(null); }}
+          loading={drillMinistereLoading}
+          error={drillMinistereError}
+          onRetry={() => { setDrillMinistereData(null); setDrillMinistere({ ...drillMinistere }); }}
+        >
+          {renderMinistereDetail()}
+        </DrillDownPanel>
+      )}
+
+      {/* ── Drill-down region panel ── */}
+      {drillRegion && (
+        <DrillDownPanel
+          title={drillRegion.nom}
+          subtitle="Detail regional — departements"
+          onClose={() => { setDrillRegion(null); setDrillRegionData(null); }}
+          loading={drillRegionLoading}
+          error={drillRegionError}
+          onRetry={() => { setDrillRegionData(null); setDrillRegion({ ...drillRegion }); }}
+        >
+          {renderRegionDetail()}
+        </DrillDownPanel>
       )}
 
       {/* ── Header ── */}
@@ -486,7 +800,7 @@ export default function TableauDeBord() {
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
                 />
-                <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>à</span>
+                <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>a</span>
                 <input
                   type="date"
                   className="preset-btn"
@@ -495,7 +809,7 @@ export default function TableauDeBord() {
                   onChange={(e) => setCustomEndDate(e.target.value)}
                 />
                 <button
-                  onClick={() => toast.success('Période appliquée avec succès')}
+                  onClick={() => toast.success('Periode appliquee avec succes')}
                   className="preset-btn"
                   style={{ background: '#3b82f6', color: 'white', border: 'none', marginLeft: '0.2rem', padding: '0.3rem 0.6rem' }}
                 >
@@ -508,10 +822,10 @@ export default function TableauDeBord() {
             className="action-btn outline"
             onClick={handleSync}
             disabled={syncing}
-            title="Actualiser les données depuis les systèmes sources"
+            title="Actualiser les donnees depuis les systemes sources"
           >
             <RefreshCw size={14} className={syncing ? 'dgi-sync-spin' : ''}/>
-            {syncing ? 'Synchronisation...' : 'Actualiser les données'}
+            {syncing ? 'Synchronisation...' : 'Actualiser les donnees'}
           </button>
           <button className="action-btn outline" onClick={handleExportExcel}>
             <FileSpreadsheet size={14}/> Excel
@@ -523,19 +837,17 @@ export default function TableauDeBord() {
       </div>
 
       {/* ── Tab bar ── */}
-      {visibleTabs.length > 1 && (
-        <div className="tdb-tab-bar">
-          {visibleTabs.map(tab => (
-            <button
-              key={tab.id}
-              className={`tdb-tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="tdb-tab-bar">
+        {visibleTabs.map(tab => (
+          <button
+            key={tab.id}
+            className={`tdb-tab ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {/* ── Error banner ── */}
       {analyticsError && (
@@ -544,359 +856,259 @@ export default function TableauDeBord() {
             <AlertTriangle size={12}/> {analyticsError}
           </span>
           <button className="af-reset" onClick={() => setReloadNonce((v) => v + 1)}>
-            <RotateCcw size={12}/> Réessayer
+            <RotateCcw size={12}/> Reessayer
           </button>
         </div>
       )}
 
-      {/* ═══════════ ONGLET: MON PERIMETRE ═══════════ */}
-      {activeTab === 'perimetre' && hasScope && (
-        <div className="tdb-perimetre-tab">
-          {perimetreLoading ? (
-            <WeaveSpinner size={60} message="Chargement de votre périmètre..." />
-          ) : perimetreData ? (
-            <>
-              <div className="tdb-perimetre-header">
-                <Building2 size={20} />
+      {/* ═══════════ TAB 1: VUE D'ENSEMBLE ═══════════ */}
+      {activeTab === 'overview' && (
+        <div className="tdb-tab-content">
+          {/* KPI row: 4 cards */}
+          <div className="kpi-grid kpi-grid--4">
+            <KpiCard
+              icon={TrendingUp}
+              label="Montant Encaisse"
+              value={fmtFull(kpi.totalRevenus)}
+              numericValue={kpi.totalRevenus}
+              sub={analyticsLoading ? 'Chargement...' : `Soumis : ${fmtFull(kpi.montantTotalSoumis || 0)}`}
+              variant="primary"
+              trend={kpi.progressionMoisPrecedent}
+              sparklineData={sparkPaye}
+            />
+            <KpiCard
+              icon={FileText}
+              label="Total Soumissions"
+              value={fmtEntier(kpi.totalSoumissions)}
+              numericValue={kpi.totalSoumissions}
+              sub={analyticsLoading ? 'Chargement...' : periodLabel}
+              variant="default"
+              sparklineData={sparkTotal}
+            />
+            <KpiCard
+              icon={CheckCircle}
+              label="Soumissions Payees"
+              value={fmtEntier(kpi.soumissionsPayees)}
+              numericValue={kpi.soumissionsPayees}
+              sub={fmtFull(kpi.totalRevenus)}
+              variant="success"
+              sparklineData={sparkPaye}
+            />
+            <KpiCard
+              icon={TrendingUp}
+              label="Taux de Paiement"
+              value={`${kpi.tauxPaiement}%`}
+              numericValue={kpi.tauxPaiement}
+              sub="Objectif : 90%"
+              variant="info"
+              sparklineData={sparkAttente}
+            />
+          </div>
+
+          {/* Evolution chart (3/4) + Gauge (1/4) */}
+          <div className="charts-row charts-row--3-1 charts-row--fill">
+            <div className="chart-card" data-glow="blue">
+              <div className="chart-card__header">
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '1.1rem' }}>
-                    {perimetreData.perimetre?.ministereNom || perimetreData.perimetre?.orgUnitNom || 'Mon périmètre'}
-                  </h2>
-                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                    Niveau : {perimetreData.perimetre?.niveau || user?.niveau}
-                  </p>
+                  <h2 className="chart-title">Evolution Mensuelle des Recettes</h2>
+                  <span className="chart-sub">{evolutionLabel}</span>
+                </div>
+                <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
+              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartEvol} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gpaid" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="gattente" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#D97706" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#D97706" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="gechoue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#DC2626" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#DC2626" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="periode" tick={{ fontSize: 12 }}/>
+                  <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }}/>
+                  <Tooltip content={<CustomTooltip/>}/>
+                  <Legend/>
+                  <Area type="monotone" dataKey="paye" name="Paye" stroke="#059669" fill="url(#gpaid)" strokeWidth={2} isAnimationActive animationDuration={1400}/>
+                  <Area type="monotone" dataKey="enAttente" name="En attente" stroke="#D97706" fill="url(#gattente)" strokeWidth={2} isAnimationActive animationDuration={1600}/>
+                  <Area type="monotone" dataKey="echoue" name="Echoue" stroke="#DC2626" fill="url(#gechoue)" strokeWidth={2} isAnimationActive animationDuration={1800}/>
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="chart-card gauge-card" data-glow="green">
+              <div className="chart-card__header">
+                <h2 className="chart-title">Taux de Paiement</h2>
+                <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
+              </div>
+              <div className="gauge-center">
+                <GaugeChart value={kpi.tauxPaiement} max={100} label="Paiement" color="#059669" size={180} thickness={16}/>
+              </div>
+              <div className="gauge-legend">
+                <div className="gauge-legend-item"><span className="gauge-dot" style={{ background:'#DC2626' }}/> &lt;50% Critique</div>
+                <div className="gauge-legend-item"><span className="gauge-dot" style={{ background:'#D97706' }}/> 50–74% Attention</div>
+                <div className="gauge-legend-item"><span className="gauge-dot" style={{ background:'#059669' }}/> &ge;75% Objectif</div>
+              </div>
+              <div className="gauge-target">
+                Objectif : 90% — Ecart :{' '}
+                <strong style={{ color: paymentGap > 0 ? '#D97706' : '#059669' }}>
+                  {paymentGap > 0 ? `+${paymentGap.toFixed(1)} pts necessaires` : 'Objectif atteint'}
+                </strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ TAB 2: MINISTERES & SERVICES ═══════════ */}
+      {activeTab === 'ministeres' && (
+        <div className="tdb-tab-content">
+          {/* Top row: Pie + mini KPI */}
+          <div className="charts-row charts-row--ministeres-top">
+            <div className="chart-card" data-glow="blue">
+              <div className="chart-card__header">
+                <div>
+                  <h2 className="chart-title">Repartition par Statut</h2>
+                  <span className="chart-sub">{fmtEntier(kpi.totalSoumissions)} soumissions au total</span>
                 </div>
               </div>
-
-              {/* KPI scoped */}
-              <div className="kpi-grid" style={{ flexShrink: 0 }}>
-                <KpiCard icon={TrendingUp} label="Montant Encaissé" value={fmtFull(perimetreData.kpi?.totalRevenus || 0)} numericValue={perimetreData.kpi?.totalRevenus || 0} sub={`Soumis : ${fmtFull(perimetreData.kpi?.montantTotalSoumis || 0)}`} variant="primary" trend={perimetreData.kpi?.progressionMoisPrecedent} />
-                <KpiCard icon={FileText} label="Soumissions" value={fmtEntier(perimetreData.kpi?.totalSoumissions || 0)} numericValue={perimetreData.kpi?.totalSoumissions || 0} variant="default" />
-                <KpiCard icon={CheckCircle} label="Payées" value={fmtEntier(perimetreData.kpi?.soumissionsPayees || 0)} numericValue={perimetreData.kpi?.soumissionsPayees || 0} variant="success" />
-                <KpiCard icon={Clock} label="En Attente" value={fmtEntier(perimetreData.kpi?.soumissionsEnAttente || 0)} numericValue={perimetreData.kpi?.soumissionsEnAttente || 0} variant="warning" />
+              <div style={{ display: 'flex', alignItems: 'center', flex: 1, minHeight: 0 }}>
+                <ResponsiveContainer width="60%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statutPieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={75}
+                      dataKey="value"
+                      stroke="none"
+                      isAnimationActive
+                      animationDuration={1200}
+                      animationBegin={300}
+                    >
+                      {statutPieData.map((entry, index) => (
+                        <Cell key={index} fill={entry.fill}/>
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => [`${fmtEntier(value)} soumissions`, '']}/>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pie-legend" style={{ flex: 1, marginTop: 0 }}>
+                  {Object.entries(STATUT_CONFIG).map(([key, cfg]) => {
+                    const count = key === 'PAID' ? kpi.soumissionsPayees
+                      : key === 'PENDING' ? kpi.soumissionsEnAttente
+                      : key === 'PARTIAL' ? kpi.soumissionsPartielles
+                      : kpi.soumissionsEchouees;
+                    if (!count) return null;
+                    return (
+                      <div className="pie-legend-item" key={key}>
+                        <span className="dot" style={{ background: cfg.color }}/> {cfg.label}: <strong>{fmtEntier(count)}</strong>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+            </div>
 
-              {/* Evolution scoped */}
-              {perimetreData.evolution?.length > 0 && (
-                <div className="chart-card" data-glow="blue" style={{ marginTop: '1rem' }}>
-                  <div className="chart-card__header">
-                    <h2 className="chart-title">Évolution — Mon périmètre</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div className="tdb-mini-kpi-card">
+                <div className="tdb-mini-kpi-card__label">Montant Encaisse</div>
+                <div className="tdb-mini-kpi-card__value" style={{ color: '#059669' }}>{fmt(kpi.totalRevenus)} FCFA</div>
+              </div>
+              <div className="tdb-mini-kpi-card">
+                <div className="tdb-mini-kpi-card__label">Soumissions Payees</div>
+                <div className="tdb-mini-kpi-card__value">{fmtEntier(kpi.soumissionsPayees)}</div>
+              </div>
+              <div className="tdb-mini-kpi-card">
+                <div className="tdb-mini-kpi-card__label">En Attente</div>
+                <div className="tdb-mini-kpi-card__value" style={{ color: '#D97706' }}>{fmtEntier(kpi.soumissionsEnAttente)}</div>
+              </div>
+              <div className="tdb-mini-kpi-card">
+                <div className="tdb-mini-kpi-card__label">Echouees</div>
+                <div className="tdb-mini-kpi-card__value" style={{ color: '#DC2626' }}>{fmtEntier(kpi.soumissionsEchouees)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom row: Top 10 Ministeres + Top 10 Services */}
+          <div className="charts-row charts-row--fill">
+            <div className="chart-card" data-glow="blue">
+              <div className="chart-card__header">
+                <div>
+                  <h2 className="chart-title"><Building2 size={16}/> Top 10 Ministeres</h2>
+                  <span className="chart-sub">Cliquez une barre pour le detail</span>
+                </div>
+                <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
+              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={top10Ministeres} layout="vertical" margin={{ left: 20, right: 20 }} onClick={handleMinistereClick} style={{ cursor: 'pointer' }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
+                  <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 10 }}/>
+                  <YAxis type="category" dataKey="shortName" width={140} tick={{ fontSize: 10 }}/>
+                  <Tooltip content={<CustomTooltip/>}/>
+                  <Bar dataKey="montant" name="Revenus" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1200} animationBegin={200}>
+                    {top10Ministeres.map((entry, i) => (
+                      <Cell key={entry.ministereId || i} fill={entry.couleur || `hsl(${160 + i * 14}, 65%, ${40 + i * 2}%)`}/>
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {top10Services.length > 0 && (
+              <div className="chart-card" data-glow="blue">
+                <div className="chart-card__header">
+                  <div>
+                    <h2 className="chart-title">Top 10 Services</h2>
+                    <span className="chart-sub">Revenus par service</span>
                   </div>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <AreaChart data={perimetreData.evolution} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="gpPaye" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="periode" tick={{ fontSize: 12 }}/>
-                      <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }}/>
-                      <Tooltip content={<CustomTooltip/>}/>
-                      <Legend/>
-                      <Area type="monotone" dataKey="paye" name="Payé" stroke="#059669" fill="url(#gpPaye)" strokeWidth={2} />
-                      <Area type="monotone" dataKey="enAttente" name="En attente" stroke="#D97706" fill="none" strokeWidth={2} />
-                      <Area type="monotone" dataKey="echoue" name="Échoué" stroke="#DC2626" fill="none" strokeWidth={1.5} strokeDasharray="4 3" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
                 </div>
-              )}
-            </>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-              <Building2 size={32} style={{ opacity: 0.4 }}/>
-              <p style={{ marginTop: '0.5rem' }}>Aucune donnée disponible pour votre périmètre.</p>
-            </div>
-          )}
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={top10Services} layout="vertical" margin={{ left: 20, right: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
+                    <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 10 }}/>
+                    <YAxis type="category" dataKey="nom" width={160} tick={{ fontSize: 10 }}/>
+                    <Tooltip content={<CustomTooltip/>}/>
+                    <Bar dataKey="montant" name="Revenus" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1400} animationBegin={400}>
+                      {top10Services.map((item, index) => (
+                        <Cell key={item.serviceId || index} fill={item.couleur || `hsl(${190 + index * 10}, 60%, 45%)`}/>
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* ═══════════ ONGLET: ALERTES ═══════════ */}
-      {activeTab === 'alertes' && (
-        <div className="tdb-alertes-tab">
-          {alertes.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-              <CheckCircle size={32} style={{ color: '#059669', opacity: 0.6 }}/>
-              <p style={{ marginTop: '0.5rem' }}>Aucune alerte active. Tous les indicateurs sont normaux.</p>
+      {/* ═══════════ TAB 3: REGIONS ═══════════ */}
+      {activeTab === 'regions' && (
+        <div className="tdb-tab-content">
+          {regions.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-secondary)' }}>
+              <div style={{ textAlign: 'center' }}>
+                <MapPin size={32} style={{ opacity: 0.4 }}/>
+                <p style={{ marginTop: '0.5rem' }}>Aucune donnee regionale disponible.</p>
+              </div>
             </div>
           ) : (
-            <div className="tdb-alertes-full">
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                <div className="card" style={{ padding: '1rem 1.5rem', borderLeft: '3px solid #DC2626', flex: '1 1 200px' }}>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Alertes Critiques</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#DC2626' }}>{alertes.filter(a => a.type === 'danger').length}</div>
-                </div>
-                <div className="card" style={{ padding: '1rem 1.5rem', borderLeft: '3px solid #D97706', flex: '1 1 200px' }}>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Avertissements</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#D97706' }}>{alertes.filter(a => a.type === 'attention').length}</div>
-                </div>
-                <div className="card" style={{ padding: '1rem 1.5rem', borderLeft: '3px solid #2563EB', flex: '1 1 200px' }}>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Total</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{alertes.length}</div>
-                </div>
-              </div>
-              {alertes.map((alerte, i) => (
-                <div className={`tdb-alert-item tdb-alert--${(alerte.type || alerte.severite || 'info').toLowerCase()}`} key={i} style={{ marginBottom: '0.5rem' }}>
-                  <AlertTriangle size={14}/>
-                  <div className="tdb-alert-item__body">
-                    <span className="tdb-alert-item__title">{alerte.titre || alerte.title}</span>
-                    <span className="tdb-alert-item__desc">{alerte.message || alerte.description}</span>
-                  </div>
-                  <span className="tdb-alert-item__time">{alerte.date || alerte.createdAt}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ═══════════ ONGLET: VUE D'ENSEMBLE ═══════════ */}
-      {activeTab === 'overview' && <>
-
-      {/* ── KPI Cards ── */}
-      <div className="kpi-grid" style={{ flexShrink: 0 }}>
-        {(() => {
-          // Construire les sparklines réelles depuis les données d'évolution
-          const sparkPaye = chartEvol.map(e => ({ v: e.paye || 0 }));
-          const sparkTotal = chartEvol.map(e => ({ v: (e.paye || 0) + (e.enAttente || 0) + (e.echoue || 0) + (e.partiel || 0) }));
-          const sparkAttente = chartEvol.map(e => ({ v: e.enAttente || 0 }));
-          const sparkEchoue = chartEvol.map(e => ({ v: e.echoue || 0 }));
-          const sparkTaux = chartEvol.map(e => {
-            const tot = (e.paye || 0) + (e.enAttente || 0) + (e.echoue || 0);
-            return { v: tot > 0 ? Math.round(((e.paye || 0) / tot) * 100) : 0 };
-          });
-          return (
-            <>
-              <KpiCard
-                icon={TrendingUp}
-                label="Montant Encaissé"
-                value={fmtFull(kpi.totalRevenus)}
-                numericValue={kpi.totalRevenus}
-                sub={analyticsLoading ? 'Chargement...' : `Soumis : ${fmtFull(kpi.montantTotalSoumis || 0)}`}
-                variant="primary"
-                trend={kpi.progressionMoisPrecedent}
-                sparklineData={sparkPaye}
-              />
-              <KpiCard
-                icon={FileText}
-                label="Total Soumissions"
-                value={fmtEntier(kpi.totalSoumissions)}
-                numericValue={kpi.totalSoumissions}
-                sub={analyticsLoading ? 'Chargement...' : periodLabel}
-                variant="default"
-                sparklineData={sparkTotal}
-              />
-              <KpiCard
-                icon={CheckCircle}
-                label="Soumissions Payées"
-                value={fmtEntier(kpi.soumissionsPayees)}
-                numericValue={kpi.soumissionsPayees}
-                sub={fmtFull(kpi.totalRevenus)}
-                variant="success"
-                sparklineData={sparkPaye}
-              />
-              <KpiCard
-                icon={Clock}
-                label="En Attente"
-                value={fmtEntier(kpi.soumissionsEnAttente)}
-                numericValue={kpi.soumissionsEnAttente}
-                sub={periodLabel}
-                variant="warning"
-                sparklineData={sparkAttente}
-              />
-              <KpiCard
-                icon={XCircle}
-                label="Échouées"
-                value={fmtEntier(kpi.soumissionsEchouees)}
-                numericValue={kpi.soumissionsEchouees}
-                sub={periodLabel}
-                variant="danger"
-                sparklineData={sparkEchoue}
-              />
-              <KpiCard
-                icon={TrendingUp}
-                label="Taux de Paiement"
-                value={`${kpi.tauxPaiement}%`}
-                numericValue={kpi.tauxPaiement}
-                sub="Objectif : 90%"
-                variant="default"
-                sparklineData={sparkTaux}
-              />
-            </>
-          );
-        })()}
-      </div>
-
-      {/* ── Charts: Evolution + Gauge ── */}
-      <div className="charts-row charts-row--3-1">
-        <div className="chart-card" data-glow="blue">
-          <div className="chart-card__header">
-            <div>
-              <h2 className="chart-title">Évolution Mensuelle des Recettes</h2>
-              <span className="chart-sub">{evolutionLabel}</span>
-            </div>
-            <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
-          </div>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartEvol} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gpaid" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="gattente" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#D97706" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#D97706" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="gechoue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#DC2626" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#DC2626" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="periode" tick={{ fontSize: 12 }}/>
-              <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }}/>
-              <Tooltip content={<CustomTooltip/>}/>
-              <Legend/>
-              <Area type="monotone" dataKey="paye" name="Payé" stroke="#059669" fill="url(#gpaid)" strokeWidth={2} isAnimationActive animationDuration={1400}/>
-              <Area type="monotone" dataKey="enAttente" name="En attente" stroke="#D97706" fill="url(#gattente)" strokeWidth={2} isAnimationActive animationDuration={1600}/>
-              <Area type="monotone" dataKey="echoue" name="Échoué" stroke="#DC2626" fill="url(#gechoue)" strokeWidth={2} isAnimationActive animationDuration={1800}/>
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="chart-card gauge-card" data-glow="green">
-          <div className="chart-card__header">
-            <h2 className="chart-title">Taux de Paiement</h2>
-            <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
-          </div>
-          <div className="gauge-center">
-            <GaugeChart value={kpi.tauxPaiement} max={100} label="Paiement" color="#059669" size={200} thickness={18}/>
-          </div>
-          <div className="gauge-legend">
-            <div className="gauge-legend-item"><span className="gauge-dot" style={{ background:'#DC2626' }}/> &lt;50% Critique</div>
-            <div className="gauge-legend-item"><span className="gauge-dot" style={{ background:'#D97706' }}/> 50–74% Attention</div>
-            <div className="gauge-legend-item"><span className="gauge-dot" style={{ background:'#059669' }}/> ≥75% Objectif</div>
-          </div>
-          <div className="gauge-target">
-            Objectif : 90% — Écart :{' '}
-            <strong style={{ color: paymentGap > 0 ? '#D97706' : '#059669' }}>
-              {paymentGap > 0 ? `+${paymentGap.toFixed(1)} pts nécessaires` : 'Objectif atteint'}
-            </strong>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Charts: Ministères + Services ── */}
-      <div className="charts-row">
-        <div className="chart-card chart-card--large" data-glow="blue">
-          <div className="chart-card__header">
-            <div>
-              <h2 className="chart-title"><Building2 size={16}/> Top 10 Ministères</h2>
-              <span className="chart-sub">Revenus par ministère — cliquez pour le détail</span>
-            </div>
-            <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
-          </div>
-          <ResponsiveContainer width="100%" height={Math.max(300, top10Ministeres.length * 36)}>
-            <BarChart data={top10Ministeres} layout="vertical" margin={{ left: 20, right: 20 }} onClick={handleMinistereClick} style={{ cursor: 'pointer' }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
-              <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 10 }}/>
-              <YAxis type="category" dataKey="shortName" width={160} tick={{ fontSize: 10 }}/>
-              <Tooltip content={<CustomTooltip/>}/>
-              <Bar dataKey="montant" name="Revenus" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1200} animationBegin={200}>
-                {top10Ministeres.map((entry, i) => (
-                  <Cell key={entry.ministereId || i} fill={entry.couleur || `hsl(${160 + i * 14}, 65%, ${40 + i * 2}%)`}/>
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="chart-card" data-glow="blue">
-          <div className="chart-card__header">
-            <div>
-              <h2 className="chart-title">Répartition par Statut</h2>
-              <span className="chart-sub">{fmtEntier(kpi.totalSoumissions)} soumissions au total</span>
-            </div>
-            <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={statutPieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={55}
-                outerRadius={85}
-                dataKey="value"
-                stroke="none"
-                isAnimationActive
-                animationDuration={1200}
-                animationBegin={300}
-              >
-                {statutPieData.map((entry, index) => (
-                  <Cell key={index} fill={entry.fill}/>
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => [`${fmtEntier(value)} soumissions`, '']}/>
-              <Legend/>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="pie-legend">
-            {Object.entries(STATUT_CONFIG).map(([key, cfg]) => {
-              const count = key === 'PAID' ? kpi.soumissionsPayees
-                : key === 'PENDING' ? kpi.soumissionsEnAttente
-                : key === 'PARTIAL' ? kpi.soumissionsPartielles
-                : kpi.soumissionsEchouees;
-              if (!count) return null;
-              return (
-                <div className="pie-legend-item" key={key}>
-                  <span className="dot" style={{ background: cfg.color }}/> {cfg.label}: <strong>{fmtEntier(count)}</strong>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Top 10 Services ── */}
-      {top10Services.length > 0 && (
-        <div className="charts-row" style={{ gridTemplateColumns: '1fr' }}>
-          <div className="chart-card" data-glow="blue">
-            <div className="chart-card__header">
-              <div>
-                <h2 className="chart-title">Top 10 Services</h2>
-                <span className="chart-sub">Revenus par service</span>
-              </div>
-              <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
-            </div>
-            <ResponsiveContainer width="100%" height={Math.max(280, top10Services.length * 34)}>
-              <BarChart data={top10Services} layout="vertical" margin={{ left: 20, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
-                <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 10 }}/>
-                <YAxis type="category" dataKey="nom" width={220} tick={{ fontSize: 10 }}/>
-                <Tooltip content={<CustomTooltip/>}/>
-                <Bar dataKey="montant" name="Revenus" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1400} animationBegin={400}>
-                  {top10Services.map((item, index) => (
-                    <Cell key={item.serviceId || index} fill={item.couleur || `hsl(${190 + index * 10}, 60%, 45%)`}/>
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* ── Bottom section: Regions + Alerts ── */}
-      <div className="tdb-bottom-section">
-        {/* Regional overview */}
-        {regions.length > 0 && (
-          <div className="tdb-regions-overview">
-            <h2 className="chart-title"><MapPin size={16}/> Aperçu Régional</h2>
-            <div className="tdb-regions-grid">
-              {regions.slice(0, 10).map((region) => (
-                <div className="tdb-region-card" key={region.orgUnitId || region.nom}>
+            <div className="tdb-regions-grid tdb-regions-grid--full">
+              {regions.map((region) => (
+                <div
+                  className="tdb-region-card tdb-region-card--clickable"
+                  key={region.orgUnitId || region.nom}
+                  onClick={() => handleRegionClick(region)}
+                >
                   <div className="tdb-region-card__header">
                     <span className="tdb-region-card__name">{region.nom}</span>
                     <span className={`tdb-region-card__status tdb-status--${(region.statut || 'normal').toLowerCase()}`}>
@@ -910,33 +1122,130 @@ export default function TableauDeBord() {
                       <> — {Math.round((region.valeur / region.objectif) * 100)}% objectif</>
                     )}
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Active alerts */}
-        {alertes.length > 0 && (
-          <div className="tdb-alerts-preview">
-            <h2 className="chart-title"><AlertCircle size={16}/> Alertes Actives</h2>
-            <div className="tdb-alerts-list">
-              {alertes.slice(0, 3).map((alerte, i) => (
-                <div className={`tdb-alert-item tdb-alert--${(alerte.severite || alerte.severity || 'info').toLowerCase()}`} key={i}>
-                  <AlertTriangle size={14}/>
-                  <div className="tdb-alert-item__body">
-                    <span className="tdb-alert-item__title">{alerte.titre || alerte.title}</span>
-                    <span className="tdb-alert-item__desc">{alerte.message || alerte.description}</span>
+                  <div style={{ marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-tertiary)', fontSize: '0.6rem' }}>
+                    <ChevronRight size={10} /> Voir les departements
                   </div>
-                  <span className="tdb-alert-item__time">{alerte.date || alerte.createdAt}</span>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
-      </>}
+      {/* ═══════════ TAB: MON PERIMETRE ═══════════ */}
+      {activeTab === 'perimetre' && hasScope && (
+        <div className="tdb-tab-content">
+          {perimetreLoading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+              <WeaveSpinner size={60} message="Chargement de votre perimetre..." />
+            </div>
+          ) : perimetreData ? (
+            <>
+              <div className="tdb-perimetre-header" style={{ flexShrink: 0 }}>
+                <Building2 size={20} />
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.1rem' }}>
+                    {perimetreData.perimetre?.ministereNom || perimetreData.perimetre?.orgUnitNom || 'Mon perimetre'}
+                  </h2>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Niveau : {perimetreData.perimetre?.niveau || user?.niveau}
+                  </p>
+                </div>
+              </div>
+
+              <div className="kpi-grid kpi-grid--4" style={{ flexShrink: 0 }}>
+                <KpiCard icon={TrendingUp} label="Montant Encaisse" value={fmtFull(perimetreData.kpi?.totalRevenus || 0)} numericValue={perimetreData.kpi?.totalRevenus || 0} sub={`Soumis : ${fmtFull(perimetreData.kpi?.montantTotalSoumis || 0)}`} variant="primary" trend={perimetreData.kpi?.progressionMoisPrecedent} />
+                <KpiCard icon={FileText} label="Soumissions" value={fmtEntier(perimetreData.kpi?.totalSoumissions || 0)} numericValue={perimetreData.kpi?.totalSoumissions || 0} variant="default" />
+                <KpiCard icon={CheckCircle} label="Payees" value={fmtEntier(perimetreData.kpi?.soumissionsPayees || 0)} numericValue={perimetreData.kpi?.soumissionsPayees || 0} variant="success" />
+                <KpiCard icon={Clock} label="En Attente" value={fmtEntier(perimetreData.kpi?.soumissionsEnAttente || 0)} numericValue={perimetreData.kpi?.soumissionsEnAttente || 0} variant="warning" />
+              </div>
+
+              {perimetreData.evolution?.length > 0 && (
+                <div className="chart-card" data-glow="blue" style={{ flex: 1, minHeight: 0 }}>
+                  <div className="chart-card__header">
+                    <h2 className="chart-title">Evolution — Mon perimetre</h2>
+                  </div>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={perimetreData.evolution} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gpPaye" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="periode" tick={{ fontSize: 12 }}/>
+                      <YAxis tickFormatter={fmt} tick={{ fontSize: 11 }}/>
+                      <Tooltip content={<CustomTooltip/>}/>
+                      <Legend/>
+                      <Area type="monotone" dataKey="paye" name="Paye" stroke="#059669" fill="url(#gpPaye)" strokeWidth={2} />
+                      <Area type="monotone" dataKey="enAttente" name="En attente" stroke="#D97706" fill="none" strokeWidth={2} />
+                      <Area type="monotone" dataKey="echoue" name="Echoue" stroke="#DC2626" fill="none" strokeWidth={1.5} strokeDasharray="4 3" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-secondary)' }}>
+              <div style={{ textAlign: 'center' }}>
+                <Building2 size={32} style={{ opacity: 0.4 }}/>
+                <p style={{ marginTop: '0.5rem' }}>Aucune donnee disponible pour votre perimetre.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════ TAB 4: ALERTES ═══════════ */}
+      {activeTab === 'alertes' && (
+        <div className="tdb-tab-content">
+          {alertes.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-secondary)' }}>
+              <div style={{ textAlign: 'center' }}>
+                <CheckCircle size={32} style={{ color: '#059669', opacity: 0.6 }}/>
+                <p style={{ marginTop: '0.5rem' }}>Aucune alerte active. Tous les indicateurs sont normaux.</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Alert summary cards */}
+              <div style={{ display: 'flex', gap: '0.6rem', flexShrink: 0 }}>
+                <div className="tdb-mini-kpi-card" style={{ flex: 1, borderLeft: '3px solid #DC2626' }}>
+                  <div className="tdb-mini-kpi-card__label">Alertes Critiques</div>
+                  <div className="tdb-mini-kpi-card__value" style={{ color: '#DC2626' }}>
+                    {alertes.filter(a => a.type === 'danger' || a.severite === 'critical').length}
+                  </div>
+                </div>
+                <div className="tdb-mini-kpi-card" style={{ flex: 1, borderLeft: '3px solid #D97706' }}>
+                  <div className="tdb-mini-kpi-card__label">Avertissements</div>
+                  <div className="tdb-mini-kpi-card__value" style={{ color: '#D97706' }}>
+                    {alertes.filter(a => a.type === 'attention' || a.severite === 'warning').length}
+                  </div>
+                </div>
+                <div className="tdb-mini-kpi-card" style={{ flex: 1, borderLeft: '3px solid #2563EB' }}>
+                  <div className="tdb-mini-kpi-card__label">Total</div>
+                  <div className="tdb-mini-kpi-card__value">{alertes.length}</div>
+                </div>
+              </div>
+
+              {/* Alert list */}
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {alertes.map((alerte, i) => (
+                  <div className={`tdb-alert-item tdb-alert--${(alerte.type || alerte.severite || 'info').toLowerCase()}`} key={i}>
+                    <AlertTriangle size={14}/>
+                    <div className="tdb-alert-item__body">
+                      <span className="tdb-alert-item__title">{alerte.titre || alerte.title}</span>
+                      <span className="tdb-alert-item__desc">{alerte.message || alerte.description}</span>
+                    </div>
+                    <span className="tdb-alert-item__time">{alerte.date || alerte.createdAt}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

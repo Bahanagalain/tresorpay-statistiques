@@ -1521,6 +1521,11 @@
   transform: scale(1.1);
 }
 
+/* ─── Card Color Dot (Dashboard List) ─── */
+.bi-card-color-dot:hover {
+  transform: scale(1.2) !important;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    LOT 1 — AMÉLIORATIONS UX & PRÉSENTATION
    ═══════════════════════════════════════════════════════════════ */

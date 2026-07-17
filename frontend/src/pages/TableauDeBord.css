@@ -17,7 +17,21 @@
   overflow-y: auto;
 }
 
-/* ── En-tête ─────────────────────────────────────────────── */
+.dgi-page--no-scroll {
+  overflow: hidden;
+}
+
+/* ── Tab content area: fills remaining space, no scroll ─── */
+.tdb-tab-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+/* ── En-tete ─────────────────────────────────────────────── */
 .dgi-page__header {
   display: flex;
   align-items: center;
@@ -185,6 +199,11 @@
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.kpi-grid--4 {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .kpi-card {
@@ -331,6 +350,20 @@
 
 .charts-row--3-1 {
   grid-template-columns: 3fr 1.2fr;
+}
+
+/* Charts row that fills remaining vertical space */
+.charts-row--fill {
+  flex: 1;
+  min-height: 0;
+  flex-shrink: 1;
+}
+
+/* Ministeres top row: pie chart left, mini KPIs right */
+.charts-row--ministeres-top {
+  grid-template-columns: 2fr 1fr;
+  flex-shrink: 0;
+  max-height: 200px;
 }
 
 /* ── Gauge card ── */
@@ -508,6 +541,33 @@
 .orb-partial { background: rgba(37,99,235,0.1);  color: #2563EB; }
 .orb-failed  { background: rgba(239,68,68,0.1);  color: #DC2626; }
 
+/* ── Mini KPI cards (used in Ministeres & Alertes tabs) ─── */
+.tdb-mini-kpi-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+}
+
+.tdb-mini-kpi-card__label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.tdb-mini-kpi-card__value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
 /* ── Bottom section: Regions + Alerts ────────────────────── */
 .tdb-bottom-section {
   display: grid;
@@ -533,6 +593,15 @@
   margin-top: 0.5rem;
 }
 
+/* Full-tab regions grid: fills space, allows scroll if many */
+.tdb-regions-grid--full {
+  margin-top: 0;
+  flex: 1;
+  overflow-y: auto;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  align-content: start;
+}
+
 .tdb-region-card {
   background: var(--bg-surface-elevated);
   border: 1px solid var(--glass-border);
@@ -544,6 +613,15 @@
 .tdb-region-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.tdb-region-card--clickable {
+  cursor: pointer;
+}
+
+.tdb-region-card--clickable:hover {
+  border-color: var(--accent-dgi);
+  box-shadow: 0 6px 16px rgba(5,150,105,0.12);
 }
 
 .tdb-region-card__header {
@@ -608,20 +686,24 @@
   background: var(--bg-surface-elevated);
 }
 
-.tdb-alert--warning {
+.tdb-alert--warning,
+.tdb-alert--attention {
   border-left-color: #D97706;
   background: rgba(245,158,11,0.04);
 }
 
-.tdb-alert--warning svg { color: #D97706; }
+.tdb-alert--warning svg,
+.tdb-alert--attention svg { color: #D97706; }
 
 .tdb-alert--critical,
+.tdb-alert--danger,
 .tdb-alert--error {
   border-left-color: #DC2626;
   background: rgba(239,68,68,0.04);
 }
 
 .tdb-alert--critical svg,
+.tdb-alert--danger svg,
 .tdb-alert--error svg { color: #DC2626; }
 
 .tdb-alert--info {
@@ -679,7 +761,8 @@
 [data-theme="dark"] .chart-card,
 [data-theme="dark"] .kpi-card,
 [data-theme="dark"] .tdb-regions-overview,
-[data-theme="dark"] .tdb-alerts-preview {
+[data-theme="dark"] .tdb-alerts-preview,
+[data-theme="dark"] .tdb-mini-kpi-card {
   background: var(--bg-surface);
   border-color: var(--glass-border);
 }
@@ -705,30 +788,41 @@
   .chart-card__header { margin-bottom: 0.25rem; }
   .gauge-legend { gap: 0.15rem; }
   .gauge-target { padding-top: 0.25rem; }
+  .charts-row--ministeres-top { max-height: 160px; }
 }
 
 @media (max-width: 1400px) {
   .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .kpi-grid--4 { grid-template-columns: repeat(4, 1fr); }
   .tdb-bottom-section { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 1200px) {
   .kpi-grid    { grid-template-columns: repeat(3, 1fr); }
+  .kpi-grid--4 { grid-template-columns: repeat(2, 1fr); }
   .charts-row  { grid-template-columns: 1fr; }
-  .dgi-page { height: auto; }
+  .charts-row--ministeres-top { grid-template-columns: 1fr; max-height: none; }
+  .dgi-page--no-scroll { overflow-y: auto; }
+  .tdb-tab-content { overflow: auto; }
 }
 
 @media (max-width: 768px) {
-  .dgi-page         { padding: 0.5rem; height: auto; }
+  .dgi-page         { padding: 0.5rem; }
+  .dgi-page--no-scroll { overflow-y: auto; }
+  .tdb-tab-content { overflow: auto; }
   .kpi-grid         { grid-template-columns: repeat(2, 1fr); }
+  .kpi-grid--4      { grid-template-columns: repeat(2, 1fr); }
   .header-right     { display: none; }
   .tdb-bottom-section { grid-template-columns: 1fr; }
   .tdb-regions-grid { grid-template-columns: 1fr 1fr; }
+  .tdb-regions-grid--full { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 480px) {
   .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .kpi-grid--4 { grid-template-columns: 1fr 1fr; }
   .tdb-regions-grid { grid-template-columns: 1fr; }
+  .tdb-regions-grid--full { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -774,7 +868,7 @@
   box-shadow: 0 1px 3px rgba(5,150,105,0.3);
 }
 
-/* ── Périmètre tab ───────────────────────────────────────── */
+/* ── Perimetre tab ───────────────────────────────────────── */
 .tdb-perimetre-tab {
   display: flex;
   flex-direction: column;
@@ -785,7 +879,7 @@
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  padding: 1rem 1.2rem;
+  padding: 0.75rem 1rem;
   background: var(--bg-surface);
   border: 1px solid var(--glass-border);
   border-radius: 12px;

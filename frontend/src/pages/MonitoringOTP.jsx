@@ -109,17 +109,8 @@ export default function MonitoringOTP() {
     );
   }
 
-  if (!data) {
-    return (
-      <div className="page-container">
-        <p style={{ textAlign: 'center', color: '#94a3b8', padding: 40 }}>
-          Impossible de charger les données de monitoring.
-        </p>
-      </div>
-    );
-  }
-
-  const rep = data.repartitionStatuts || {};
+  const safeData = data || {};
+  const rep = safeData.repartitionStatuts || {};
   const totalCount = Object.values(rep).reduce((s, v) => s + (v?.nombre || 0), 0);
   const totalMontant = Object.values(rep).reduce((s, v) => s + (v?.montant || 0), 0);
 
@@ -131,9 +122,9 @@ export default function MonitoringOTP() {
       color: cfg.color,
     }));
 
-  const timeline = data.timeline || [];
-  const recentes = (data.recentes || []).slice(0, 20);
-  const sync = data.derniereSync;
+  const timeline = safeData.timeline || [];
+  const recentes = (safeData.recentes || []).slice(0, 20);
+  const sync = safeData.derniereSync;
 
   return (
     <div className="page-container">

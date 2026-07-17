@@ -228,46 +228,49 @@ export async function computeEvolution(dateDebut, dateFin, scope) {
 export async function computeRepartitionMinisteres(dateDebut, dateFin, scope) {
   const where = buildSoumissionWhere(dateDebut, dateFin, { ministereId: { not: null } }, scope);
 
-  const groupes = await prisma.soumission.groupBy({
-    by: ['ministereId'],
-    where,
-    _count: true,
-    _sum: { montant: true },
-  });
+  // Charger TOUS les ministeres actifs, meme ceux sans soumission
+  const [allMinisteres, groupes, payesGroupes] = await Promise.all([
+    prisma.ministere.findMany({
+      where: { estActif: true },
+      select: { id: true, nomFr: true, couleur: true, shortName: true },
+      orderBy: { sortIndex: 'asc' },
+    }),
+    prisma.soumission.groupBy({
+      by: ['ministereId'],
+      where,
+      _count: true,
+      _sum: { montant: true },
+    }),
+    prisma.soumission.groupBy({
+      by: ['ministereId'],
+      where: { ...where, statutPaiement: 'PAID' },
+      _count: true,
+      _sum: { montant: true },
+    }),
+  ]);
 
-  // Charger les noms des ministeres
-  const ministereIds = groupes.map((g) => g.ministereId).filter(Boolean);
-  const ministeres = await prisma.ministere.findMany({
-    where: { id: { in: ministereIds } },
-    select: { id: true, nomFr: true, couleur: true, shortName: true },
-  });
-  const ministeresMap = {};
-  for (const m of ministeres) ministeresMap[m.id] = m;
+  // Indexer les stats par ministereId
+  const statsMap = {};
+  for (const g of groupes) {
+    statsMap[g.ministereId] = { count: g._count || 0, montant: toNumber(g._sum?.montant) };
+  }
 
-  // Compter et sommer les payes par ministere
-  const payesGroupes = await prisma.soumission.groupBy({
-    by: ['ministereId'],
-    where: { ...where, statutPaiement: 'PAID' },
-    _count: true,
-    _sum: { montant: true },
-  });
   const payesMap = {};
   for (const p of payesGroupes) payesMap[p.ministereId] = { count: p._count, montant: toNumber(p._sum?.montant) };
 
-  return groupes
-    .map((g) => {
-      const m = ministeresMap[g.ministereId] || {};
-      const total = g._count || 0;
-      const payesInfo = payesMap[g.ministereId] || { count: 0, montant: 0 };
+  return allMinisteres
+    .map((m) => {
+      const stats = statsMap[m.id] || { count: 0, montant: 0 };
+      const payesInfo = payesMap[m.id] || { count: 0, montant: 0 };
       return {
-        ministereId: g.ministereId,
+        ministereId: m.id,
         nom: m.nomFr || 'Inconnu',
         shortName: m.shortName || null,
-        montant: toNumber(g._sum?.montant),
+        montant: stats.montant,
         montantPaye: payesInfo.montant,
-        nombreSoumissions: total,
+        nombreSoumissions: stats.count,
         soumissionsPayees: payesInfo.count,
-        tauxPaiement: total > 0 ? Math.round((payesInfo.count / total) * 10000) / 100 : 0,
+        tauxPaiement: stats.count > 0 ? Math.round((payesInfo.count / stats.count) * 10000) / 100 : 0,
         couleur: m.couleur || null,
       };
     })
@@ -1048,6 +1051,7 @@ export async function computeSoumissions(filters = {}, pagination = {}) {
       soumetteurEmail: s.soumetteurEmail,
       soumetteurTelephone: s.soumetteurTelephone,
       montant: toNumber(s.montant),
+      montantPaye: toNumber(s.montantPaye),
       statutPaiement: s.statutPaiement,
       dateSoumission: s.dateSoumission,
       datePaiement: s.datePaiement,

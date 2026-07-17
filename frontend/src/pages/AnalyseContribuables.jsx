@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom';
 import {
   Search, X, FileText, CheckCircle, Clock, AlertTriangle,
-  ChevronLeft, ChevronRight, Eye, XCircle, Filter, Download,
+  ChevronLeft, ChevronRight, Eye, XCircle, Filter,
   ArrowUp, ArrowDown, ArrowLeft,
 } from 'lucide-react';
 import WeaveSpinner from '../components/ui/WeaveSpinner';
@@ -33,14 +33,30 @@ const STATUT_OPTIONS = [
 const LIMIT_OPTIONS = [20, 50, 100];
 
 const COLUMNS = [
-  { key: 'uniqueCode',   label: 'Code unique',  sortable: true },
-  { key: 'soumetteurNom', label: 'Soumetteur',   sortable: true },
-  { key: 'service',       label: 'Service',      sortable: true },
-  { key: 'ministere',     label: 'Ministère',    sortable: true },
-  { key: 'montant',       label: 'Montant',      sortable: true, align: 'right' },
-  { key: 'statutPaiement', label: 'Statut',      sortable: true },
-  { key: 'dateSoumission', label: 'Date',        sortable: true },
+  { key: 'uniqueCode',     label: 'Code unique',   sortable: true },
+  { key: 'soumetteurNom',  label: 'Soumetteur',    sortable: true },
+  { key: 'service',        label: 'Service / Ministère', sortable: true },
+  { key: 'montant',        label: 'Montant',       sortable: true, align: 'right' },
+  { key: 'montantPaye',    label: 'Montant payé',  sortable: true, align: 'right' },
+  { key: 'statutPaiement', label: 'Statut',        sortable: true },
+  { key: 'dateSoumission', label: 'Date',          sortable: true },
 ];
+
+// ─── Helpers ──────────────────────────────────────────────────
+function safeString(val) {
+  if (val == null) return '';
+  if (typeof val === 'object') return val.nomFr || val.nom || val.name || '';
+  return String(val);
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  try {
+    return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch {
+    return d;
+  }
+}
 
 // ─── Status Badge ─────────────────────────────────────────────
 function StatutBadge({ statut }) {
@@ -128,21 +144,21 @@ function DetailPanel({ detail, loading, onClose }) {
             <h4 style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', margin: '0 0 0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Identification
             </h4>
-            <DetailRow label="Code unique" value={detail.uniqueCode} mono />
-            <DetailRow label="Nom" value={detail.soumetteurNom} />
-            <DetailRow label="Email" value={detail.soumetteurEmail} />
-            <DetailRow label="Téléphone" value={detail.soumetteurTelephone} />
+            <DetailRow label="Code unique" value={safeString(detail.uniqueCode)} mono />
+            <DetailRow label="Nom" value={safeString(detail.soumetteurNom)} />
+            <DetailRow label="Email" value={safeString(detail.soumetteurEmail)} />
+            <DetailRow label="Téléphone" value={safeString(detail.soumetteurTelephone)} />
           </div>
           {/* Service */}
           <div>
             <h4 style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', margin: '0 0 0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Service
             </h4>
-            <DetailRow label="Service" value={detail.service} />
-            <DetailRow label="Ministère" value={detail.ministere} />
-            <DetailRow label="Domaine" value={detail.domaine} />
-            <DetailRow label="Formulaire" value={detail.formulaireNom} />
-            <DetailRow label="Unité org." value={detail.orgUnit} />
+            <DetailRow label="Service" value={safeString(detail.service)} />
+            <DetailRow label="Ministère" value={safeString(detail.ministere)} />
+            <DetailRow label="Domaine" value={safeString(detail.domaine)} />
+            <DetailRow label="Formulaire" value={safeString(detail.formulaireNom)} />
+            <DetailRow label="Unité org." value={safeString(detail.orgUnit)} />
           </div>
           {/* Paiement */}
           <div>
@@ -150,6 +166,7 @@ function DetailPanel({ detail, loading, onClose }) {
               Paiement
             </h4>
             <DetailRow label="Montant" value={formatMontant(detail.montant)} highlight />
+            <DetailRow label="Montant payé" value={formatMontant(detail.montantPaye)} highlight />
             <DetailRow label="Statut" value={<StatutBadge statut={detail.statutPaiement} />} />
             <DetailRow label="Date soumission" value={formatDate(detail.dateSoumission)} />
             <DetailRow label="Date paiement" value={formatDate(detail.datePaiement)} />
@@ -174,15 +191,6 @@ function DetailRow({ label, value, mono, highlight }) {
       </span>
     </div>
   );
-}
-
-function formatDate(d) {
-  if (!d) return '—';
-  try {
-    return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  } catch {
-    return d;
-  }
 }
 
 // ─── PAGE PRINCIPALE ──────────────────────────────────────────
@@ -337,13 +345,16 @@ export default function AnalyseContribuables() {
 
   // Export data
   const getExportData = useCallback(() => ({
-    headers: ['Code unique', 'Soumetteur', 'Service', 'Ministère', 'Montant', 'Statut', 'Date'],
+    headers: ['Code unique', 'Soumetteur', 'Email', 'Téléphone', 'Service', 'Ministère', 'Montant', 'Montant payé', 'Statut', 'Date'],
     rows: (data?.donnees || []).map(s => [
       s.uniqueCode || '',
       s.soumetteurNom || '',
-      s.service || '',
-      s.ministere || '',
+      s.soumetteurEmail || '',
+      s.soumetteurTelephone || '',
+      safeString(s.service),
+      safeString(s.ministere),
       formatMontant(s.montant),
+      formatMontant(s.montantPaye),
       STATUT_CONFIG[s.statutPaiement]?.label || s.statutPaiement || '',
       formatDate(s.dateSoumission),
     ]),
@@ -580,6 +591,8 @@ export default function AnalyseContribuables() {
                 <tbody>
                   {sortedDonnees.map((s, idx) => {
                     const isSelected = selectedCode === s.uniqueCode;
+                    const serviceStr = safeString(s.service);
+                    const ministereStr = safeString(s.ministere);
                     return (
                       <tr
                         key={s.id || s.uniqueCode || idx}
@@ -592,6 +605,7 @@ export default function AnalyseContribuables() {
                         onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(37,99,235,0.04)'; }}
                         onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = idx % 2 === 1 ? 'var(--bg-secondary, rgba(0,0,0,0.01))' : 'transparent'; }}
                       >
+                        {/* Code unique */}
                         <td style={{
                           padding: '0.6rem 0.75rem', fontSize: '0.8rem',
                           fontFamily: 'monospace', fontWeight: 600, color: '#2563EB',
@@ -600,30 +614,40 @@ export default function AnalyseContribuables() {
                         }}>
                           {s.uniqueCode || '—'}
                         </td>
+
+                        {/* Soumetteur (nom + email) */}
                         <td style={{
-                          padding: '0.6rem 0.75rem', fontSize: '0.8rem',
-                          color: 'var(--text-primary)', fontWeight: 500,
+                          padding: '0.6rem 0.75rem',
                           borderBottom: '1px solid var(--glass-border)',
-                          maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         }}>
-                          {s.soumetteurNom || '—'}
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.3 }}>
+                            {s.soumetteurNom || '—'}
+                          </div>
+                          {s.soumetteurEmail && (
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', lineHeight: 1.3, marginTop: '1px' }}>
+                              {s.soumetteurEmail}
+                            </div>
+                          )}
                         </td>
+
+                        {/* Service / Ministère */}
                         <td style={{
-                          padding: '0.6rem 0.75rem', fontSize: '0.78rem',
-                          color: 'var(--text-secondary)',
+                          padding: '0.6rem 0.75rem',
                           borderBottom: '1px solid var(--glass-border)',
-                          maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
-                          {s.service || '—'}
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {serviceStr || '—'}
+                          </div>
+                          {ministereStr && (
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', lineHeight: 1.3, marginTop: '1px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {ministereStr}
+                            </div>
+                          )}
                         </td>
-                        <td style={{
-                          padding: '0.6rem 0.75rem', fontSize: '0.78rem',
-                          color: 'var(--text-secondary)',
-                          borderBottom: '1px solid var(--glass-border)',
-                          maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        }}>
-                          {s.ministere || '—'}
-                        </td>
+
+                        {/* Montant */}
                         <td style={{
                           padding: '0.6rem 0.75rem', fontSize: '0.8rem',
                           fontWeight: 700, color: 'var(--text-primary)',
@@ -632,12 +656,27 @@ export default function AnalyseContribuables() {
                         }}>
                           {formatMontant(s.montant)}
                         </td>
+
+                        {/* Montant payé */}
+                        <td style={{
+                          padding: '0.6rem 0.75rem', fontSize: '0.8rem',
+                          fontWeight: 700,
+                          color: s.montantPaye > 0 ? '#059669' : 'var(--text-tertiary)',
+                          borderBottom: '1px solid var(--glass-border)',
+                          textAlign: 'right', whiteSpace: 'nowrap',
+                        }}>
+                          {formatMontant(s.montantPaye)}
+                        </td>
+
+                        {/* Statut */}
                         <td style={{
                           padding: '0.6rem 0.75rem',
                           borderBottom: '1px solid var(--glass-border)',
                         }}>
                           <StatutBadge statut={s.statutPaiement} />
                         </td>
+
+                        {/* Date soumission */}
                         <td style={{
                           padding: '0.6rem 0.75rem', fontSize: '0.78rem',
                           color: 'var(--text-secondary)',
@@ -646,6 +685,8 @@ export default function AnalyseContribuables() {
                         }}>
                           {formatDate(s.dateSoumission)}
                         </td>
+
+                        {/* Action eye */}
                         <td style={{
                           padding: '0.6rem 0.75rem',
                           borderBottom: '1px solid var(--glass-border)',

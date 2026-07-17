@@ -1,5 +1,5 @@
 import WeaveSpinner from '../components/ui/WeaveSpinner';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Map, Activity, Building2, TrendingUp, TrendingDown, AlertTriangle,
   CheckCircle, Target, DollarSign, Users, FileText, ArrowUpRight, ArrowDownRight,
@@ -31,6 +31,17 @@ export default function CartographieRegionale() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailView, setDetailView] = useState('overview');
 
+  // Build a lookup map: orgUnitId/code -> telemetry item
+  // so we can resolve the region code for fetchRegionDetail
+  const telemetryByKey = useMemo(() => {
+    const map = new Map();
+    telemetry.forEach((item) => {
+      if (item.orgUnitId) map.set(item.orgUnitId, item);
+      if (item.code) map.set(item.code, item);
+    });
+    return map;
+  }, [telemetry]);
+
   useEffect(() => {
     setLoading(true);
     fetchTelemetrieRegions(dateRange)
@@ -43,11 +54,23 @@ export default function CartographieRegionale() {
     if (!selectedRegion) { setRegionDetail(null); return; }
     setDetailLoading(true);
     setDetailView('overview');
-    fetchRegionDetail(selectedRegion, dateRange)
+
+    // selectedRegion is an orgUnitId (or static region id from CarteCameroun).
+    // fetchRegionDetail expects the region "code" (e.g. "CE", "LT").
+    // Look up the telemetry item to get the code.
+    const match = telemetryByKey.get(selectedRegion);
+    const code = match?.code || selectedRegion;
+
+    const controller = new AbortController();
+    fetchRegionDetail(code, dateRange, controller.signal)
       .then(setRegionDetail)
-      .catch(console.error)
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error(err);
+      })
       .finally(() => setDetailLoading(false));
-  }, [selectedRegion, dateRange]);
+
+    return () => controller.abort();
+  }, [selectedRegion, dateRange, telemetryByKey]);
 
   const getExportData = useCallback(() => {
     if (regionDetail && regionDetail.departements) {
@@ -174,7 +197,7 @@ export default function CartographieRegionale() {
                           {d.classement.map((r, i) => {
                             const isSelected = r.orgUnitId === selectedRegion || r.code === d.code;
                             return (
-                              <tr key={i} className={`cdi-perf-row ${isSelected ? 'selected-row' : ''}`} onClick={() => setSelectedRegion(r.orgUnitId || r.id)} style={{ cursor: 'pointer' }}>
+                              <tr key={i} className={`cdi-perf-row ${isSelected ? 'selected-row' : ''}`} onClick={() => setSelectedRegion(r.orgUnitId || r.code)} style={{ cursor: 'pointer' }}>
                                 <td className="col-index">{i + 1}</td>
                                 <td className="contrib-name">{r.nom} {isSelected && <span className="mini-badge paid" style={{ marginLeft: '0.3rem' }}>Sélectionnée</span>}</td>
                                 <td className="text-right montant-recouvre-cell">{fmtFull(r.valeur)}</td>

@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "Soumission" ADD COLUMN IF NOT EXISTS "montant_paye" DECIMAL(18,2) NOT NULL DEFAULT 0;

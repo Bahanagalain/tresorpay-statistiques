@@ -519,10 +519,13 @@ export default function TableauDeBord() {
         if (dateRange.endDate) params.endDate = dateRange.endDate;
         const res = await fetchSoumissions(params, controller.signal);
         if (!isMounted) return;
-        setSoumissions(res.donnees || []);
+        // L'API retourne { donnees: [...], pagination: {...} }
+        const list = Array.isArray(res.donnees) ? res.donnees : Array.isArray(res) ? res : [];
+        setSoumissions(list);
         setSoumPagination(res.pagination || {});
       } catch (err) {
         if (!isMounted || err?.name === 'AbortError') return;
+        console.error('Erreur chargement soumissions:', err);
       } finally {
         if (isMounted) setSoumLoading(false);
       }
@@ -539,8 +542,8 @@ export default function TableauDeBord() {
     fetchSoumissions({ page: 1, limit: 5 }, controller.signal)
       .then(res => {
         if (!isMounted) return;
-        const list = res.soumissions || res.donnees?.soumissions || res.datas?.soumissions || res.donnees || [];
-        setLatestSoumissions(Array.isArray(list) ? list : []);
+        const list = Array.isArray(res.donnees) ? res.donnees : Array.isArray(res) ? res : [];
+        setLatestSoumissions(list);
       })
       .catch(() => {});
     return () => { isMounted = false; controller.abort(); };

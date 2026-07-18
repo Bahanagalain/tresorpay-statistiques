@@ -7,7 +7,7 @@ import {
   TrendingUp, TrendingDown, FileText, CheckCircle, Clock,
   AlertTriangle, Building2, Calendar, X,
   RotateCcw, FileSpreadsheet, FileDown, Maximize, RefreshCw,
-  AlertCircle, MapPin, XCircle, ChevronRight, ArrowLeft,
+  AlertCircle, MapPin, XCircle, ChevronRight, ChevronDown, ArrowLeft,
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { usePresentMode } from '../components/layout/MainLayout';
@@ -20,6 +20,7 @@ import {
   fetchMinistereDetail,
   fetchRegionDetail,
   fetchMonPerimetre,
+  fetchSoumissions,
   lancerSynchronisation,
 } from '../api/analyticsApi';
 import { invalidateCache } from '../api/cache';
@@ -53,6 +54,7 @@ function getProfileLabel(profile) {
 
 const TAB_DEFS = [
   { id: 'overview', label: "Vue d'ensemble" },
+  { id: 'soumissions', label: 'Soumissions' },
   { id: 'ministeres', label: 'Ministères & Services' },
   { id: 'comparaison', label: 'Comparaison' },
   { id: 'regions', label: 'Régions' },
@@ -335,6 +337,16 @@ export default function TableauDeBord() {
   const [drillRegionLoading, setDrillRegionLoading] = useState(false);
   const [drillRegionError, setDrillRegionError] = useState('');
 
+  // Soumissions tab state
+  const [soumissions, setSoumissions] = useState([]);
+  const [soumPagination, setSoumPagination] = useState({ page: 1, total: 0, totalPages: 0 });
+  const [soumLoading, setSoumLoading] = useState(false);
+  const [soumSearch, setSoumSearch] = useState('');
+  const [soumStatut, setSoumStatut] = useState('');
+  const [soumPage, setSoumPage] = useState(1);
+  const [selectedSoumission, setSelectedSoumission] = useState(null);
+  const soumSearchTimer = useRef(null);
+
   // Tabs visibles selon le profil
   const visibleTabs = useMemo(() => {
     return TAB_DEFS.filter(t => {
@@ -491,6 +503,34 @@ export default function TableauDeBord() {
     return () => { isMounted = false; controller.abort(); };
   }, [drillRegion, dateRange.startDate, dateRange.endDate]);
 
+  // ── Load soumissions when tab active ──────────────────────
+  useEffect(() => {
+    if (activeTab !== 'soumissions') return;
+    let isMounted = true;
+    const controller = new AbortController();
+
+    async function load() {
+      setSoumLoading(true);
+      try {
+        const params = { page: soumPage, limit: 20 };
+        if (soumSearch) params.search = soumSearch;
+        if (soumStatut) params.statut = soumStatut;
+        if (dateRange.startDate) params.startDate = dateRange.startDate;
+        if (dateRange.endDate) params.endDate = dateRange.endDate;
+        const res = await fetchSoumissions(params, controller.signal);
+        if (!isMounted) return;
+        setSoumissions(res.donnees || []);
+        setSoumPagination(res.pagination || {});
+      } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
+      } finally {
+        if (isMounted) setSoumLoading(false);
+      }
+    }
+    load();
+    return () => { isMounted = false; controller.abort(); };
+  }, [activeTab, soumPage, soumSearch, soumStatut, dateRange.startDate, dateRange.endDate]);
+
   // ── Derived data ──────────────────────────────────────────
   const top10Ministeres = useMemo(
     () => [...ministeres].sort((a, b) => b.montant - a.montant).slice(0, 10),
@@ -527,9 +567,16 @@ export default function TableauDeBord() {
   }, []);
 
   const handleRegionClick = useCallback((region) => {
-    setDrillRegion(region);
-    setDrillRegionData(null);
-  }, []);
+    const regionId = region.orgUnitId || region.code || region.nom;
+    if (drillRegion && (drillRegion.orgUnitId || drillRegion.code || drillRegion.nom) === regionId) {
+      // Collapse if same region clicked
+      setDrillRegion(null);
+      setDrillRegionData(null);
+    } else {
+      setDrillRegion(region);
+      setDrillRegionData(null);
+    }
+  }, [drillRegion]);
 
   const handleExpand = (e) => {
     const card = e.currentTarget.closest('.chart-card');
@@ -699,78 +746,7 @@ export default function TableauDeBord() {
     );
   };
 
-  // ── Render helper: Region detail panel content ────────────
-  const renderRegionDetail = () => {
-    const d = drillRegionData;
-    if (!d) return null;
-    const departments = Array.isArray(d.departements) ? d.departements : (Array.isArray(d.children) ? d.children : []);
-    const regKpi = d.kpi || d;
-    const revenus = regKpi.valeur || regKpi.totalRevenus || regKpi.montant || 0;
-    const soumissions = regKpi.nombreSoumissions || regKpi.totalSoumissions || 0;
-
-    return (
-      <>
-        <div className="ddm-kpis">
-          <div className="ddm-kpi">
-            <span className="ddm-kpi__label">Revenus</span>
-            <span className="ddm-kpi__value" style={{ color: '#059669' }}>{fmtFull(revenus)} FCFA</span>
-          </div>
-          <div className="ddm-kpi">
-            <span className="ddm-kpi__label">Soumissions</span>
-            <span className="ddm-kpi__value">{fmtEntier(soumissions)}</span>
-          </div>
-          <div className="ddm-kpi">
-            <span className="ddm-kpi__label">Statut</span>
-            <span className="ddm-kpi__value">{drillRegion?.statut || 'Normal'}</span>
-          </div>
-        </div>
-
-        <div style={{ padding: '1rem 1.25rem' }}>
-          <h3 className="ddm-section-title">Departements ({departments.length})</h3>
-          {departments.length === 0 ? (
-            <p style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>Aucun departement disponible.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {departments.map((dep, i) => {
-                const depMontant = dep.valeur || dep.montant || 0;
-                const depSoum = dep.nombreSoumissions || 0;
-                return (
-                  <div
-                    key={dep.orgUnitId || dep.code || i}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '0.75rem',
-                      padding: '0.6rem 0.8rem',
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--glass-border)',
-                      borderRadius: '8px',
-                      transition: 'transform 0.15s',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateX(4px)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; }}
-                  >
-                    <MapPin size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {dep.nom}
-                      </div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', marginTop: '0.1rem' }}>
-                        {fmtEntier(depSoum)} soumissions
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#059669' }}>
-                        {fmt(depMontant)} FCFA
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </>
-    );
-  };
+  // ── Render helper: Region expanded row (inline accordion) ─
 
   // ── Render ────────────────────────────────────────────────
   if (analyticsLoading && !kpi.totalSoumissions) {
@@ -799,19 +775,7 @@ export default function TableauDeBord() {
         </DrillDownPanel>
       )}
 
-      {/* ── Drill-down region panel ── */}
-      {drillRegion && (
-        <DrillDownPanel
-          title={drillRegion.nom}
-          subtitle="Detail regional — departements"
-          onClose={() => { setDrillRegion(null); setDrillRegionData(null); }}
-          loading={drillRegionLoading}
-          error={drillRegionError}
-          onRetry={() => { setDrillRegionData(null); setDrillRegion({ ...drillRegion }); }}
-        >
-          {renderRegionDetail()}
-        </DrillDownPanel>
-      )}
+      {/* Region drill-down is now inline accordion in the table */}
 
       {/* ── Header ── */}
       <div className="dgi-page__header">
@@ -1025,6 +989,268 @@ export default function TableauDeBord() {
         </div>
       )}
 
+      {/* ═══════════ TAB: SOUMISSIONS ═══════════ */}
+      {activeTab === 'soumissions' && (
+        <div className="tdb-tab-content" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {/* Filters bar */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0,
+            padding: '0.6rem 0.8rem',
+            background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
+            borderRadius: 10, marginBottom: '0.5rem', flexWrap: 'wrap',
+          }}>
+            <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 180 }}>
+              <input
+                type="text"
+                placeholder="Rechercher par code, nom, email..."
+                defaultValue={soumSearch}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (soumSearchTimer.current) clearTimeout(soumSearchTimer.current);
+                  soumSearchTimer.current = setTimeout(() => {
+                    setSoumSearch(val);
+                    setSoumPage(1);
+                  }, 500);
+                }}
+                style={{
+                  width: '100%', padding: '0.45rem 0.7rem', fontSize: '0.78rem',
+                  border: '1px solid var(--glass-border)', borderRadius: 8,
+                  background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)',
+                  outline: 'none',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '0.3rem' }}>
+              {[
+                { value: '', label: 'Tous' },
+                { value: 'PAID', label: 'Paye' },
+                { value: 'PENDING', label: 'En attente' },
+                { value: 'PARTIAL', label: 'Partiel' },
+                { value: 'FAILED', label: 'Echoue' },
+              ].map((btn) => (
+                <button
+                  key={btn.value}
+                  onClick={() => { setSoumStatut(btn.value); setSoumPage(1); }}
+                  style={{
+                    padding: '0.35rem 0.65rem', fontSize: '0.72rem', fontWeight: 600,
+                    border: '1px solid var(--glass-border)', borderRadius: 6, cursor: 'pointer',
+                    background: soumStatut === btn.value ? 'var(--primary)' : 'transparent',
+                    color: soumStatut === btn.value ? '#fff' : 'var(--text-secondary)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+              {fmtEntier(soumPagination.total || 0)} resultats
+            </span>
+          </div>
+
+          {/* Table */}
+          {soumLoading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+              <WeaveSpinner size={60} message="Chargement des soumissions..." />
+            </div>
+          ) : soumissions.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-secondary)' }}>
+              <div style={{ textAlign: 'center' }}>
+                <FileText size={32} style={{ opacity: 0.4 }} />
+                <p style={{ marginTop: '0.5rem' }}>Aucune soumission trouvee.</p>
+              </div>
+            </div>
+          ) : (
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto', borderRadius: 10, border: '1px solid var(--glass-border)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                <thead>
+                  <tr style={{
+                    position: 'sticky', top: 0, zIndex: 2,
+                    background: 'var(--bg-surface)', borderBottom: '2px solid var(--glass-border)',
+                  }}>
+                    {['Code Unique', 'Contribuable', 'Service', 'Ministere', 'Montant', 'Paye', 'Statut', 'Date'].map((col, i) => (
+                      <th key={col} style={{
+                        padding: '0.6rem 0.7rem', fontWeight: 700, fontSize: '0.7rem',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        color: 'var(--text-tertiary)', textAlign: i >= 4 && i <= 5 ? 'right' : 'left',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {soumissions.map((s, idx) => {
+                    const cfg = STATUT_CONFIG[s.statutPaiement] || STATUT_CONFIG.PENDING;
+                    const dateFmt = s.dateSoumission
+                      ? s.dateSoumission.split('-').reverse().join('/')
+                      : '\u2014';
+                    return (
+                      <tr
+                        key={s.uniqueCode || s.id || idx}
+                        onClick={() => setSelectedSoumission(s)}
+                        style={{
+                          cursor: 'pointer',
+                          background: idx % 2 === 0 ? 'transparent' : 'var(--bg-surface-elevated)',
+                          borderBottom: '1px solid var(--glass-border)',
+                          transition: 'background 0.12s',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(5,150,105,0.06)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = idx % 2 === 0 ? 'transparent' : 'var(--bg-surface-elevated)'; }}
+                      >
+                        <td style={{ padding: '0.55rem 0.7rem', fontWeight: 600, fontFamily: 'monospace', fontSize: '0.72rem', color: 'var(--text-primary)' }}>
+                          {s.uniqueCode || '\u2014'}
+                        </td>
+                        <td style={{ padding: '0.55rem 0.7rem' }}>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.soumetteurNom || '\u2014'}</div>
+                          {s.soumetteurEmail && (
+                            <div style={{ fontSize: '0.66rem', color: 'var(--text-tertiary)', marginTop: '0.1rem' }}>{s.soumetteurEmail}</div>
+                          )}
+                        </td>
+                        <td style={{ padding: '0.55rem 0.7rem', color: 'var(--text-secondary)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {s.service || '\u2014'}
+                        </td>
+                        <td style={{ padding: '0.55rem 0.7rem', color: 'var(--text-secondary)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {s.ministere || '\u2014'}
+                        </td>
+                        <td style={{ padding: '0.55rem 0.7rem', textAlign: 'right', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                          {fmtFull(s.montant)}
+                        </td>
+                        <td style={{ padding: '0.55rem 0.7rem', textAlign: 'right', fontWeight: 600, color: '#059669', whiteSpace: 'nowrap' }}>
+                          {fmtFull(s.montantPaye)}
+                        </td>
+                        <td style={{ padding: '0.55rem 0.7rem' }}>
+                          <span style={{
+                            display: 'inline-block', padding: '0.2rem 0.55rem', borderRadius: 20,
+                            fontSize: '0.66rem', fontWeight: 700, letterSpacing: '0.02em',
+                            background: cfg.color + '18', color: cfg.color,
+                          }}>
+                            {cfg.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.55rem 0.7rem', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
+                          {dateFmt}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {soumPagination.totalPages > 1 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0.5rem 0.8rem', flexShrink: 0, marginTop: '0.4rem',
+              background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
+              borderRadius: 10, fontSize: '0.75rem',
+            }}>
+              <span style={{ color: 'var(--text-tertiary)' }}>
+                {fmtEntier(soumPagination.total)} soumissions au total
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  onClick={() => setSoumPage((p) => Math.max(1, p - 1))}
+                  disabled={soumPage <= 1}
+                  style={{
+                    padding: '0.3rem 0.7rem', border: '1px solid var(--glass-border)',
+                    borderRadius: 6, cursor: soumPage <= 1 ? 'default' : 'pointer',
+                    background: 'transparent', color: soumPage <= 1 ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                    fontSize: '0.75rem', fontWeight: 600, opacity: soumPage <= 1 ? 0.4 : 1,
+                  }}
+                >
+                  Precedent
+                </button>
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Page {soumPage} sur {soumPagination.totalPages}
+                </span>
+                <button
+                  onClick={() => setSoumPage((p) => Math.min(soumPagination.totalPages, p + 1))}
+                  disabled={soumPage >= soumPagination.totalPages}
+                  style={{
+                    padding: '0.3rem 0.7rem', border: '1px solid var(--glass-border)',
+                    borderRadius: 6, cursor: soumPage >= soumPagination.totalPages ? 'default' : 'pointer',
+                    background: 'transparent', color: soumPage >= soumPagination.totalPages ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                    fontSize: '0.75rem', fontWeight: 600, opacity: soumPage >= soumPagination.totalPages ? 0.4 : 1,
+                  }}
+                >
+                  Suivant
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Detail panel */}
+          {selectedSoumission && (
+            <DrillDownPanel
+              title={selectedSoumission.uniqueCode || 'Detail soumission'}
+              subtitle={(() => {
+                const c = STATUT_CONFIG[selectedSoumission.statutPaiement] || STATUT_CONFIG.PENDING;
+                return c.label;
+              })()}
+              onClose={() => setSelectedSoumission(null)}
+              loading={false}
+            >
+              <div style={{ padding: '1rem 1.25rem' }}>
+                {/* Status badge */}
+                <div style={{ marginBottom: '1rem' }}>
+                  {(() => {
+                    const c = STATUT_CONFIG[selectedSoumission.statutPaiement] || STATUT_CONFIG.PENDING;
+                    return (
+                      <span style={{
+                        display: 'inline-block', padding: '0.3rem 0.8rem', borderRadius: 20,
+                        fontSize: '0.75rem', fontWeight: 700,
+                        background: c.color + '18', color: c.color,
+                      }}>
+                        {c.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                {/* Info grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
+                  {[
+                    { label: 'Contribuable', value: selectedSoumission.soumetteurNom || '\u2014' },
+                    { label: 'Email', value: selectedSoumission.soumetteurEmail || '\u2014' },
+                    { label: 'Telephone', value: selectedSoumission.soumetteurTelephone || '\u2014' },
+                    { label: 'Service', value: selectedSoumission.service || '\u2014' },
+                    { label: 'Ministere', value: selectedSoumission.ministere || '\u2014' },
+                    { label: 'Formulaire', value: selectedSoumission.formulaireNom || '\u2014' },
+                    { label: 'Montant soumis', value: fmtFull(selectedSoumission.montant) + ' FCFA', highlight: true },
+                    { label: 'Montant paye', value: fmtFull(selectedSoumission.montantPaye) + ' FCFA', highlight: true, color: '#059669' },
+                    { label: 'Date soumission', value: selectedSoumission.dateSoumission ? selectedSoumission.dateSoumission.split('-').reverse().join('/') : '\u2014' },
+                    { label: 'Date paiement', value: selectedSoumission.datePaiement ? selectedSoumission.datePaiement.split('-').reverse().join('/') : '\u2014' },
+                  ].map((item, i) => (
+                    <div key={i} style={{
+                      padding: '0.6rem 0.8rem',
+                      background: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 8,
+                    }}>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.2rem' }}>
+                        {item.label}
+                      </div>
+                      <div style={{
+                        fontSize: item.highlight ? '0.88rem' : '0.8rem',
+                        fontWeight: item.highlight ? 800 : 600,
+                        color: item.color || 'var(--text-primary)',
+                        wordBreak: 'break-word',
+                      }}>
+                        {item.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </DrillDownPanel>
+          )}
+        </div>
+      )}
+
       {/* ═══════════ TAB 2: MINISTERES & SERVICES ═══════════ */}
       {activeTab === 'ministeres' && (
         <div className="tdb-tab-content" style={{ overflow: 'auto' }}>
@@ -1143,31 +1369,191 @@ export default function TableauDeBord() {
               </div>
             </div>
           ) : (
-            <div className="tdb-regions-grid tdb-regions-grid--full">
-              {regions.map((region) => (
-                <div
-                  className="tdb-region-card tdb-region-card--clickable"
-                  key={region.orgUnitId || region.nom}
-                  onClick={() => handleRegionClick(region)}
-                >
-                  <div className="tdb-region-card__header">
-                    <span className="tdb-region-card__name">{region.nom}</span>
-                    <span className={`tdb-region-card__status tdb-status--${(region.statut || 'normal').toLowerCase()}`}>
-                      {region.statut || 'Normal'}
-                    </span>
-                  </div>
-                  <div className="tdb-region-card__value">{fmt(region.valeur)} FCFA</div>
-                  <div className="tdb-region-card__meta">
-                    {fmtEntier(region.nombreSoumissions)} soumissions
-                    {region.objectif > 0 && (
-                      <> — {Math.round((region.valeur / region.objectif) * 100)}% objectif</>
-                    )}
-                  </div>
-                  <div style={{ marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-tertiary)', fontSize: '0.6rem' }}>
-                    <ChevronRight size={10} /> Voir les departements
-                  </div>
-                </div>
-              ))}
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <div className="ddm-table-wrapper">
+                <table className="ddm-table" style={{ tableLayout: 'auto' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '28%' }}>Region</th>
+                      <th style={{ textAlign: 'right' }}>Revenus</th>
+                      <th style={{ textAlign: 'right' }}>Soumissions</th>
+                      <th style={{ textAlign: 'right' }}>Objectif</th>
+                      <th style={{ textAlign: 'center' }}>Statut</th>
+                      <th style={{ width: '5rem', textAlign: 'center' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...regions].sort((a, b) => (b.valeur || 0) - (a.valeur || 0)).map((region) => {
+                      const regionId = region.orgUnitId || region.code || region.nom;
+                      const isExpanded = drillRegion && (drillRegion.orgUnitId || drillRegion.code || drillRegion.nom) === regionId;
+                      const statutRaw = (region.statut || 'normal').toLowerCase();
+                      const statutColor = statutRaw === 'critical' || statutRaw === 'critique' ? '#DC2626'
+                        : statutRaw === 'warning' || statutRaw === 'attention' ? '#D97706'
+                        : '#059669';
+                      const statutLabel = statutRaw === 'critical' || statutRaw === 'critique' ? 'Critique'
+                        : statutRaw === 'warning' || statutRaw === 'attention' ? 'Attention'
+                        : 'Bon';
+                      const objectifPct = region.objectif > 0 ? Math.round((region.valeur / region.objectif) * 100) : null;
+
+                      return (
+                        <React.Fragment key={regionId}>
+                          <tr
+                            className="ddm-row"
+                            style={{ cursor: 'pointer', transition: 'background 0.15s' }}
+                            onClick={() => handleRegionClick(region)}
+                          >
+                            <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <MapPin size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                                {region.nom}
+                              </div>
+                            </td>
+                            <td className="text-right" style={{ fontWeight: 800, color: '#059669', whiteSpace: 'nowrap' }}>
+                              {fmt(region.valeur || 0)} FCFA
+                            </td>
+                            <td className="text-right" style={{ fontWeight: 600 }}>
+                              {fmtEntier(region.nombreSoumissions || 0)}
+                            </td>
+                            <td className="text-right" style={{ whiteSpace: 'nowrap', color: objectifPct !== null ? (objectifPct >= 80 ? '#059669' : objectifPct >= 50 ? '#D97706' : '#DC2626') : 'var(--text-tertiary)' }}>
+                              {objectifPct !== null ? `${objectifPct}%` : '—'}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                                fontSize: '0.7rem', fontWeight: 700, color: statutColor,
+                              }}>
+                                <span style={{
+                                  width: '8px', height: '8px', borderRadius: '50%',
+                                  background: statutColor, display: 'inline-block', flexShrink: 0,
+                                }} />
+                                {statutLabel}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                                fontSize: '0.72rem', fontWeight: 700,
+                                color: isExpanded ? 'var(--accent-dgi)' : 'var(--text-tertiary)',
+                                transition: 'color 0.15s',
+                              }}>
+                                {isExpanded ? 'Fermer' : 'Voir'}
+                                <ChevronDown size={14} style={{
+                                  transition: 'transform 0.25s',
+                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                }} />
+                              </span>
+                            </td>
+                          </tr>
+
+                          {/* ── Expanded accordion row ── */}
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={6} style={{ padding: 0, borderBottom: '2px solid var(--accent-dgi)' }}>
+                                <div style={{
+                                  background: 'var(--bg-surface-elevated)',
+                                  padding: '1rem 1.25rem',
+                                  animation: 'fadeIn 0.25s ease',
+                                }}>
+                                  {/* Region KPI summary */}
+                                  {drillRegionLoading ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+                                      <WeaveSpinner size={40} message="Chargement..." />
+                                    </div>
+                                  ) : drillRegionError ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#DC2626', fontSize: '0.78rem', padding: '0.5rem 0' }}>
+                                      <AlertTriangle size={14} />
+                                      {drillRegionError}
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setDrillRegionData(null); setDrillRegion({ ...drillRegion }); }}
+                                        style={{ marginLeft: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--bg-surface)', borderRadius: '6px', padding: '0.25rem 0.6rem', fontSize: '0.7rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                                      >
+                                        <RotateCcw size={10} /> Reessayer
+                                      </button>
+                                    </div>
+                                  ) : drillRegionData ? (() => {
+                                    const d = drillRegionData;
+                                    const departments = Array.isArray(d.departements) ? d.departements : (Array.isArray(d.children) ? d.children : []);
+                                    const regKpi = d.kpi || d;
+                                    const revenus = regKpi.valeur || regKpi.totalRevenus || regKpi.montant || 0;
+                                    const soumissions = regKpi.nombreSoumissions || regKpi.totalSoumissions || 0;
+                                    const statut = drillRegion?.statut || 'Normal';
+
+                                    return (
+                                      <>
+                                        {/* KPI horizontal strip */}
+                                        <div style={{
+                                          display: 'flex', gap: '2rem', flexWrap: 'wrap',
+                                          padding: '0.6rem 0', marginBottom: '0.75rem',
+                                          borderBottom: '1px solid var(--glass-border)',
+                                        }}>
+                                          <div>
+                                            <div style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: '0.15rem' }}>Revenus</div>
+                                            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#059669' }}>{fmtFull(revenus)} FCFA</div>
+                                          </div>
+                                          <div>
+                                            <div style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: '0.15rem' }}>Soumissions</div>
+                                            <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{fmtEntier(soumissions)}</div>
+                                          </div>
+                                          <div>
+                                            <div style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: '0.15rem' }}>Statut</div>
+                                            <div style={{ fontSize: '1rem', fontWeight: 800, color: statutColor }}>{statut}</div>
+                                          </div>
+                                        </div>
+
+                                        {/* Departments sub-table */}
+                                        <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                                          Departements ({departments.length})
+                                        </div>
+                                        {departments.length === 0 ? (
+                                          <p style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>Aucun departement disponible.</p>
+                                        ) : (
+                                          <div className="ddm-table-wrapper" style={{ borderRadius: '8px' }}>
+                                            <table className="ddm-table">
+                                              <thead>
+                                                <tr>
+                                                  <th>Departement</th>
+                                                  <th style={{ textAlign: 'right' }}>Revenus</th>
+                                                  <th style={{ textAlign: 'right' }}>Soumissions</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {departments.map((dep, i) => {
+                                                  const depMontant = dep.valeur || dep.montant || 0;
+                                                  const depSoum = dep.nombreSoumissions || 0;
+                                                  return (
+                                                    <tr key={dep.orgUnitId || dep.code || i} className="ddm-row">
+                                                      <td style={{ fontWeight: 600 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                          <MapPin size={12} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                                                          {dep.nom}
+                                                        </div>
+                                                      </td>
+                                                      <td className="text-right" style={{ fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
+                                                        {fmt(depMontant)} FCFA
+                                                      </td>
+                                                      <td className="text-right" style={{ fontWeight: 600 }}>
+                                                        {fmtEntier(depSoum)}
+                                                      </td>
+                                                    </tr>
+                                                  );
+                                                })}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        )}
+                                      </>
+                                    );
+                                  })() : null}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

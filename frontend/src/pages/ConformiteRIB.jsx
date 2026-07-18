@@ -68,13 +68,15 @@ function SortIcon({ col, sortCol, sortDir }) {
 function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {}, onBack }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [detailDateRange, setDetailDateRange] = useState(initialDateRange);
 
   useEffect(() => {
     setLoading(true);
+    setFetchError(null);
     fetchPartenaireDetail(partenaireId, detailDateRange)
-      .then(setDetail)
-      .catch(console.error)
+      .then(d => setDetail(d || null))
+      .catch(err => { console.error(err); setFetchError(err.message || 'Erreur'); setDetail(null); })
       .finally(() => setLoading(false));
   }, [partenaireId, detailDateRange]);
 
@@ -91,21 +93,26 @@ function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {},
     return (
       <div className="cdi-detail-panel">
         <button className="cdi-back-btn" onClick={onBack}><ChevronLeft size={16} /> Retour à la liste</button>
-        <p style={{ color: 'var(--text-tertiary)', textAlign: 'center', padding: '3rem' }}>Aucune donnée disponible pour cette plateforme.</p>
+        <p style={{ color: 'var(--text-tertiary)', textAlign: 'center', padding: '3rem' }}>
+          {fetchError ? `Erreur : ${fetchError}` : 'Aucune donnée disponible pour cette plateforme.'}
+        </p>
       </div>
     );
   }
 
+  const pf = detail.plateforme || {};
   const totalDemandes = detail.totalDemandes || 0;
   const demandesPayees = detail.demandesPayees || 0;
-  const demandesEchouees = detail.demandesEchouees || 0;
+  const demandesEchouees = (detail.repartitionStatuts || [])
+    .filter(s => s.statut === 'FAILED' || s.statut === 'CALLBACK_FAILED')
+    .reduce((sum, s) => sum + (s.nombre || 0), 0);
   const montantPaye = detail.montantPaye || 0;
   const tauxSucces = detail.tauxSucces || 0;
 
   const statutPieData = (detail.repartitionStatuts || [])
     .map(s => ({
       name: STATUT_DEMANDE[s.statut]?.label || s.statut,
-      value: s.count || s.nombre || 0,
+      value: s.nombre || s.count || 0,
       color: STATUT_DEMANDE[s.statut]?.color || '#6B7280',
     }))
     .filter(d => d.value > 0);
@@ -113,11 +120,11 @@ function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {},
   const methodeData = (detail.methodesPaiement || []).map(m => ({
     methode: m.methode || m.nom,
     montant: m.montant || 0,
-    count: m.count || m.nombre || 0,
+    count: m.nombre || m.count || 0,
   }));
 
   const evolutionData = detail.evolution || [];
-  const dernieresDemandes = (detail.dernieresDemandes || []).slice(0, 20);
+  const dernieresDemandes = (detail.recentes || detail.dernieresDemandes || []).slice(0, 20);
 
   return (
     <div className="cdi-detail-panel">
@@ -131,13 +138,15 @@ function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {},
       <div className="cdi-detail-header">
         <div className="cdi-detail-icon" style={{ color: '#059669' }}><Handshake size={28} /></div>
         <div>
-          <h2 className="cdi-detail-name">{detail.nom || detail.plateforme?.nom || 'Plateforme'}</h2>
+          <h2 className="cdi-detail-name">{pf.nom || detail.nom || 'Plateforme'}</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-            {detail.code && <code className="rib-code">{detail.code || detail.plateforme?.code}</code>}
-            <StatutBadge statut={detail.statut || detail.plateforme?.statut || 'ACTIVE'} />
+            {(pf.code || detail.code) && <code className="rib-code">{pf.code || detail.code}</code>}
+            <StatutBadge statut={pf.statut || detail.statut || 'ACTIVE'} />
           </div>
-          {(detail.ministere || detail.plateforme?.ministere) && (
-            <p className="cdi-detail-sub"><Building2 size={13} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />{detail.ministere || detail.plateforme?.ministere}</p>
+          {(pf.ministere || detail.ministere) && (
+            <p className="cdi-detail-sub"><Building2 size={13} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
+              {typeof (pf.ministere || detail.ministere) === 'object' ? (pf.ministere || detail.ministere)?.nomFr || (pf.ministere || detail.ministere)?.nom : (pf.ministere || detail.ministere)}
+            </p>
           )}
         </div>
       </div>
@@ -262,12 +271,12 @@ function PartenaireDetailPanel({ partenaireId, dateRange: initialDateRange = {},
             <tbody>
               {dernieresDemandes.map((d, i) => (
                 <tr key={i} className="cdi-perf-row">
-                  <td><code className="rib-code">{d.reference || '-'}</code></td>
+                  <td><code className="rib-code">{d.platformReference || d.reference || '-'}</code></td>
                   <td><code className="rib-code">{d.uniqueCode || '-'}</code></td>
                   <td className="text-right montant-cell">{fmtFull(d.montant)}</td>
                   <td className="text-center"><DemandeBadge statut={d.statut} /></td>
-                  <td>{d.methode || '-'}</td>
-                  <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{d.date || '-'}</td>
+                  <td>{d.methodePaiement || d.methode || '-'}</td>
+                  <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{d.creeLe ? new Date(d.creeLe).toLocaleDateString('fr-FR') : (d.date || '-')}</td>
                 </tr>
               ))}
             </tbody>
@@ -305,8 +314,9 @@ export default function ConformiteRIB() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
+    const getMinNom = (p) => typeof p.ministere === 'object' ? (p.ministere?.nomFr || p.ministere?.nom || '') : (p.ministere || '');
     return partenaires
-      .filter(p => !q || p.nom?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q) || p.ministere?.toLowerCase().includes(q))
+      .filter(p => !q || p.nom?.toLowerCase().includes(q) || p.code?.toLowerCase().includes(q) || getMinNom(p).toLowerCase().includes(q))
       .sort((a, b) => {
         const va = a[sortCol] ?? 0;
         const vb = b[sortCol] ?? 0;
@@ -325,7 +335,7 @@ export default function ConformiteRIB() {
     rows: filtered.map(p => [
       p.code, p.nom,
       STATUT_PLATEFORME[p.statut]?.label || p.statut,
-      p.ministere || '-',
+      (typeof p.ministere === 'object' ? (p.ministere?.nomFr || p.ministere?.nom) : p.ministere) || '-',
       p.totalDemandes, p.demandesPayees,
       fmtFull(p.montantPaye),
       `${p.tauxSucces || 0}%`,
@@ -398,13 +408,14 @@ export default function ConformiteRIB() {
         )}
         {filtered.map((p) => {
           const taux = p.tauxSucces || 0;
+          const pId = p.plateformeId || p.id || p.code;
+          const minNom = typeof p.ministere === 'object' ? (p.ministere?.nomFr || p.ministere?.nom || '') : (p.ministere || '');
           return (
             <div
-              key={p.id || p.code}
+              key={pId}
               className="card"
-             
               style={{ cursor: 'pointer', padding: '1rem 1.2rem', transition: 'transform 0.15s, box-shadow 0.15s' }}
-              onClick={() => setSelectedId(p.id || p.code)}
+              onClick={() => setSelectedId(pId)}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
             >
@@ -421,9 +432,9 @@ export default function ConformiteRIB() {
               </div>
 
               {/* Ministry */}
-              {p.ministere && (
+              {minNom && (
                 <p style={{ margin: '0 0 0.6rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Building2 size={12} /> {p.ministere}
+                  <Building2 size={12} /> {minNom}
                 </p>
               )}
 

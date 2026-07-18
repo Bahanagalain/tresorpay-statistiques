@@ -32,8 +32,6 @@
   background: var(--bg-surface); border: 1px solid var(--glass-border);
   border-radius: var(--radius-md); overflow: hidden;
 }
-.blocage-card.blocage-critique { border-left: 4px solid #DC2626; }
-.blocage-card.blocage-attention { border-left: 4px solid #D97706; }
 
 .blocage-header {
   padding: 1rem 1.2rem; cursor: pointer;

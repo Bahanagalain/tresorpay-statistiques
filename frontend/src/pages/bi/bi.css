@@ -1073,12 +1073,10 @@
   background: var(--card-bg, #fff);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 8px;
-  border-left: 3px solid var(--primary, #2563eb);
   transition: box-shadow 0.15s;
 }
 
 .bi-indicateur-item.systeme {
-  border-left-color: var(--text-tertiary, #9ca3af);
   opacity: 0.75;
 }
 

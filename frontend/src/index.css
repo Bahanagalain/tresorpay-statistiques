@@ -169,11 +169,7 @@
 }
 
 .card-layer::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; w: 100%; h: 100%;
-  background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 100%);
-  pointer-events: none;
+  display: none;
 }
 
 .card-layer:hover {

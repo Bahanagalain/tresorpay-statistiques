@@ -97,7 +97,6 @@ function DashboardBuilderInner() {
   };
 
   // Build layouts from widgets
-  // Toujours recalculer pour éviter les chevauchements
   const getLayouts = useCallback(() => {
     if (!dashboard?.widgets) return { lg: [], md: [], sm: [] };
     const widgets = dashboard.widgets;
@@ -119,9 +118,26 @@ function DashboardBuilderInner() {
       });
     };
 
+    // Detect if all saved positions are (0,0) — means DB has no real positions yet
+    const allZero = widgets.length > 1 && widgets.every(w => (w.gridX || 0) === 0 && (w.gridY || 0) === 0);
+
+    // For lg/md: use saved positions if they exist, otherwise autoPlace
+    const fromSaved = (cols) => {
+      if (allZero) return autoPlace(cols);
+      return widgets.map(w => ({
+        i: String(w.id),
+        x: Math.min(w.gridX || 0, cols - Math.min(w.gridW || 6, cols)),
+        y: w.gridY || 0,
+        w: Math.min(w.gridW || 6, cols),
+        h: w.gridH || 4,
+        minW: 2,
+        minH: 2,
+      }));
+    };
+
     return {
-      lg: autoPlace(12),
-      md: autoPlace(6),
+      lg: fromSaved(12),
+      md: fromSaved(6),
       sm: widgets.map((w, i) => ({
         i: String(w.id),
         x: 0,

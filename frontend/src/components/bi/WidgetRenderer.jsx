@@ -145,7 +145,7 @@ function RenderLineChart({ data, config, onChartClick }) {
   );
 }
 
-function RenderPieChart({ data, config, onChartClick }) {
+function RenderPieChart({ data, config, onChartClick, donut = false }) {
   const dataKey = getDataKey(config);
   const labelKey = getLabelKey(config);
 
@@ -166,6 +166,7 @@ function RenderPieChart({ data, config, onChartClick }) {
           cx="50%"
           cy="50%"
           outerRadius="70%"
+          {...(donut ? { innerRadius: '40%' } : {})}
           label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
           labelLine={{ strokeWidth: 1 }}
           isAnimationActive={!prefersReducedMotion}
@@ -455,6 +456,8 @@ export default function WidgetRenderer({ type, data, config, onChartClick }) {
       return <RenderLineChart data={data} config={config} onChartClick={onChartClick} />;
     case 'CHART_PIE':
       return <RenderPieChart data={data} config={config} onChartClick={onChartClick} />;
+    case 'CHART_DONUT':
+      return <RenderPieChart data={data} config={config} onChartClick={onChartClick} donut />;
     case 'CHART_AREA':
       return <RenderAreaChart data={data} config={config} onChartClick={onChartClick} />;
     case 'CHART_BAR_STACKED':

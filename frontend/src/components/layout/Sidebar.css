@@ -29,13 +29,9 @@
 
 .sidebar-vault::-webkit-scrollbar { width: 0; }
 
-/* Gold accent on right edge */
+/* No decorative accent on right edge */
 .sidebar-vault::after {
-  content: '';
-  position: absolute;
-  top: 0; right: 0; bottom: 0; width: 1px;
-  background: linear-gradient(180deg, var(--accent-dgi-dim) 0%, transparent 100%);
-  pointer-events: none;
+  display: none;
 }
 
 /* ── Collapse pill — on right border ── */

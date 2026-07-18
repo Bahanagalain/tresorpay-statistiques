@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
+  AreaChart, Area, BarChart, Bar, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import {
@@ -12,12 +12,12 @@ import {
 import toast, { Toaster } from 'react-hot-toast';
 import { usePresentMode } from '../components/layout/MainLayout';
 import { useAuth } from '../components/auth/AuthProvider';
-import GaugeChart from '../components/ui/GaugeChart';
 import WeaveSpinner from '../components/ui/WeaveSpinner';
 import { exportToPDF, exportToExcel } from '../utils/exportUtils';
 import {
   fetchDashboard,
   fetchMinistereDetail,
+  fetchServiceDetail,
   fetchRegionDetail,
   fetchMonPerimetre,
   fetchSoumissions,
@@ -155,41 +155,9 @@ function useCountUp(target, duration = 1500) {
   return value;
 }
 
-// ─── Sparkline ───────────────────────────────────────────────
-const SPARKLINE_SEEDS = {
-  primary: [{ v:320 },{ v:450 },{ v:380 },{ v:510 },{ v:490 },{ v:620 },{ v:580 },{ v:710 }],
-  success: [{ v:10 },{ v:18 },{ v:14 },{ v:22 },{ v:20 },{ v:28 },{ v:25 },{ v:32 }],
-  warning: [{ v:8 },{ v:12 },{ v:9 },{ v:14 },{ v:11 },{ v:7 },{ v:10 },{ v:8 }],
-  danger:  [{ v:5 },{ v:7 },{ v:9 },{ v:6 },{ v:8 },{ v:11 },{ v:10 },{ v:9 }],
-  info:    [{ v:15 },{ v:20 },{ v:18 },{ v:25 },{ v:22 },{ v:30 },{ v:27 },{ v:35 }],
-  default: [{ v:60 },{ v:65 },{ v:70 },{ v:68 },{ v:72 },{ v:75 },{ v:74 },{ v:78 }],
-};
-const SPARKLINE_COLORS = {
-  primary: '#059669', success: '#059669', warning: '#D97706',
-  danger: '#DC2626', info: '#2563EB', default: '#6366F1',
-};
-
-function Sparkline({ data, color }) {
-  return (
-    <ResponsiveContainer width="100%" height={36}>
-      <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-        <defs>
-          <linearGradient id={`sp${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor={color} stopOpacity={0.35} />
-            <stop offset="100%" stopColor={color} stopOpacity={0}   />
-          </linearGradient>
-        </defs>
-        <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} fill={`url(#sp${color.replace('#','')})`} dot={false} isAnimationActive animationDuration={1200}/>
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-
 // ─── KPI Card ─────────────────────────────────────────────────
-function KpiCard({ icon: Icon, label, value, numericValue, sub, variant = 'default', trend, sparklineData }) {
+function KpiCard({ icon: Icon, label, value, numericValue, sub, variant = 'default', trend }) {
   const count = useCountUp(numericValue ?? 0);
-  const sparkData  = sparklineData?.length ? sparklineData : (SPARKLINE_SEEDS[variant] || SPARKLINE_SEEDS.default);
-  const sparkColor = SPARKLINE_COLORS[variant] || '#6366F1';
   const displayVal = numericValue !== undefined
     ? (value.includes('FCFA') ? fmtEntier(count) + ' FCFA' : fmtEntier(count))
     : value;
@@ -207,9 +175,6 @@ function KpiCard({ icon: Icon, label, value, numericValue, sub, variant = 'defau
         <span className="kpi-card__label">{label}</span>
         <div className="kpi-card__value">{displayVal}</div>
         {sub && <span className="kpi-card__sub">{sub}</span>}
-      </div>
-      <div className="kpi-card__sparkline">
-        <Sparkline data={sparkData} color={sparkColor}/>
       </div>
     </div>
   );
@@ -337,6 +302,11 @@ export default function TableauDeBord() {
   const [drillRegionLoading, setDrillRegionLoading] = useState(false);
   const [drillRegionError, setDrillRegionError] = useState('');
 
+  const [drillService, setDrillService] = useState(null);
+  const [drillServiceData, setDrillServiceData] = useState(null);
+  const [drillServiceLoading, setDrillServiceLoading] = useState(false);
+  const [drillServiceError, setDrillServiceError] = useState('');
+
   // Soumissions tab state
   const [soumissions, setSoumissions] = useState([]);
   const [soumPagination, setSoumPagination] = useState({ page: 1, total: 0, totalPages: 0 });
@@ -346,6 +316,9 @@ export default function TableauDeBord() {
   const [soumPage, setSoumPage] = useState(1);
   const [selectedSoumission, setSelectedSoumission] = useState(null);
   const soumSearchTimer = useRef(null);
+
+  // Overview: latest soumissions
+  const [latestSoumissions, setLatestSoumissions] = useState([]);
 
   // Tabs visibles selon le profil
   const visibleTabs = useMemo(() => {
@@ -381,13 +354,6 @@ export default function TableauDeBord() {
     }
     return DATE_PRESETS.find((p) => p.value === datePreset)?.label || 'Tout';
   }, [customEndDate, customStartDate, datePreset, slideshowActive, slideshowDateRange]);
-
-  const evolutionLabel = useMemo(() => {
-    if (chartEvol.length >= 2) {
-      return `${chartEvol[0].periode} – ${chartEvol[chartEvol.length - 1].periode}`;
-    }
-    return periodLabel;
-  }, [chartEvol, periodLabel]);
 
   // ── Load dashboard data ───────────────────────────────────
   useEffect(() => {
@@ -503,6 +469,30 @@ export default function TableauDeBord() {
     return () => { isMounted = false; controller.abort(); };
   }, [drillRegion, dateRange.startDate, dateRange.endDate]);
 
+  // ── Load service drill-down ──────────────────────────────
+  useEffect(() => {
+    if (!drillService) return;
+    let isMounted = true;
+    const controller = new AbortController();
+
+    async function load() {
+      setDrillServiceLoading(true);
+      setDrillServiceError('');
+      try {
+        const data = await fetchServiceDetail(drillService.serviceId, dateRange, controller.signal);
+        if (isMounted) setDrillServiceData(data);
+      } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
+        setDrillServiceError(err?.message || 'Erreur');
+      } finally {
+        if (isMounted) setDrillServiceLoading(false);
+      }
+    }
+
+    load();
+    return () => { isMounted = false; controller.abort(); };
+  }, [drillService, dateRange.startDate, dateRange.endDate]);
+
   // ── Load soumissions when tab active ──────────────────────
   useEffect(() => {
     if (activeTab !== 'soumissions') return;
@@ -531,6 +521,21 @@ export default function TableauDeBord() {
     return () => { isMounted = false; controller.abort(); };
   }, [activeTab, soumPage, soumSearch, soumStatut, dateRange.startDate, dateRange.endDate]);
 
+  // ── Load latest soumissions for overview tab ─────────────
+  useEffect(() => {
+    if (activeTab !== 'overview') return;
+    let isMounted = true;
+    const controller = new AbortController();
+    fetchSoumissions({ page: 1, limit: 5 }, controller.signal)
+      .then(res => {
+        if (!isMounted) return;
+        const list = res.soumissions || res.donnees?.soumissions || res.datas?.soumissions || res.donnees || [];
+        setLatestSoumissions(Array.isArray(list) ? list : []);
+      })
+      .catch(() => {});
+    return () => { isMounted = false; controller.abort(); };
+  }, [activeTab, reloadNonce]);
+
   // ── Derived data ──────────────────────────────────────────
   const top10Ministeres = useMemo(
     () => [...ministeres].sort((a, b) => b.montant - a.montant).slice(0, 10),
@@ -542,21 +547,6 @@ export default function TableauDeBord() {
     [services],
   );
 
-  const statutPieData = useMemo(() => {
-    const entries = [
-      { name: STATUT_CONFIG.PAID.label,    value: kpi.soumissionsPayees,     fill: STATUT_CONFIG.PAID.color    },
-      { name: STATUT_CONFIG.PENDING.label, value: kpi.soumissionsEnAttente,  fill: STATUT_CONFIG.PENDING.color },
-      { name: STATUT_CONFIG.PARTIAL.label, value: kpi.soumissionsPartielles, fill: STATUT_CONFIG.PARTIAL.color },
-      { name: STATUT_CONFIG.FAILED.label,  value: kpi.soumissionsEchouees,   fill: STATUT_CONFIG.FAILED.color  },
-    ];
-    return entries.filter((e) => e.value > 0);
-  }, [kpi]);
-
-  const paymentGap = useMemo(
-    () => Math.max(0, 90 - Number(kpi.tauxPaiement || 0)),
-    [kpi.tauxPaiement],
-  );
-
   // ── Handlers ──────────────────────────────────────────────
   const handleMinistereClick = useCallback((data) => {
     if (!data?.activePayload) return;
@@ -564,6 +554,14 @@ export default function TableauDeBord() {
     if (!entry?.ministereId) return;
     setDrillMinistere(entry);
     setDrillMinistereData(null);
+  }, []);
+
+  const handleServiceClick = useCallback((data) => {
+    if (!data?.activePayload) return;
+    const entry = data.activePayload[0]?.payload;
+    if (!entry?.serviceId) return;
+    setDrillService(entry);
+    setDrillServiceData(null);
   }, []);
 
   const handleRegionClick = useCallback((region) => {
@@ -657,11 +655,6 @@ export default function TableauDeBord() {
     }
   };
 
-  // ── Build sparkline data from evolution ───────────────────
-  const sparkPaye = useMemo(() => chartEvol.map(e => ({ v: e.paye || 0 })), [chartEvol]);
-  const sparkTotal = useMemo(() => chartEvol.map(e => ({ v: (e.paye || 0) + (e.enAttente || 0) + (e.echoue || 0) + (e.partiel || 0) })), [chartEvol]);
-  const sparkAttente = useMemo(() => chartEvol.map(e => ({ v: e.enAttente || 0 })), [chartEvol]);
-
   // ── Données journalières par opérateur (mock pour démo) ───
   const dailyOperatorData = useMemo(() => generateDailyOperatorData(), []);
 
@@ -746,6 +739,75 @@ export default function TableauDeBord() {
     );
   };
 
+  // ── Render helper: Service detail panel content ───────────
+  const renderServiceDetail = () => {
+    const d = drillServiceData;
+    if (!d) return null;
+    const detailKpi = d.kpi || d;
+    const revenus = detailKpi.totalRevenus || detailKpi.montant || 0;
+    const soumissionsCount = detailKpi.totalSoumissions || detailKpi.nombreSoumissions || 0;
+    const taux = detailKpi.tauxPaiement || 0;
+    const soumissionsList = Array.isArray(d.soumissions) ? d.soumissions : [];
+
+    return (
+      <>
+        <div className="ddm-kpis">
+          <div className="ddm-kpi">
+            <span className="ddm-kpi__label">Revenus</span>
+            <span className="ddm-kpi__value" style={{ color: '#059669' }}>{fmtFull(revenus)} FCFA</span>
+          </div>
+          <div className="ddm-kpi">
+            <span className="ddm-kpi__label">Soumissions</span>
+            <span className="ddm-kpi__value">{fmtEntier(soumissionsCount)}</span>
+          </div>
+          <div className="ddm-kpi">
+            <span className="ddm-kpi__label">Taux paiement</span>
+            <span className="ddm-kpi__value" style={{ color: taux >= 75 ? '#059669' : taux >= 50 ? '#D97706' : '#DC2626' }}>
+              {taux}%
+            </span>
+          </div>
+        </div>
+
+        {soumissionsList.length > 0 && (
+          <div style={{ padding: '1rem 1.25rem' }}>
+            <h3 className="ddm-section-title">Dernieres soumissions ({soumissionsList.length})</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {soumissionsList.slice(0, 10).map((sub, i) => (
+                <div key={sub.uniqueCode || i} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  padding: '0.6rem 0.8rem',
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '8px',
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {sub.uniqueCode || sub.soumetteurNom || 'N/A'}
+                    </div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', marginTop: '0.15rem' }}>
+                      {sub.soumetteurNom} · {new Date(sub.dateSoumission).toLocaleDateString('fr-FR')}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#059669' }}>
+                      {fmt(sub.montant || 0)} FCFA
+                    </div>
+                    <div style={{
+                      fontSize: '0.62rem', fontWeight: 700,
+                      color: sub.statutPaiement === 'PAID' ? '#059669' : sub.statutPaiement === 'PENDING' ? '#D97706' : '#DC2626',
+                    }}>
+                      {STATUT_CONFIG[sub.statutPaiement]?.label || sub.statutPaiement}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
+
   // ── Render helper: Region expanded row (inline accordion) ─
 
   // ── Render ────────────────────────────────────────────────
@@ -772,6 +834,20 @@ export default function TableauDeBord() {
           onRetry={() => { setDrillMinistereData(null); setDrillMinistere({ ...drillMinistere }); }}
         >
           {renderMinistereDetail()}
+        </DrillDownPanel>
+      )}
+
+      {/* ── Drill-down service panel ── */}
+      {drillService && (
+        <DrillDownPanel
+          title={drillService.nom}
+          subtitle="Detail du service — soumissions et revenus"
+          onClose={() => { setDrillService(null); setDrillServiceData(null); }}
+          loading={drillServiceLoading}
+          error={drillServiceError}
+          onRetry={() => { setDrillServiceData(null); setDrillService({ ...drillService }); }}
+        >
+          {drillServiceData && renderServiceDetail()}
         </DrillDownPanel>
       )}
 
@@ -884,7 +960,6 @@ export default function TableauDeBord() {
               sub={analyticsLoading ? 'Chargement...' : `Soumis : ${fmtFull(kpi.montantTotalSoumis || 0)}`}
               variant="primary"
               trend={kpi.progressionMoisPrecedent}
-              sparklineData={sparkPaye}
             />
             <KpiCard
               icon={FileText}
@@ -893,7 +968,6 @@ export default function TableauDeBord() {
               numericValue={kpi.totalSoumissions}
               sub={analyticsLoading ? 'Chargement...' : periodLabel}
               variant="default"
-              sparklineData={sparkTotal}
             />
             <KpiCard
               icon={CheckCircle}
@@ -902,7 +976,6 @@ export default function TableauDeBord() {
               numericValue={kpi.soumissionsPayees}
               sub={fmtFull(kpi.totalRevenus)}
               variant="success"
-              sparklineData={sparkPaye}
             />
             <KpiCard
               icon={TrendingUp}
@@ -911,7 +984,6 @@ export default function TableauDeBord() {
               numericValue={kpi.tauxPaiement}
               sub="Objectif : 90%"
               variant="info"
-              sparklineData={sparkAttente}
             />
           </div>
 
@@ -947,44 +1019,70 @@ export default function TableauDeBord() {
             </ResponsiveContainer>
           </div>
 
-          {/* Gauge taux de paiement — en bas */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', flexShrink: 0 }}>
-            <div className="chart-card" style={{ padding: '0.5rem 0.8rem' }}>
-              <div className="chart-card__header" style={{ marginBottom: '0.2rem' }}>
-                <h2 className="chart-title">Taux de Paiement</h2>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <GaugeChart value={kpi.tauxPaiement} max={100} label="Paiement" color="#059669" size={120} thickness={12}/>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>
-                  <div><span className="gauge-dot" style={{ background:'#DC2626', display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginRight: 6 }}/>&lt;50% Critique</div>
-                  <div><span className="gauge-dot" style={{ background:'#D97706', display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginRight: 6 }}/>50–74% Attention</div>
-                  <div><span className="gauge-dot" style={{ background:'#059669', display: 'inline-block', width: 8, height: 8, borderRadius: '50%', marginRight: 6 }}/>&ge;75% Objectif</div>
-                  <div style={{ marginTop: '0.25rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.25rem' }}>
-                    Écart : <strong style={{ color: paymentGap > 0 ? '#D97706' : '#059669' }}>
-                      {paymentGap > 0 ? `+${paymentGap.toFixed(1)} pts` : 'Atteint'}
-                    </strong>
-                  </div>
-                </div>
-              </div>
+          {/* 5 dernières soumissions */}
+          <div className="chart-card" style={{ flexShrink: 0 }}>
+            <div className="chart-card__header">
+              <h2 className="chart-title">Dernières soumissions</h2>
+              <button className="preset-btn" onClick={() => setActiveTab('soumissions')} style={{ color: 'var(--accent-dgi)', fontWeight: 700 }}>
+                Voir tout →
+              </button>
             </div>
-
-            {/* Mini evolution mensuelle */}
-            <div className="chart-card" style={{ padding: '0.5rem 0.8rem' }}>
-              <div className="chart-card__header" style={{ marginBottom: '0.2rem' }}>
-                <h2 className="chart-title">Évolution Mensuelle</h2>
-                <span className="chart-sub">{evolutionLabel}</span>
-              </div>
-              <ResponsiveContainer width="100%" height={100}>
-                <BarChart data={chartEvol} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="periode" tick={{ fontSize: 9, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-                  <YAxis hide />
-                  <Tooltip content={<CustomTooltip/>} />
-                  <Bar dataKey="echoue" name="Échoué" stackId="s" fill="#DC2626" />
-                  <Bar dataKey="enAttente" name="En attente" stackId="s" fill="#D97706" />
-                  <Bar dataKey="paye" name="Payé" stackId="s" fill="#059669" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Code</th>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Contribuable</th>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Montant</th>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Statut</th>
+                  <th style={{ textAlign: 'left', padding: '0.4rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {latestSoumissions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>
+                      Aucune soumission récente.
+                    </td>
+                  </tr>
+                ) : latestSoumissions.map((s, i) => {
+                  const cfg = STATUT_CONFIG[s.statutPaiement] || STATUT_CONFIG.PENDING;
+                  const dateFmt = s.dateSoumission
+                    ? s.dateSoumission.split('-').reverse().join('/')
+                    : '\u2014';
+                  return (
+                    <tr
+                      key={s.uniqueCode || s.id || i}
+                      style={{
+                        borderBottom: '1px solid var(--glass-border)',
+                        background: i % 2 === 0 ? 'transparent' : 'var(--bg-surface-elevated)',
+                      }}
+                    >
+                      <td style={{ padding: '0.4rem 0.6rem', fontWeight: 600, fontFamily: 'monospace', fontSize: '0.72rem', color: 'var(--text-primary)' }}>
+                        {s.uniqueCode || '\u2014'}
+                      </td>
+                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                        {s.soumetteurNom || '\u2014'}
+                      </td>
+                      <td style={{ padding: '0.4rem 0.6rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                        {fmtFull(s.montant)}
+                      </td>
+                      <td style={{ padding: '0.4rem 0.6rem' }}>
+                        <span style={{
+                          display: 'inline-block', padding: '0.15rem 0.45rem', borderRadius: 20,
+                          fontSize: '0.66rem', fontWeight: 700,
+                          background: cfg.color + '18', color: cfg.color,
+                        }}>
+                          {cfg.label}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
+                        {dateFmt}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -1274,38 +1372,6 @@ export default function TableauDeBord() {
             </div>
           </div>
 
-          {/* Pie répartition statut — compact */}
-          <div className="chart-card" style={{ flexShrink: 0, padding: '0.5rem 0.9rem' }}>
-            <div className="chart-card__header" style={{ marginBottom: '0.2rem' }}>
-              <h2 className="chart-title">Répartition par Statut</h2>
-              <span className="chart-sub">{fmtEntier(kpi.totalSoumissions)} soumissions</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', height: 120 }}>
-              <ResponsiveContainer width="50%" height="100%">
-                <PieChart>
-                  <Pie data={statutPieData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value" stroke="none" isAnimationActive animationDuration={1200}>
-                    {statutPieData.map((entry, index) => <Cell key={index} fill={entry.fill}/>)}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`${fmtEntier(value)} soumissions`, '']}/>
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1.5rem', flex: 1 }}>
-                {Object.entries(STATUT_CONFIG).map(([key, cfg]) => {
-                  const count = key === 'PAID' ? kpi.soumissionsPayees
-                    : key === 'PENDING' ? kpi.soumissionsEnAttente
-                    : key === 'PARTIAL' ? kpi.soumissionsPartielles
-                    : kpi.soumissionsEchouees;
-                  if (!count) return null;
-                  return (
-                    <div className="pie-legend-item" key={key} style={{ margin: 0 }}>
-                      <span className="dot" style={{ background: cfg.color }}/> {cfg.label}: <strong>{fmtEntier(count)}</strong>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
           {/* Top 10 Ministères */}
           <div className="chart-card" style={{ flexShrink: 0 }}>
             <div className="chart-card__header">
@@ -1336,12 +1402,12 @@ export default function TableauDeBord() {
               <div className="chart-card__header">
                 <div>
                   <h2 className="chart-title">Top 10 Services</h2>
-                  <span className="chart-sub">Revenus par service</span>
+                  <span className="chart-sub">Cliquez une barre pour le detail</span>
                 </div>
                 <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
               </div>
               <ResponsiveContainer width="100%" height={Math.max(220, top10Services.length * 30)}>
-                <BarChart data={top10Services} layout="vertical" margin={{ left: 10, right: 20 }}>
+                <BarChart data={top10Services} layout="vertical" margin={{ left: 10, right: 20 }} onClick={handleServiceClick} style={{ cursor: 'pointer' }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
                   <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 10 }}/>
                   <YAxis type="category" dataKey="nom" width={140} tick={{ fontSize: 10 }}/>

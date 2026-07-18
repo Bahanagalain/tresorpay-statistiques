@@ -1051,7 +1051,7 @@ export async function computeSoumissions(filters = {}, pagination = {}) {
       soumetteurEmail: s.soumetteurEmail,
       soumetteurTelephone: s.soumetteurTelephone,
       montant: toNumber(s.montant),
-      montantPaye: toNumber(s.montantPaye),
+      montantPaye: s.montantPaye != null ? toNumber(s.montantPaye) : (s.statutPaiement === 'PAID' ? toNumber(s.montant) : 0),
       statutPaiement: s.statutPaiement,
       dateSoumission: s.dateSoumission,
       datePaiement: s.datePaiement,

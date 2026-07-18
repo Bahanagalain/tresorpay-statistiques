@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, Cell, LineChart, Line,
+  AreaChart, Area, BarChart, Bar, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import {
@@ -8,7 +8,9 @@ import {
   AlertTriangle, Building2, Calendar, X,
   RotateCcw, FileSpreadsheet, FileDown, Maximize, RefreshCw,
   AlertCircle, MapPin, XCircle, ChevronRight, ChevronDown, ArrowLeft,
+  LayoutDashboard,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { usePresentMode } from '../components/layout/MainLayout';
 import { useAuth } from '../components/auth/AuthProvider';
@@ -23,6 +25,7 @@ import {
   fetchSoumissions,
   lancerSynchronisation,
 } from '../api/analyticsApi';
+import { fetchDashboards } from '../api/biApi';
 import { invalidateCache } from '../api/cache';
 import { getDateRangeFromPreset } from '../utils/dateUtils';
 import { usePeriodFilter, setPeriodState } from '../hooks/usePeriodFilter';
@@ -58,6 +61,7 @@ const TAB_DEFS = [
   { id: 'ministeres', label: 'Ministères & Services' },
   { id: 'comparaison', label: 'Comparaison' },
   { id: 'regions', label: 'Régions' },
+  { id: 'dashboards', label: 'Mes Dashboards' },
   { id: 'perimetre', label: 'Mon périmètre', needsScope: true },
   { id: 'alertes', label: 'Alertes' },
 ];
@@ -262,6 +266,7 @@ function DrillDownPanel({ title, subtitle, onClose, loading, error, onRetry, chi
 export default function TableauDeBord() {
   const { slideshowActive, slideshowDateRange } = usePresentMode();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const userProfile = useMemo(() => getUserProfile(user), [user]);
   const hasScope = user?.ministere || user?.orgUnit;
 
@@ -284,6 +289,11 @@ export default function TableauDeBord() {
   const [services, setServices]       = useState([]);
   const [regions, setRegions]         = useState([]);
   const [alertes, setAlertes]         = useState([]);
+  const [alerteFilter, setAlerteFilter] = useState('all');
+
+  // Mes Dashboards
+  const [pinnedDashboards, setPinnedDashboards] = useState([]);
+  const [pinnedLoading, setPinnedLoading] = useState(false);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError]     = useState('');
 
@@ -535,6 +545,27 @@ export default function TableauDeBord() {
       .catch(() => {});
     return () => { isMounted = false; controller.abort(); };
   }, [activeTab, reloadNonce]);
+
+  // ── Load pinned dashboards when tab active ────────────────
+  useEffect(() => {
+    if (activeTab !== 'dashboards') return;
+    let isMounted = true;
+    const controller = new AbortController();
+    async function load() {
+      setPinnedLoading(true);
+      try {
+        const res = await fetchDashboards(controller.signal);
+        const list = res.datas || res || [];
+        if (isMounted) setPinnedDashboards(Array.isArray(list) ? list : []);
+      } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
+      } finally {
+        if (isMounted) setPinnedLoading(false);
+      }
+    }
+    load();
+    return () => { isMounted = false; controller.abort(); };
+  }, [activeTab]);
 
   // ── Derived data ──────────────────────────────────────────
   const top10Ministeres = useMemo(
@@ -1625,6 +1656,63 @@ export default function TableauDeBord() {
         </div>
       )}
 
+      {/* ═══════════ TAB: MES DASHBOARDS ═══════════ */}
+      {activeTab === 'dashboards' && (
+        <div className="tdb-tab-content">
+          {pinnedLoading ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+              <WeaveSpinner size={60} message="Chargement des dashboards..." />
+            </div>
+          ) : pinnedDashboards.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '1rem', color: 'var(--text-secondary)' }}>
+              <LayoutDashboard size={48} style={{ opacity: 0.3 }} />
+              <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>Aucun dashboard personnalisé</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>Créez votre premier dashboard depuis la page "Mes Dashboards"</p>
+              <button className="action-btn primary" onClick={() => navigate('/bi/dashboards')}>
+                Créer un dashboard
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem', flex: 1, overflowY: 'auto', alignContent: 'start' }}>
+              {pinnedDashboards.map(db => (
+                <div key={db.id} style={{
+                  background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
+                  borderRadius: 10, padding: '1rem', cursor: 'pointer',
+                  transition: 'transform 0.15s, box-shadow 0.15s',
+                }}
+                onClick={() => navigate(`/bi/dashboards/${db.id}`)}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.08)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
+                    {db.titre || 'Sans titre'}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>
+                    {db.widgets?.length || 0} widgets · Modifié le {new Date(db.updatedAt || db.createdAt).toLocaleDateString('fr-FR')}
+                  </div>
+                  <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                    {(db.widgets || []).slice(0, 3).map((w, i) => (
+                      <span key={i} style={{
+                        fontSize: '0.62rem', padding: '0.15rem 0.4rem',
+                        background: 'var(--bg-surface-elevated)', borderRadius: 4,
+                        color: 'var(--text-tertiary)',
+                      }}>
+                        {w.titre || w.type}
+                      </span>
+                    ))}
+                    {(db.widgets?.length || 0) > 3 && (
+                      <span style={{ fontSize: '0.62rem', color: 'var(--text-tertiary)' }}>
+                        +{db.widgets.length - 3} autres
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ═══════════ TAB: COMPARAISON ANNUELLE ═══════════ */}
       {activeTab === 'comparaison' && (
         <div className="tdb-tab-content">
@@ -1644,8 +1732,8 @@ export default function TableauDeBord() {
 
             // Données de démo pour années précédentes si une seule année existe
             const realYears = Object.keys(yearMap);
-            if (realYears.length <= 1) {
-              // Générer 2024 et 2025 avec des montants réalistes progressifs
+            const isDemoData = realYears.length <= 1;
+            if (isDemoData) {
               const base2024 = [12000, 18000, 15000, 22000, 28000, 35000, 42000, 38000, 45000, 50000, 55000, 48000];
               const base2025 = [25000, 32000, 28000, 40000, 52000, 68000, 85000, 78000, 92000, 105000, 110000, 95000];
               base2024.forEach((v, i) => {
@@ -1668,65 +1756,178 @@ export default function TableauDeBord() {
               });
               return entry;
             });
-            // KPI par année
-            const yearKpis = years.map(y => {
+            // KPI par année avec variation
+            const yearKpis = years.map((y, idx) => {
               const vals = Object.values(yearMap[y] || {});
               const totalRevenus = vals.reduce((s, v) => s + v.paye, 0);
               const totalSoumis = vals.reduce((s, v) => s + v.total, 0);
-              return { year: y, totalRevenus, totalSoumis, mois: vals.length };
+              const prevYear = idx > 0 ? years[idx - 1] : null;
+              let variation = null;
+              if (prevYear) {
+                const prevVals = Object.values(yearMap[prevYear] || {});
+                const prevRevenus = prevVals.reduce((s, v) => s + v.paye, 0);
+                if (prevRevenus > 0) {
+                  variation = ((totalRevenus - prevRevenus) / prevRevenus) * 100;
+                }
+              }
+              return { year: y, totalRevenus, totalSoumis, mois: vals.length, variation, prevYear };
             });
+
+            const lastYear = years.length >= 1 ? years[years.length - 1] : null;
+            const prevLastYear = years.length >= 2 ? years[years.length - 2] : null;
 
             return (
               <>
-                {/* KPI par année */}
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(years.length, 4)}, 1fr)`, gap: '0.75rem', marginBottom: '1rem' }}>
+                {/* Badge données de démonstration */}
+                {isDemoData && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.4rem 0.8rem', background: 'rgba(37,99,235,0.06)',
+                    border: '1px solid rgba(37,99,235,0.15)', borderRadius: '8px',
+                    fontSize: '0.72rem', color: '#2563EB', flexShrink: 0,
+                  }}>
+                    <AlertCircle size={14}/> Les annees 2024 et 2025 contiennent des donnees de demonstration
+                  </div>
+                )}
+
+                {/* KPI par année avec variation */}
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(years.length, 4)}, 1fr)`, gap: '0.75rem', flexShrink: 0 }}>
                   {yearKpis.map((yk, i) => (
                     <div key={yk.year} style={{
                       background: 'var(--bg-surface)', border: '1px solid var(--glass-border)',
                       borderRadius: 10, padding: '0.8rem 1rem',
                     }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: YEAR_COLORS[i % YEAR_COLORS.length], textTransform: 'uppercase', letterSpacing: '0.04em' }}>{yk.year}</div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)' }}>{fmtFull(yk.totalRevenus)}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>
-                        Total soumis : {fmtFull(yk.totalSoumis)} · {yk.mois} mois
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: YEAR_COLORS[i % YEAR_COLORS.length], textTransform: 'uppercase', letterSpacing: '0.04em' }}>{yk.year}</div>
+                        {yk.variation !== null && (
+                          <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+                            fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.4rem',
+                            borderRadius: 6,
+                            background: yk.variation >= 0 ? 'rgba(5,150,105,0.1)' : 'rgba(220,38,38,0.1)',
+                            color: yk.variation >= 0 ? '#059669' : '#DC2626',
+                          }}>
+                            {yk.variation >= 0 ? <TrendingUp size={11}/> : <TrendingDown size={11}/>}
+                            {yk.variation >= 0 ? '+' : ''}{yk.variation.toFixed(1)}%
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)' }}>{fmtFull(yk.totalRevenus)} FCFA</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginTop: '0.15rem' }}>
+                        {yk.variation !== null
+                          ? `${yk.variation >= 0 ? '\u2191' : '\u2193'} ${Math.abs(yk.variation).toFixed(1)}% vs ${yk.prevYear} \u00b7 ${yk.mois} mois`
+                          : `${yk.mois} mois de donnees`
+                        }
                       </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Chart comparaison — revenus payés */}
+                {/* Chart comparaison — barres groupees */}
                 <div className="chart-card" style={{ flex: 1, minHeight: 0 }}>
                   <div className="chart-card__header">
                     <div>
-                      <h2 className="chart-title">Comparaison annuelle — Revenus payés</h2>
-                      <span className="chart-sub">Chaque ligne représente une année</span>
+                      <h2 className="chart-title">Comparaison annuelle — Revenus payes</h2>
+                      <span className="chart-sub">Barres groupees par mois — une couleur par annee</span>
                     </div>
                     <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
                   </div>
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={compData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <BarChart data={compData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--glass-border)" />
                       <XAxis dataKey="mois" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
                       <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
                       <Tooltip content={<CustomTooltip />} />
                       <Legend />
                       {years.map((y, i) => (
-                        <Line
-                          key={y}
-                          type="monotone"
-                          dataKey={`paye_${y}`}
-                          name={y}
-                          stroke={YEAR_COLORS[i % YEAR_COLORS.length]}
-                          strokeWidth={2.5}
-                          dot={{ r: 4, fill: YEAR_COLORS[i % YEAR_COLORS.length] }}
-                          activeDot={{ r: 6 }}
-                          isAnimationActive
-                          animationDuration={1200}
-                          connectNulls
-                        />
+                        <Bar key={y} dataKey={`paye_${y}`} name={y} fill={YEAR_COLORS[i % YEAR_COLORS.length]} radius={[3, 3, 0, 0]} isAnimationActive animationDuration={1000} />
                       ))}
-                    </LineChart>
+                    </BarChart>
                   </ResponsiveContainer>
+                </div>
+
+                {/* Tableau recapitulatif mois par mois */}
+                <div className="chart-card" style={{ flexShrink: 0, maxHeight: 250, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <div className="chart-card__header" style={{ flexShrink: 0 }}>
+                    <h2 className="chart-title">Recapitulatif mensuel</h2>
+                  </div>
+                  <div style={{ flex: 1, overflowY: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                      <thead>
+                        <tr style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--bg-surface)' }}>
+                          <th style={{ padding: '0.45rem 0.6rem', textAlign: 'left', fontWeight: 700, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)', borderBottom: '2px solid var(--glass-border)' }}>Mois</th>
+                          {years.map((y, i) => (
+                            <th key={y} style={{ padding: '0.45rem 0.6rem', textAlign: 'right', fontWeight: 700, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: YEAR_COLORS[i % YEAR_COLORS.length], borderBottom: '2px solid var(--glass-border)' }}>{y}</th>
+                          ))}
+                          {lastYear && prevLastYear && (
+                            <th style={{ padding: '0.45rem 0.6rem', textAlign: 'right', fontWeight: 700, fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)', borderBottom: '2px solid var(--glass-border)' }}>Var. {prevLastYear}&rarr;{lastYear}</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {compData.map((row, idx) => {
+                          const curVal = lastYear ? (row[`paye_${lastYear}`] || 0) : 0;
+                          const prevVal = prevLastYear ? (row[`paye_${prevLastYear}`] || 0) : 0;
+                          let varColor = 'var(--text-tertiary)';
+                          let varLabel = '\u2014';
+                          if (prevVal > 0 && curVal > 0) {
+                            const varPct = ((curVal - prevVal) / prevVal) * 100;
+                            varColor = varPct >= 0 ? '#059669' : '#DC2626';
+                            varLabel = `${varPct >= 0 ? '+' : ''}${varPct.toFixed(0)}% ${varPct >= 0 ? '\u2191' : '\u2193'}`;
+                          } else if (prevVal > 0 && curVal === 0) {
+                            varColor = '#DC2626';
+                            varLabel = '-100% \u2193';
+                          } else if (prevVal === 0 && curVal > 0) {
+                            varColor = '#059669';
+                            varLabel = 'Nouveau \u2191';
+                          }
+                          return (
+                            <tr key={row.mois} style={{ borderBottom: '1px solid var(--glass-border)', background: idx % 2 === 0 ? 'transparent' : 'var(--bg-surface-elevated)' }}>
+                              <td style={{ padding: '0.4rem 0.6rem', fontWeight: 600, color: 'var(--text-primary)' }}>{row.mois}</td>
+                              {years.map(y => (
+                                <td key={y} style={{ padding: '0.4rem 0.6rem', textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                  {row[`paye_${y}`] > 0 ? fmt(row[`paye_${y}`]) : '\u2014'}
+                                </td>
+                              ))}
+                              {lastYear && prevLastYear && (
+                                <td style={{ padding: '0.4rem 0.6rem', textAlign: 'right', fontWeight: 700, color: varColor, whiteSpace: 'nowrap', fontSize: '0.72rem' }}>
+                                  {varLabel}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                        {/* Ligne total */}
+                        <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--bg-surface-elevated)' }}>
+                          <td style={{ padding: '0.5rem 0.6rem', fontWeight: 800, color: 'var(--text-primary)' }}>Total</td>
+                          {years.map((y, i) => {
+                            const total = compData.reduce((s, r) => s + (r[`paye_${y}`] || 0), 0);
+                            return (
+                              <td key={y} style={{ padding: '0.5rem 0.6rem', textAlign: 'right', fontWeight: 800, color: YEAR_COLORS[i % YEAR_COLORS.length], whiteSpace: 'nowrap' }}>
+                                {fmt(total)}
+                              </td>
+                            );
+                          })}
+                          {lastYear && prevLastYear && (() => {
+                            const totalCur = compData.reduce((s, r) => s + (r[`paye_${lastYear}`] || 0), 0);
+                            const totalPrev = compData.reduce((s, r) => s + (r[`paye_${prevLastYear}`] || 0), 0);
+                            let tColor = 'var(--text-tertiary)';
+                            let tLabel = '\u2014';
+                            if (totalPrev > 0) {
+                              const tPct = ((totalCur - totalPrev) / totalPrev) * 100;
+                              tColor = tPct >= 0 ? '#059669' : '#DC2626';
+                              tLabel = `${tPct >= 0 ? '+' : ''}${tPct.toFixed(1)}% ${tPct >= 0 ? '\u2191' : '\u2193'}`;
+                            }
+                            return (
+                              <td style={{ padding: '0.5rem 0.6rem', textAlign: 'right', fontWeight: 800, color: tColor, whiteSpace: 'nowrap' }}>
+                                {tLabel}
+                              </td>
+                            );
+                          })()}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </>
             );
@@ -1800,54 +2001,111 @@ export default function TableauDeBord() {
       )}
 
       {/* ═══════════ TAB 4: ALERTES ═══════════ */}
-      {activeTab === 'alertes' && (
-        <div className="tdb-tab-content">
-          {alertes.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-secondary)' }}>
-              <div style={{ textAlign: 'center' }}>
-                <CheckCircle size={32} style={{ color: '#059669', opacity: 0.6 }}/>
-                <p style={{ marginTop: '0.5rem' }}>Aucune alerte active. Tous les indicateurs sont normaux.</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Alert summary cards */}
-              <div style={{ display: 'flex', gap: '0.6rem', flexShrink: 0 }}>
-                <div className="tdb-mini-kpi-card" style={{ flex: 1 }}>
-                  <div className="tdb-mini-kpi-card__label">Alertes Critiques</div>
-                  <div className="tdb-mini-kpi-card__value" style={{ color: '#DC2626' }}>
-                    {alertes.filter(a => a.type === 'danger' || a.severite === 'critical').length}
-                  </div>
-                </div>
-                <div className="tdb-mini-kpi-card" style={{ flex: 1 }}>
-                  <div className="tdb-mini-kpi-card__label">Avertissements</div>
-                  <div className="tdb-mini-kpi-card__value" style={{ color: '#D97706' }}>
-                    {alertes.filter(a => a.type === 'attention' || a.severite === 'warning').length}
-                  </div>
-                </div>
-                <div className="tdb-mini-kpi-card" style={{ flex: 1 }}>
-                  <div className="tdb-mini-kpi-card__label">Total</div>
-                  <div className="tdb-mini-kpi-card__value">{alertes.length}</div>
-                </div>
-              </div>
+      {activeTab === 'alertes' && (() => {
+        const countCritical = alertes.filter(a => { const t = (a.type || a.severite || 'info').toLowerCase(); return t === 'danger' || t === 'critical' || t === 'error'; }).length;
+        const countWarning = alertes.filter(a => { const t = (a.type || a.severite || 'info').toLowerCase(); return t === 'attention' || t === 'warning'; }).length;
+        const countInfo = alertes.filter(a => { const t = (a.type || a.severite || 'info').toLowerCase(); return t === 'info'; }).length;
+        const filteredAlertes = alerteFilter === 'all' ? alertes : alertes.filter(a => {
+          const type = (a.type || a.severite || 'info').toLowerCase();
+          if (alerteFilter === 'critical') return type === 'danger' || type === 'critical' || type === 'error';
+          if (alerteFilter === 'warning') return type === 'attention' || type === 'warning';
+          if (alerteFilter === 'info') return type === 'info';
+          return true;
+        });
 
-              {/* Alert list */}
-              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {alertes.map((alerte, i) => (
-                  <div className={`tdb-alert-item tdb-alert--${(alerte.type || alerte.severite || 'info').toLowerCase()}`} key={i}>
-                    <AlertTriangle size={14}/>
-                    <div className="tdb-alert-item__body">
-                      <span className="tdb-alert-item__title">{alerte.titre || alerte.title}</span>
-                      <span className="tdb-alert-item__desc">{alerte.message || alerte.description}</span>
-                    </div>
-                    <span className="tdb-alert-item__time">{alerte.date || alerte.createdAt}</span>
-                  </div>
-                ))}
+        return (
+          <div className="tdb-tab-content">
+            {alertes.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-secondary)' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <CheckCircle size={32} style={{ color: '#059669', opacity: 0.6 }}/>
+                  <p style={{ marginTop: '0.5rem' }}>Aucune alerte active. Tous les indicateurs sont normaux.</p>
+                </div>
               </div>
-            </>
-          )}
-        </div>
-      )}
+            ) : (
+              <>
+                {/* Alert summary cards */}
+                <div style={{ display: 'flex', gap: '0.6rem', flexShrink: 0 }}>
+                  <div className="tdb-mini-kpi-card" style={{ flex: 1 }}>
+                    <div className="tdb-mini-kpi-card__label">Alertes Critiques</div>
+                    <div className="tdb-mini-kpi-card__value" style={{ color: '#DC2626' }}>
+                      {countCritical}
+                    </div>
+                  </div>
+                  <div className="tdb-mini-kpi-card" style={{ flex: 1 }}>
+                    <div className="tdb-mini-kpi-card__label">Avertissements</div>
+                    <div className="tdb-mini-kpi-card__value" style={{ color: '#D97706' }}>
+                      {countWarning}
+                    </div>
+                  </div>
+                  <div className="tdb-mini-kpi-card" style={{ flex: 1 }}>
+                    <div className="tdb-mini-kpi-card__label">Total</div>
+                    <div className="tdb-mini-kpi-card__value">{alertes.length}</div>
+                  </div>
+                </div>
+
+                {/* Filter buttons */}
+                <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+                  {[
+                    { key: 'all', label: 'Toutes', count: alertes.length },
+                    { key: 'critical', label: 'Critiques', count: countCritical },
+                    { key: 'warning', label: 'Avertissements', count: countWarning },
+                    { key: 'info', label: 'Informations', count: countInfo },
+                  ].map(f => (
+                    <button key={f.key}
+                      className={`preset-btn ${alerteFilter === f.key ? 'active' : ''}`}
+                      onClick={() => setAlerteFilter(f.key)}
+                    >
+                      {f.label} ({f.count})
+                    </button>
+                  ))}
+                </div>
+
+                {/* Alert list */}
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {filteredAlertes.length === 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                      Aucune alerte dans cette categorie.
+                    </div>
+                  ) : filteredAlertes.map((alerte, i) => {
+                    const type = (alerte.type || alerte.severite || 'info').toLowerCase();
+                    const isCritical = type === 'danger' || type === 'critical' || type === 'error';
+                    const isWarning = type === 'attention' || type === 'warning';
+                    const color = isCritical ? '#DC2626' : isWarning ? '#D97706' : '#2563EB';
+                    const bgColor = isCritical ? 'rgba(220,38,38,0.04)' : isWarning ? 'rgba(217,119,6,0.04)' : 'rgba(37,99,235,0.04)';
+                    const label = isCritical ? 'CRITIQUE' : isWarning ? 'ATTENTION' : 'INFO';
+
+                    return (
+                      <div key={i} style={{
+                        padding: '0.75rem 1rem', background: bgColor,
+                        borderRadius: 8, display: 'flex', flexDirection: 'column', gap: '0.3rem',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{
+                              fontSize: '0.58rem', fontWeight: 800, padding: '0.15rem 0.4rem',
+                              borderRadius: 4, background: color, color: '#fff', letterSpacing: '0.05em',
+                            }}>{label}</span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {alerte.titre || alerte.title}
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', flexShrink: 0 }}>
+                            {alerte.date || alerte.createdAt ? new Date(alerte.date || alerte.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                          {alerte.message || alerte.description}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

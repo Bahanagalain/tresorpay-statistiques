@@ -1163,7 +1163,7 @@ export default function TableauDeBord() {
                   style={{
                     padding: '0.35rem 0.65rem', fontSize: '0.72rem', fontWeight: 600,
                     border: '1px solid var(--glass-border)', borderRadius: 6, cursor: 'pointer',
-                    background: soumStatut === btn.value ? 'var(--primary)' : 'transparent',
+                    background: soumStatut === btn.value ? '#059669' : 'transparent',
                     color: soumStatut === btn.value ? '#fff' : 'var(--text-secondary)',
                     transition: 'all 0.15s',
                   }}
@@ -1427,29 +1427,67 @@ export default function TableauDeBord() {
             </ResponsiveContainer>
           </div>
 
-          {/* Top 10 Services */}
+          {/* Top 10 Services — tableau */}
           {top10Services.length > 0 && (
             <div className="chart-card" style={{ flexShrink: 0 }}>
               <div className="chart-card__header">
                 <div>
                   <h2 className="chart-title">Top 10 Services</h2>
-                  <span className="chart-sub">Cliquez une barre pour le detail</span>
+                  <span className="chart-sub">Cliquez une ligne pour le détail</span>
                 </div>
-                <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
               </div>
-              <ResponsiveContainer width="100%" height={Math.max(220, top10Services.length * 30)}>
-                <BarChart data={top10Services} layout="vertical" margin={{ left: 10, right: 20 }} onClick={handleServiceClick} style={{ cursor: 'pointer' }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
-                  <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 10 }}/>
-                  <YAxis type="category" dataKey="nom" width={140} tick={{ fontSize: 10 }}/>
-                  <Tooltip content={<CustomTooltip/>}/>
-                  <Bar dataKey="montant" name="Revenus" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1400}>
-                    {top10Services.map((item, index) => (
-                      <Cell key={item.serviceId || index} fill={item.couleur || `hsl(${190 + index * 10}, 60%, 45%)`}/>
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
+                      <th style={{ textAlign: 'left', padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>#</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Service</th>
+                      <th style={{ textAlign: 'right', padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Revenus</th>
+                      <th style={{ textAlign: 'right', padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Soumissions</th>
+                      <th style={{ textAlign: 'right', padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Taux</th>
+                      <th style={{ width: 100, padding: '0.5rem 0.6rem' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {top10Services.map((svc, i) => {
+                      const pct = top10Services[0]?.montant > 0 ? (svc.montant / top10Services[0].montant) * 100 : 0;
+                      return (
+                        <tr key={svc.serviceId || i}
+                          style={{
+                            borderBottom: '1px solid var(--glass-border)',
+                            background: i % 2 === 0 ? 'transparent' : 'var(--bg-surface-elevated)',
+                            cursor: 'pointer', transition: 'background 0.15s',
+                          }}
+                          onClick={() => { setDrillService(svc); setDrillServiceData(null); }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(5,150,105,0.04)'}
+                          onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : 'var(--bg-surface-elevated)'}
+                        >
+                          <td style={{ padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 700, fontSize: '0.7rem' }}>{i + 1}</td>
+                          <td style={{ padding: '0.5rem 0.6rem', color: 'var(--text-primary)', fontWeight: 600, maxWidth: 300 }}>
+                            {svc.nom}
+                          </td>
+                          <td style={{ padding: '0.5rem 0.6rem', textAlign: 'right', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
+                            {fmtFull(svc.montant)}
+                          </td>
+                          <td style={{ padding: '0.5rem 0.6rem', textAlign: 'right', color: 'var(--text-primary)' }}>
+                            {fmtEntier(svc.nombreSoumissions || 0)}
+                          </td>
+                          <td style={{ padding: '0.5rem 0.6rem', textAlign: 'right', fontWeight: 700, fontSize: '0.72rem',
+                            color: (svc.tauxPaiement || 0) >= 75 ? '#059669' : (svc.tauxPaiement || 0) >= 50 ? '#D97706' : '#DC2626'
+                          }}>
+                            {svc.tauxPaiement || 0}%
+                          </td>
+                          <td style={{ padding: '0.5rem 0.6rem' }}>
+                            <div style={{ background: 'var(--bg-surface-elevated)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${pct}%`, background: svc.couleur || '#059669', borderRadius: 4, transition: 'width 0.8s' }}/>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

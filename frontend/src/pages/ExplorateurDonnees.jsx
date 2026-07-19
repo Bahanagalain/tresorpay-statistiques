@@ -97,6 +97,7 @@ export default function ExplorateurDonnees() {
 
   // Drill-down
   const [drillStack, setDrillStack] = useState([]);
+  const [openServiceAccordions, setOpenServiceAccordions] = useState({});
 
   // Results
   const [resultats, setResultats] = useState(null);
@@ -157,6 +158,29 @@ export default function ExplorateurDonnees() {
     const dim = allDimensions.find(d => d.cle === cle);
     return dim?.libelle || cle;
   }, [allDimensions]);
+
+  // Group dynamic dimensions by service
+  const dimsByService = useMemo(() => {
+    const map = {};
+    dynamicDimensions.forEach(d => {
+      const sId = d.serviceId || '__sans_service__';
+      if (!map[sId]) map[sId] = [];
+      map[sId].push(d);
+    });
+    // Build array with service name
+    return Object.entries(map).map(([sId, champs]) => {
+      const svc = services.find(s => String(s.id) === String(sId));
+      return {
+        serviceId: sId,
+        serviceName: svc?.nomFr || svc?.nom_fr || svc?.nom || 'Service inconnu',
+        champs,
+      };
+    });
+  }, [dynamicDimensions, services]);
+
+  const toggleServiceAccordion = useCallback((sId) => {
+    setOpenServiceAccordions(prev => ({ ...prev, [sId]: !prev[sId] }));
+  }, []);
 
   // Execute query
   const executeQuery = useCallback(async () => {
@@ -472,24 +496,56 @@ export default function ExplorateurDonnees() {
                 </label>
               ))}
             </div>
-            {/* Dynamic dimensions */}
-            {dynamicDimensions.length > 0 && (
+            {/* Dynamic dimensions grouped by service */}
+            {dimsByService.length > 0 && (
               <>
-                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  Champs formulaire
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '4px', marginTop: '0.5rem' }}>
+                  Champs par service
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {dynamicDimensions.map(d => (
-                    <label key={d.cle} style={checkboxRowStyle}>
-                      <input
-                        type="checkbox"
-                        checked={groupBy.includes(d.cle)}
-                        onChange={() => toggleGroupBy(d.cle)}
-                        style={{ accentColor: '#059669' }}
-                      />
-                      <span style={{ fontSize: '0.83rem' }}>{d.libelle}</span>
-                    </label>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', maxHeight: '280px', overflowY: 'auto' }}>
+                  {dimsByService.map(({ serviceId, serviceName, champs }) => {
+                    const isOpen = openServiceAccordions[serviceId];
+                    const selectedCount = champs.filter(d => groupBy.includes(d.cle)).length;
+                    return (
+                      <div key={serviceId}>
+                        <button
+                          onClick={() => toggleServiceAccordion(serviceId)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '4px', width: '100%',
+                            background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px',
+                            fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-secondary)',
+                            textAlign: 'left',
+                          }}
+                        >
+                          {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {serviceName}
+                          </span>
+                          {selectedCount > 0 && (
+                            <span style={{ fontSize: '0.65rem', background: '#059669', color: '#fff', borderRadius: '8px', padding: '0 5px', minWidth: '16px', textAlign: 'center' }}>
+                              {selectedCount}
+                            </span>
+                          )}
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}>{champs.length}</span>
+                        </button>
+                        {isOpen && (
+                          <div style={{ paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                            {champs.map(d => (
+                              <label key={d.cle} style={checkboxRowStyle}>
+                                <input
+                                  type="checkbox"
+                                  checked={groupBy.includes(d.cle)}
+                                  onChange={() => toggleGroupBy(d.cle)}
+                                  style={{ accentColor: '#059669' }}
+                                />
+                                <span style={{ fontSize: '0.8rem' }}>{d.libelle}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </>
             )}

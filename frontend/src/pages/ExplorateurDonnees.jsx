@@ -1,71 +1,117 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import {
-  Search, X, Plus, BarChart3, Table2, Grid3X3, Download, Filter,
-  ChevronDown, Loader2,
+  Search, Hash, TrendingUp, BarChart2, BarChart3, PieChart as PieChartIcon,
+  Layers, Grid3x3, Filter, ChevronDown, ChevronRight, X, ArrowLeft, Zap,
 } from 'lucide-react';
-import DatePresetFilter from '../components/ui/DatePresetFilter';
-import PivotTable from '../components/ui/PivotTable';
-import ExportButtons from '../components/ui/ExportButtons';
 import {
-  fetchExplorerDimensions,
-  fetchExplorerExplore,
-  fetchExplorerCrosstab,
+  fetchExplorerDimensions, fetchExplorerExplore, fetchExplorerCrosstab,
   buildAnalyticsDateParams,
 } from '../api/analyticsApi';
+import DatePresetFilter from '../components/ui/DatePresetFilter';
+import ExportButtons from '../components/ui/ExportButtons';
+import PivotTable from '../components/ui/PivotTable';
+import WeaveSpinner from '../components/ui/WeaveSpinner';
 import { usePeriodFilter } from '../hooks/usePeriodFilter';
+import { formatMontant, formatEntier } from '../utils/format';
 
-const COLORS = ['#2563EB', '#059669', '#D97706', '#DC2626', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#10B981'];
+// ─── Constants ─────────────────────────────────────────
+const COLORS = ['#059669', '#2563EB', '#D97706', '#DC2626', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#6366F1', '#84CC16'];
 
-function formatMontant(val) {
-  return (val || 0).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FCFA';
+const PRESET_QUERIES = [
+  { label: 'Soumissions par ministère', mesure: 'count', dims: ['ministere'], chart: 'bar_h' },
+  { label: 'Revenus par service', mesure: 'sum', dims: ['service'], chart: 'bar_h' },
+  { label: 'Évolution mensuelle', mesure: 'count', dims: ['mois'], chart: 'line' },
+  { label: 'Répartition par statut', mesure: 'count', dims: ['statut'], chart: 'pie' },
+  { label: 'Ministères × Statut', mesure: 'count', dims: ['ministere', 'statut'], chart: 'stacked' },
+  { label: 'Top régions par montant', mesure: 'sum', dims: ['region'], chart: 'bar_h' },
+];
+
+const FIXED_DIMENSIONS = [
+  { cle: 'ministere', libelle: 'Ministère' },
+  { cle: 'service', libelle: 'Service' },
+  { cle: 'domaine', libelle: 'Domaine' },
+  { cle: 'region', libelle: 'Région' },
+  { cle: 'statut', libelle: 'Statut' },
+  { cle: 'mois', libelle: 'Mois' },
+];
+
+const MESURES = [
+  { key: 'count', label: 'Nombre de soumissions', icon: Hash },
+  { key: 'sum', label: 'Montant total', icon: TrendingUp },
+  { key: 'avg', label: 'Montant moyen', icon: BarChart2 },
+];
+
+const CHART_TYPES = [
+  { key: 'bar_h', icon: BarChart3, label: 'Barres horizontales' },
+  { key: 'bar_v', icon: BarChart2, label: 'Barres verticales' },
+  { key: 'line', icon: TrendingUp, label: 'Courbe' },
+  { key: 'pie', icon: PieChartIcon, label: 'Camembert' },
+  { key: 'stacked', icon: Layers, label: 'Barres empilées' },
+  { key: 'pivot', icon: Grid3x3, label: 'Tableau croisé' },
+];
+
+function getSmartChartType(dims) {
+  if (dims.includes('mois')) return 'line';
+  if (dims.length === 1 && dims[0] === 'statut') return 'pie';
+  if (dims.length >= 2) return 'stacked';
+  return 'bar_h';
 }
 
-function formatNombre(val) {
-  return (val || 0).toLocaleString('fr-FR');
+function getMesureLabel(mesure) {
+  switch (mesure) {
+    case 'count': return 'nombre';
+    case 'sum': return 'montant total';
+    case 'avg': return 'montant moyen';
+    default: return mesure;
+  }
 }
 
+// ─── Component ─────────────────────────────────────────
 export default function ExplorateurDonnees() {
-  const { dateRange, setDateRange } = usePeriodFilter();
-  const [dimensions, setDimensions] = useState({ fixes: [], dynamiques: [] });
-  const [serviceFilter, setServiceFilter] = useState('');
-  const [services, setServices] = useState([]);
-  const [ministeres, setMinisteres] = useState([]);
-  const [ministereFilter, setMinistereFilter] = useState('');
-  const [statutFilter, setStatutFilter] = useState('');
+  const { range: dateRange, setState: setDateState, state: periodState } = usePeriodFilter();
 
-  // Exploration state
-  const [groupBy, setGroupBy] = useState([]);
-  const [filtresActifs, setFiltresActifs] = useState({});
+  // Reference data
+  const [ministeres, setMinisteres] = useState([]);
+  const [services, setServices] = useState([]);
+  const [dynamicDimensions, setDynamicDimensions] = useState([]);
+
+  // Builder state
   const [mesure, setMesure] = useState('count');
-  const [viewMode, setViewMode] = useState('chart'); // chart | table | pivot
+  const [groupBy, setGroupBy] = useState([]);
+  const [chartType, setChartType] = useState('bar_h');
+
+  // Filters
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [ministereFilter, setMinistereFilter] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
+  const [statutFilter, setStatutFilter] = useState('');
 
   // Pivot state
   const [pivotLigne, setPivotLigne] = useState('');
   const [pivotColonne, setPivotColonne] = useState('');
   const [pivotDisplayMode, setPivotDisplayMode] = useState('raw');
 
+  // Drill-down
+  const [drillStack, setDrillStack] = useState([]);
+
   // Results
   const [resultats, setResultats] = useState(null);
+  const [totalCount, setTotalCount] = useState(0);
   const [pivotData, setPivotData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const abortRef = useRef(null);
+  const [sortCol, setSortCol] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
 
-  // Charger les services et ministères de reference
+  const abortRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  // Load reference data
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/referentiel/services');
-        if (res.ok) {
-          const data = await res.json();
-          setServices(Array.isArray(data) ? data : data?.data || []);
-        }
-      } catch { /* ignore */ }
-    })();
     (async () => {
       try {
         const res = await fetch('/api/referentiel/ministeres');
@@ -75,9 +121,18 @@ export default function ExplorateurDonnees() {
         }
       } catch { /* ignore */ }
     })();
+    (async () => {
+      try {
+        const res = await fetch('/api/referentiel/services');
+        if (res.ok) {
+          const data = await res.json();
+          setServices(Array.isArray(data) ? data : data?.data || []);
+        }
+      } catch { /* ignore */ }
+    })();
   }, []);
 
-  // Charger les dimensions disponibles
+  // Load dynamic dimensions
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
@@ -85,7 +140,7 @@ export default function ExplorateurDonnees() {
         const params = {};
         if (serviceFilter) params.service_id = serviceFilter;
         const data = await fetchExplorerDimensions(params, ctrl.signal);
-        if (data) setDimensions(data);
+        if (data?.dynamiques) setDynamicDimensions(data.dynamiques);
       } catch (err) {
         if (err.name !== 'AbortError') console.warn('Erreur chargement dimensions:', err);
       }
@@ -93,9 +148,19 @@ export default function ExplorateurDonnees() {
     return () => ctrl.abort();
   }, [serviceFilter]);
 
-  // Lancer l'exploration
-  const lancer = useCallback(async () => {
-    if (viewMode === 'pivot') {
+  const allDimensions = useMemo(() => [
+    ...FIXED_DIMENSIONS,
+    ...dynamicDimensions.map(d => ({ cle: d.cle, libelle: d.libelle, categorie: 'formulaire' })),
+  ], [dynamicDimensions]);
+
+  const getDimLabel = useCallback((cle) => {
+    const dim = allDimensions.find(d => d.cle === cle);
+    return dim?.libelle || cle;
+  }, [allDimensions]);
+
+  // Execute query
+  const executeQuery = useCallback(async () => {
+    if (chartType === 'pivot') {
       if (!pivotLigne || !pivotColonne) return;
     } else {
       if (groupBy.length === 0) return;
@@ -109,15 +174,17 @@ export default function ExplorateurDonnees() {
     setError(null);
 
     try {
-      const filtres = {
-        ...buildAnalyticsDateParams(dateRange),
-        ...filtresActifs,
-      };
-      if (serviceFilter) filtres.service_id = serviceFilter;
+      const filtres = { ...buildAnalyticsDateParams(dateRange) };
       if (ministereFilter) filtres.ministere_id = ministereFilter;
+      if (serviceFilter) filtres.service_id = serviceFilter;
       if (statutFilter) filtres.statut = statutFilter;
 
-      if (viewMode === 'pivot') {
+      // Apply drill-down filters
+      drillStack.forEach(d => {
+        filtres[d.dimension + '_id'] = d.value;
+      });
+
+      if (chartType === 'pivot') {
         const data = await fetchExplorerCrosstab({
           dim_ligne: pivotLigne,
           dim_colonne: pivotColonne,
@@ -126,6 +193,7 @@ export default function ExplorateurDonnees() {
         }, ctrl.signal);
         setPivotData(data);
         setResultats(null);
+        setTotalCount(0);
       } else {
         const data = await fetchExplorerExplore({
           group_by: groupBy,
@@ -134,68 +202,181 @@ export default function ExplorateurDonnees() {
           limite: 50,
           tri: 'desc',
         }, ctrl.signal);
-        setResultats(data?.resultats || data || []);
+        const res = data?.resultats || data || [];
+        setResultats(res);
+        setTotalCount(data?.total || res.length);
         setPivotData(null);
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
-        setError('Erreur lors de l\'exploration: ' + (err.message || 'Erreur inconnue'));
+        setError('Erreur lors de l\'exploration : ' + (err.message || 'Erreur inconnue'));
       }
     } finally {
       setLoading(false);
     }
-  }, [groupBy, mesure, dateRange, filtresActifs, serviceFilter, ministereFilter, statutFilter, viewMode, pivotLigne, pivotColonne]);
+  }, [groupBy, mesure, dateRange, ministereFilter, serviceFilter, statutFilter, chartType, pivotLigne, pivotColonne, drillStack]);
 
-  // Auto-refresh on param change
+  // Debounced auto-query
   useEffect(() => {
-    const timer = setTimeout(() => { lancer(); }, 300);
-    return () => clearTimeout(timer);
-  }, [lancer]);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { executeQuery(); }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [executeQuery]);
 
-  const toutesLesDimensions = [
-    ...dimensions.fixes.map(d => ({ ...d, categorie: 'Fixe' })),
-    ...dimensions.dynamiques.map(d => ({ ...d, categorie: 'Formulaire' })),
-  ];
+  // Preset click handler
+  const applyPreset = (preset) => {
+    setMesure(preset.mesure);
+    setGroupBy(preset.dims);
+    setChartType(preset.chart);
+    setDrillStack([]);
+  };
 
-  const addGroupBy = (cle) => {
-    if (groupBy.length >= 3 || groupBy.includes(cle)) return;
-    setGroupBy([...groupBy, cle]);
+  // Group by management
+  const toggleGroupBy = (cle) => {
+    if (groupBy.includes(cle)) {
+      setGroupBy(groupBy.filter(g => g !== cle));
+    } else {
+      setGroupBy([...groupBy, cle]);
+    }
   };
 
   const removeGroupBy = (cle) => {
     setGroupBy(groupBy.filter(g => g !== cle));
   };
 
-  const getDimLabel = (cle) => {
-    const dim = toutesLesDimensions.find(d => d.cle === cle);
-    return dim?.libelle || cle;
+  // Drill-down
+  const handleDrill = (dimensionValue, dimensionKey) => {
+    const nextDims = ['ministere', 'service', 'domaine', 'region', 'statut', 'mois'];
+    const currentIdx = nextDims.indexOf(dimensionKey || groupBy[0]);
+    const nextDim = nextDims[currentIdx + 1];
+    if (!nextDim) return;
+
+    setDrillStack([...drillStack, { dimension: dimensionKey || groupBy[0], value: dimensionValue, label: dimensionValue }]);
+    setGroupBy([nextDim]);
   };
 
-  // Préparer les données pour le graphique
-  const chartData = (resultats || []).map((r, i) => {
-    const label = Object.values(r.dimensions || {}).map(d => d.nom).join(' / ');
-    return {
-      name: label.length > 40 ? label.substring(0, 37) + '...' : label,
-      fullName: label,
-      valeur: mesure === 'count' ? r.nombre : r.montant,
-      nombre: r.nombre,
-      montant: r.montant,
-    };
-  }).slice(0, 20);
+  const handleDrillBack = () => {
+    if (drillStack.length === 0) return;
+    const newStack = [...drillStack];
+    newStack.pop();
+    setDrillStack(newStack);
+    // Restore previous groupBy from last drill level
+    if (newStack.length > 0) {
+      const nextDims = ['ministere', 'service', 'domaine', 'region', 'statut', 'mois'];
+      const lastDim = newStack[newStack.length - 1].dimension;
+      const idx = nextDims.indexOf(lastDim);
+      if (idx >= 0 && nextDims[idx + 1]) setGroupBy([nextDims[idx + 1]]);
+    } else {
+      // Will go back to first level - keep current groupBy
+    }
+  };
+
+  const resetDrill = () => {
+    setDrillStack([]);
+  };
+
+  // Sort table
+  const handleSort = (col) => {
+    if (sortCol === col) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(col);
+      setSortDir('desc');
+    }
+  };
+
+  // Prepare chart data
+  const chartData = useMemo(() => {
+    if (!resultats || resultats.length === 0) return [];
+    return resultats.map((r) => {
+      const label = Object.values(r.dimensions || {}).map(d => d.nom).join(' / ');
+      return {
+        name: label.length > 35 ? label.substring(0, 32) + '...' : label,
+        fullName: label,
+        valeur: mesure === 'count' ? r.nombre : (mesure === 'avg' ? (r.nombre > 0 ? r.montant / r.nombre : 0) : r.montant),
+        nombre: r.nombre,
+        montant: r.montant,
+      };
+    }).slice(0, 20);
+  }, [resultats, mesure]);
+
+  // Prepare stacked data (for 2+ dimensions)
+  const stackedData = useMemo(() => {
+    if (!resultats || groupBy.length < 2) return { data: [], series: [] };
+    const dim1Key = groupBy[0];
+    const dim2Key = groupBy[1];
+    const seriesSet = new Set();
+    const grouped = {};
+
+    resultats.forEach(r => {
+      const d1 = r.dimensions?.[dim1Key]?.nom || 'Autre';
+      const d2 = r.dimensions?.[dim2Key]?.nom || 'Autre';
+      seriesSet.add(d2);
+      if (!grouped[d1]) grouped[d1] = { name: d1 };
+      grouped[d1][d2] = (grouped[d1][d2] || 0) + (mesure === 'count' ? r.nombre : r.montant);
+    });
+
+    return { data: Object.values(grouped), series: [...seriesSet] };
+  }, [resultats, groupBy, mesure]);
+
+  // Sorted table data
+  const sortedTableData = useMemo(() => {
+    if (!resultats) return [];
+    const arr = [...resultats];
+    if (sortCol) {
+      arr.sort((a, b) => {
+        let va, vb;
+        if (sortCol === 'nombre') { va = a.nombre; vb = b.nombre; }
+        else if (sortCol === 'montant') { va = a.montant; vb = b.montant; }
+        else {
+          va = a.dimensions?.[sortCol]?.nom || '';
+          vb = b.dimensions?.[sortCol]?.nom || '';
+          return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+        }
+        return sortDir === 'asc' ? va - vb : vb - va;
+      });
+    }
+    return arr;
+  }, [resultats, sortCol, sortDir]);
 
   // Export data
-  const exportData = (resultats || []).map(r => {
-    const row = {};
-    for (const [key, dim] of Object.entries(r.dimensions || {})) {
-      row[getDimLabel(key)] = dim.nom;
+  const exportData = useMemo(() => {
+    return (resultats || []).map(r => {
+      const row = {};
+      for (const [key, dim] of Object.entries(r.dimensions || {})) {
+        row[getDimLabel(key)] = dim.nom;
+      }
+      row['Nombre'] = r.nombre;
+      row['Montant (FCFA)'] = r.montant;
+      return row;
+    });
+  }, [resultats, getDimLabel]);
+
+  // Summary sentence
+  const summaryText = useMemo(() => {
+    if (!resultats || resultats.length === 0) return '';
+    const dims = groupBy.map(getDimLabel).join(', ');
+    const total = totalCount || resultats.length;
+    let valueStr = '';
+    if (mesure === 'count') {
+      valueStr = formatEntier(resultats.reduce((s, r) => s + (r.nombre || 0), 0));
+    } else {
+      valueStr = formatMontant(resultats.reduce((s, r) => s + (r.montant || 0), 0));
     }
-    row['Nombre'] = r.nombre;
-    row['Montant (FCFA)'] = r.montant;
-    return row;
-  });
+    return `${formatEntier(total)} soumissions groupées par ${dims} — ${getMesureLabel(mesure)} : ${valueStr}`;
+  }, [resultats, groupBy, mesure, totalCount, getDimLabel]);
+
+  // Tooltip formatter
+  const tooltipFormatter = (val) => {
+    if (mesure === 'count') return formatEntier(val);
+    return formatMontant(val);
+  };
+
+  const hasResults = resultats && resultats.length > 0;
+  const hasPivot = pivotData && pivotData.lignes?.length > 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: 0 }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
@@ -204,245 +385,391 @@ export default function ExplorateurDonnees() {
             Analyse multi-dimensionnelle des recettes et soumissions
           </p>
         </div>
-        <DatePresetFilter value={dateRange} onChange={setDateRange} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <DatePresetFilter value={dateRange} onChange={(v) => setDateState(v)} />
+          {(hasResults || hasPivot) && (
+            <ExportButtons data={exportData} filename="exploration" title="Exploration des données" />
+          )}
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1rem', alignItems: 'start' }}>
-        {/* Panel gauche : configuration */}
+      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '1rem', alignItems: 'start' }}>
+        {/* ─── Left Panel ─── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* Filtres */}
+          {/* Preset Queries */}
           <div style={cardStyle}>
-            <label style={labelStyle}>Filtres</label>
-            <select value={ministereFilter} onChange={e => setMinistereFilter(e.target.value)} style={{ ...selectStyle, marginBottom: '0.5rem' }}>
-              <option value="">Tous les ministères</option>
-              {ministeres.map(m => (
-                <option key={m.id} value={m.id}>{m.nomFr || m.nom_fr}</option>
-              ))}
-            </select>
-            <select value={serviceFilter} onChange={e => setServiceFilter(e.target.value)} style={{ ...selectStyle, marginBottom: '0.5rem' }}>
-              <option value="">Tous les services</option>
-              {services.map(s => (
-                <option key={s.id} value={s.id}>{s.nomFr || s.nom_fr}</option>
-              ))}
-            </select>
-            <select value={statutFilter} onChange={e => setStatutFilter(e.target.value)} style={selectStyle}>
-              <option value="">Tous les statuts</option>
-              <option value="PAID">Payé</option>
-              <option value="PENDING">En attente</option>
-              <option value="PARTIAL">Partiel</option>
-              <option value="FAILED">Échoué</option>
-            </select>
-          </div>
-
-          {/* Mode de vue */}
-          <div style={cardStyle}>
-            <label style={labelStyle}>Mode de vue</label>
-            <div style={{ display: 'flex', gap: '0.25rem' }}>
-              {[
-                { key: 'chart', icon: BarChart3, label: 'Graphique' },
-                { key: 'table', icon: Table2, label: 'Tableau' },
-                { key: 'pivot', icon: Grid3X3, label: 'Croisé' },
-              ].map(v => (
+            <label style={labelStyle}>Requêtes prédéfinies</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {PRESET_QUERIES.map((pq, i) => (
                 <button
-                  key={v.key}
-                  onClick={() => setViewMode(v.key)}
-                  style={{
-                    ...btnToggleStyle,
-                    background: viewMode === v.key ? 'var(--accent-color, #2563EB)' : 'var(--bg-secondary)',
-                    color: viewMode === v.key ? '#fff' : 'var(--text-primary)',
-                  }}
+                  key={i}
+                  onClick={() => applyPreset(pq)}
+                  style={presetBtnStyle}
                 >
-                  <v.icon size={14} />
-                  <span>{v.label}</span>
+                  {i % 2 === 0 ? <Search size={13} style={{ opacity: 0.6 }} /> : <Zap size={13} style={{ opacity: 0.6 }} />}
+                  <span>{pq.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Mesure */}
+          {/* Step 1: Measure */}
           <div style={cardStyle}>
-            <label style={labelStyle}>Mesure</label>
-            <div style={{ display: 'flex', gap: '0.25rem' }}>
-              {[
-                { key: 'count', label: 'Nombre' },
-                { key: 'sum', label: 'Montant' },
-                { key: 'avg', label: 'Moyenne' },
-              ].map(m => (
-                <button
-                  key={m.key}
-                  onClick={() => setMesure(m.key)}
-                  style={{
-                    ...btnToggleStyle,
-                    background: mesure === m.key ? 'var(--accent-color, #2563EB)' : 'var(--bg-secondary)',
-                    color: mesure === m.key ? '#fff' : 'var(--text-primary)',
-                  }}
-                >
-                  {m.label}
-                </button>
-              ))}
+            <label style={labelStyle}>1. Mesure</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {MESURES.map(m => {
+                const Icon = m.icon;
+                const active = mesure === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => setMesure(m.key)}
+                    style={{
+                      ...mesureBtnStyle,
+                      background: active ? '#059669' : 'var(--bg-secondary, #f3f4f6)',
+                      color: active ? '#fff' : 'var(--text-primary)',
+                    }}
+                  >
+                    <Icon size={14} />
+                    <span>{m.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Dimensions pour groupBy (mode chart/table) */}
-          {viewMode !== 'pivot' && (
-            <div style={cardStyle}>
-              <label style={labelStyle}>
-                Dimensions ({groupBy.length}/3)
-              </label>
-              {/* Chips actifs */}
+          {/* Step 2: Group By */}
+          <div style={cardStyle}>
+            <label style={labelStyle}>2. Regrouper par</label>
+            {/* Selected chips */}
+            {groupBy.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBottom: '0.5rem' }}>
                 {groupBy.map(cle => (
                   <span key={cle} style={chipActiveStyle}>
                     {getDimLabel(cle)}
                     <button onClick={() => removeGroupBy(cle)} style={chipRemoveStyle}>
-                      <X size={12} />
+                      <X size={11} />
                     </button>
                   </span>
                 ))}
               </div>
-              {/* Dimensions disponibles */}
-              <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {toutesLesDimensions
-                  .filter(d => !groupBy.includes(d.cle))
-                  .map(d => (
-                    <button
-                      key={d.cle}
-                      onClick={() => addGroupBy(d.cle)}
-                      disabled={groupBy.length >= 3}
-                      style={dimBtnStyle}
-                    >
-                      <Plus size={12} style={{ opacity: 0.5 }} />
-                      <span style={{ flex: 1, textAlign: 'left' }}>{d.libelle}</span>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{d.categorie}</span>
-                    </button>
+            )}
+            {/* Main dimensions */}
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '4px' }}>
+              Dimensions principales
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '0.5rem' }}>
+              {FIXED_DIMENSIONS.map(d => (
+                <label key={d.cle} style={checkboxRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={groupBy.includes(d.cle)}
+                    onChange={() => toggleGroupBy(d.cle)}
+                    style={{ accentColor: '#059669' }}
+                  />
+                  <span style={{ fontSize: '0.83rem' }}>{d.libelle}</span>
+                </label>
+              ))}
+            </div>
+            {/* Dynamic dimensions */}
+            {dynamicDimensions.length > 0 && (
+              <>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  Champs formulaire
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {dynamicDimensions.map(d => (
+                    <label key={d.cle} style={checkboxRowStyle}>
+                      <input
+                        type="checkbox"
+                        checked={groupBy.includes(d.cle)}
+                        onChange={() => toggleGroupBy(d.cle)}
+                        style={{ accentColor: '#059669' }}
+                      />
+                      <span style={{ fontSize: '0.83rem' }}>{d.libelle}</span>
+                    </label>
                   ))}
-              </div>
-            </div>
-          )}
+                </div>
+              </>
+            )}
+          </div>
 
-          {/* Dimensions pour pivot */}
-          {viewMode === 'pivot' && (
-            <div style={cardStyle}>
-              <label style={labelStyle}>Dimension en ligne</label>
-              <select value={pivotLigne} onChange={e => setPivotLigne(e.target.value)} style={selectStyle}>
-                <option value="">Choisir...</option>
-                {toutesLesDimensions.map(d => (
-                  <option key={d.cle} value={d.cle}>{d.libelle}</option>
-                ))}
-              </select>
-              <label style={{ ...labelStyle, marginTop: '0.5rem' }}>Dimension en colonne</label>
-              <select value={pivotColonne} onChange={e => setPivotColonne(e.target.value)} style={selectStyle}>
-                <option value="">Choisir...</option>
-                {toutesLesDimensions.map(d => (
-                  <option key={d.cle} value={d.cle}>{d.libelle}</option>
-                ))}
-              </select>
-              <label style={{ ...labelStyle, marginTop: '0.75rem' }}>Affichage</label>
-              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                {[
-                  { key: 'raw', label: 'Valeurs' },
-                  { key: 'pctRow', label: '% Ligne' },
-                  { key: 'pctCol', label: '% Colonne' },
-                  { key: 'pctTotal', label: '% Total' },
-                ].map(m => (
-                  <button
-                    key={m.key}
-                    onClick={() => setPivotDisplayMode(m.key)}
-                    style={{
-                      ...btnToggleStyle,
-                      background: pivotDisplayMode === m.key ? 'var(--accent-color, #2563EB)' : 'var(--bg-secondary)',
-                      color: pivotDisplayMode === m.key ? '#fff' : 'var(--text-primary)',
-                      fontSize: '0.75rem',
-                    }}
-                  >
-                    {m.label}
-                  </button>
-                ))}
+          {/* Step 3: Filters (collapsible) */}
+          <div style={cardStyle}>
+            <button
+              onClick={() => setFiltersOpen(!filtersOpen)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: '100%' }}
+            >
+              {filtersOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <span style={{ ...labelStyle, margin: 0 }}>3. Filtres avancés</span>
+              <Filter size={12} style={{ opacity: 0.5, marginLeft: 'auto' }} />
+            </button>
+            {filtersOpen && (
+              <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <select value={ministereFilter} onChange={e => setMinistereFilter(e.target.value)} style={selectStyle}>
+                  <option value="">Tous les ministères</option>
+                  {ministeres.map(m => (
+                    <option key={m.id} value={m.id}>{m.nomFr || m.nom_fr || m.nom}</option>
+                  ))}
+                </select>
+                <select value={serviceFilter} onChange={e => setServiceFilter(e.target.value)} style={selectStyle}>
+                  <option value="">Tous les services</option>
+                  {services.map(s => (
+                    <option key={s.id} value={s.id}>{s.nomFr || s.nom_fr || s.nom}</option>
+                  ))}
+                </select>
+                <select value={statutFilter} onChange={e => setStatutFilter(e.target.value)} style={selectStyle}>
+                  <option value="">Tous les statuts</option>
+                  <option value="PAID">Payé</option>
+                  <option value="PENDING">En attente</option>
+                  <option value="PARTIAL">Partiel</option>
+                  <option value="FAILED">Échoué</option>
+                </select>
               </div>
-            </div>
-          )}
-
-          {/* Export */}
-          {(resultats?.length > 0 || pivotData?.lignes?.length > 0) && (
-            <ExportButtons
-              data={exportData}
-              filename="exploration"
-              title="Exploration des données"
-            />
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Panel droit : résultats */}
-        <div style={cardStyle}>
-          {loading && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-              <Loader2 size={20} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-              Chargement...
+        {/* ─── Right Panel ─── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Drill breadcrumb */}
+          {drillStack.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.83rem', color: 'var(--text-secondary)' }}>
+              <button onClick={resetDrill} style={linkBtnStyle}>
+                <ArrowLeft size={13} /> Tout
+              </button>
+              {drillStack.map((d, i) => (
+                <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <ChevronRight size={12} />
+                  <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{d.label}</span>
+                </span>
+              ))}
             </div>
           )}
 
-          {error && (
-            <div style={{ padding: '1rem', color: '#DC2626', background: '#FEF2F2', borderRadius: '0.5rem' }}>
-              {error}
-            </div>
-          )}
-
-          {!loading && !error && viewMode === 'pivot' && pivotData && (
-            <PivotTable
-              data={pivotData}
-              mesure={mesure}
-              dimLigneLabel={getDimLabel(pivotLigne)}
-              dimColonneLabel={getDimLabel(pivotColonne)}
-              displayMode={pivotDisplayMode}
-            />
-          )}
-
-          {!loading && !error && viewMode !== 'pivot' && resultats && resultats.length > 0 && (
-            <>
-              {viewMode === 'chart' && (
-                <div>
-                  {/* Bar chart */}
-                  <ResponsiveContainer width="100%" height={Math.max(300, chartData.length * 35)}>
-                    <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30, top: 10, bottom: 10 }}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                      <XAxis type="number" tickFormatter={mesure === 'count' ? formatNombre : formatMontant} />
-                      <YAxis type="category" dataKey="name" width={200} tick={{ fontSize: 12 }} />
-                      <Tooltip
-                        formatter={(val) => mesure === 'count' ? formatNombre(val) : formatMontant(val)}
-                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
-                      />
-                      <Bar dataKey="valeur" name={mesure === 'count' ? 'Nombre' : 'Montant'} radius={[0, 4, 4, 0]}>
-                        {chartData.map((_, i) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+          {/* Results card */}
+          <div style={cardStyle}>
+            {/* Summary + chart type selector */}
+            {(hasResults || hasPivot) && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  {summaryText}
+                </p>
+                <div style={{ display: 'flex', gap: '2px' }}>
+                  {CHART_TYPES.map(ct => {
+                    const Icon = ct.icon;
+                    const active = chartType === ct.key;
+                    return (
+                      <button
+                        key={ct.key}
+                        onClick={() => setChartType(ct.key)}
+                        title={ct.label}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          width: 30, height: 28, borderRadius: '0.25rem', border: 'none', cursor: 'pointer',
+                          background: active ? '#059669' : 'transparent',
+                          color: active ? '#fff' : 'var(--text-secondary)',
+                        }}
+                      >
+                        <Icon size={15} />
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
+            )}
 
-              {viewMode === 'table' && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            {/* Loading */}
+            {loading && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem' }}>
+                <WeaveSpinner size={60} message="Chargement..." />
+              </div>
+            )}
+
+            {/* Error */}
+            {!loading && error && (
+              <div style={{ padding: '1rem', color: '#DC2626', background: '#FEF2F2', borderRadius: '0.5rem', fontSize: '0.85rem' }}>
+                {error}
+              </div>
+            )}
+
+            {/* Pivot mode */}
+            {!loading && !error && chartType === 'pivot' && (
+              <>
+                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>Lignes :</span>
+                    <select value={pivotLigne} onChange={e => setPivotLigne(e.target.value)} style={{ ...selectStyle, width: 'auto' }}>
+                      <option value="">Choisir...</option>
+                      {allDimensions.map(d => <option key={d.cle} value={d.cle}>{d.libelle}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>Colonnes :</span>
+                    <select value={pivotColonne} onChange={e => setPivotColonne(e.target.value)} style={{ ...selectStyle, width: 'auto' }}>
+                      <option value="">Choisir...</option>
+                      {allDimensions.map(d => <option key={d.cle} value={d.cle}>{d.libelle}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: '2px' }}>
+                    {[
+                      { key: 'raw', label: 'Valeurs' },
+                      { key: 'pctRow', label: '% Ligne' },
+                      { key: 'pctCol', label: '% Colonne' },
+                      { key: 'pctTotal', label: '% Total' },
+                    ].map(m => (
+                      <button
+                        key={m.key}
+                        onClick={() => setPivotDisplayMode(m.key)}
+                        style={{
+                          padding: '0.3rem 0.6rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer',
+                          fontSize: '0.75rem', fontWeight: 500,
+                          background: pivotDisplayMode === m.key ? '#059669' : 'var(--bg-secondary, #f3f4f6)',
+                          color: pivotDisplayMode === m.key ? '#fff' : 'var(--text-primary)',
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {hasPivot ? (
+                  <PivotTable
+                    data={pivotData}
+                    mesure={mesure}
+                    dimLigneLabel={getDimLabel(pivotLigne)}
+                    dimColonneLabel={getDimLabel(pivotColonne)}
+                    displayMode={pivotDisplayMode}
+                  />
+                ) : (
+                  <EmptyState message="Sélectionnez les dimensions en ligne et en colonne pour générer le tableau croisé." />
+                )}
+              </>
+            )}
+
+            {/* Chart modes */}
+            {!loading && !error && chartType !== 'pivot' && hasResults && (
+              <>
+                {/* Chart */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  {chartType === 'bar_h' && (
+                    <ResponsiveContainer width="100%" height={Math.max(280, chartData.length * 34)}>
+                      <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis type="number" tickFormatter={tooltipFormatter} />
+                        <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 12 }} />
+                        <Tooltip formatter={tooltipFormatter} labelFormatter={(_, p) => p?.[0]?.payload?.fullName || _} />
+                        <Bar dataKey="valeur" name={mesure === 'count' ? 'Nombre' : 'Montant'} radius={[0, 4, 4, 0]}
+                          onClick={(data) => handleDrill(data.fullName || data.name, groupBy[0])}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+
+                  {chartType === 'bar_v' && (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart data={chartData} margin={{ left: 10, right: 30, top: 5, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis dataKey="name" angle={-30} textAnchor="end" height={60} tick={{ fontSize: 11 }} />
+                        <YAxis tickFormatter={tooltipFormatter} />
+                        <Tooltip formatter={tooltipFormatter} labelFormatter={(_, p) => p?.[0]?.payload?.fullName || _} />
+                        <Bar dataKey="valeur" name={mesure === 'count' ? 'Nombre' : 'Montant'} radius={[4, 4, 0, 0]}
+                          onClick={(data) => handleDrill(data.fullName || data.name, groupBy[0])}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+
+                  {chartType === 'line' && (
+                    <ResponsiveContainer width="100%" height={320}>
+                      <LineChart data={chartData} margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tickFormatter={tooltipFormatter} />
+                        <Tooltip formatter={tooltipFormatter} />
+                        <Line type="monotone" dataKey="valeur" stroke="#059669" strokeWidth={2} dot={{ r: 4, fill: '#059669' }} activeDot={{ r: 6 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+
+                  {chartType === 'pie' && (
+                    <ResponsiveContainer width="100%" height={350}>
+                      <PieChart>
+                        <Pie
+                          data={chartData}
+                          dataKey="valeur"
+                          nameKey="name"
+                          cx="50%" cy="45%"
+                          outerRadius={120}
+                          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(1)}%)`}
+                          labelLine={{ strokeWidth: 1 }}
+                          onClick={(data) => handleDrill(data.fullName || data.name, groupBy[0])}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip formatter={tooltipFormatter} />
+                        <Legend verticalAlign="bottom" height={36} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+
+                  {chartType === 'stacked' && stackedData.data.length > 0 && (
+                    <ResponsiveContainer width="100%" height={350}>
+                      <BarChart data={stackedData.data} margin={{ left: 10, right: 30, top: 5, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis dataKey="name" angle={-20} textAnchor="end" height={60} tick={{ fontSize: 11 }} />
+                        <YAxis tickFormatter={tooltipFormatter} />
+                        <Tooltip formatter={tooltipFormatter} />
+                        <Legend />
+                        {stackedData.series.map((s, i) => (
+                          <Bar key={s} dataKey={s} stackId="stack" fill={COLORS[i % COLORS.length]} radius={i === stackedData.series.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                        ))}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+
+                  {chartType === 'stacked' && stackedData.data.length === 0 && groupBy.length < 2 && (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      Sélectionnez au moins 2 dimensions pour le mode empilé.
+                    </div>
+                  )}
+                </div>
+
+                {/* Data table */}
+                <div style={{ overflowX: 'auto', maxHeight: '480px', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
                     <thead>
                       <tr>
                         <th style={thStyle}>#</th>
                         {groupBy.map(cle => (
-                          <th key={cle} style={thStyle}>{getDimLabel(cle)}</th>
+                          <th key={cle} style={{ ...thStyle, cursor: 'pointer' }} onClick={() => handleSort(cle)}>
+                            {getDimLabel(cle)} {sortCol === cle ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                          </th>
                         ))}
-                        <th style={{ ...thStyle, textAlign: 'right' }}>Nombre</th>
-                        <th style={{ ...thStyle, textAlign: 'right' }}>Montant</th>
+                        <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('nombre')}>
+                          Nombre {sortCol === 'nombre' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                        </th>
+                        <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('montant')}>
+                          Montant {sortCol === 'montant' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {resultats.map((r, i) => (
-                        <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--bg-secondary)' }}>
+                      {sortedTableData.slice(0, 15).map((r, i) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--bg-secondary, #f9fafb)' }}>
                           <td style={tdStyle}>{i + 1}</td>
                           {groupBy.map(cle => (
                             <td key={cle} style={tdStyle}>{r.dimensions?.[cle]?.nom || '-'}</td>
                           ))}
                           <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                            {formatNombre(r.nombre)}
+                            {formatEntier(r.nombre)}
                           </td>
                           <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                             {formatMontant(r.montant)}
@@ -451,36 +778,37 @@ export default function ExplorateurDonnees() {
                       ))}
                     </tbody>
                   </table>
+                  {sortedTableData.length > 15 && (
+                    <div style={{ padding: '0.5rem', fontSize: '0.78rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                      {sortedTableData.length - 15} lignes supplémentaires non affichées
+                    </div>
+                  )}
                 </div>
-              )}
-            </>
-          )}
+              </>
+            )}
 
-          {!loading && !error && !resultats?.length && !pivotData?.lignes?.length && (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-              <Search size={40} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
-              <p style={{ margin: 0 }}>
-                {viewMode === 'pivot'
-                  ? 'Sélectionnez les dimensions en ligne et en colonne pour générer le tableau croisé.'
-                  : 'Ajoutez des dimensions pour explorer les données.'}
-              </p>
-            </div>
-          )}
+            {/* Empty state */}
+            {!loading && !error && !hasResults && chartType !== 'pivot' && (
+              <EmptyState message="Ajoutez des dimensions pour explorer les données." />
+            )}
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+// ─── Empty state component ─────────────────────────────
+function EmptyState({ message }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+      <Search size={40} style={{ opacity: 0.3, marginBottom: '0.75rem' }} />
+      <p style={{ margin: 0, fontSize: '0.9rem' }}>{message}</p>
     </div>
   );
 }
 
 // ─── Styles ─────────────────────────────────────────
-
 const cardStyle = {
   background: 'var(--bg-card, #fff)',
   borderRadius: '0.75rem',
@@ -490,7 +818,7 @@ const cardStyle = {
 
 const labelStyle = {
   display: 'block',
-  fontSize: '0.75rem',
+  fontSize: '0.72rem',
   fontWeight: 600,
   color: 'var(--text-secondary)',
   textTransform: 'uppercase',
@@ -500,26 +828,42 @@ const labelStyle = {
 
 const selectStyle = {
   width: '100%',
-  padding: '0.5rem',
+  padding: '0.45rem 0.5rem',
   borderRadius: '0.375rem',
   border: '1px solid var(--border-color, #d1d5db)',
   background: 'var(--bg-primary, #fff)',
   color: 'var(--text-primary)',
-  fontSize: '0.85rem',
+  fontSize: '0.83rem',
 };
 
-const btnToggleStyle = {
-  flex: 1,
+const presetBtnStyle = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  gap: '0.25rem',
-  padding: '0.4rem 0.5rem',
+  gap: '0.5rem',
+  padding: '0.4rem 0.6rem',
+  borderRadius: '0.375rem',
+  border: 'none',
+  background: 'var(--bg-secondary, #f3f4f6)',
+  cursor: 'pointer',
+  fontSize: '0.82rem',
+  color: 'var(--text-primary)',
+  width: '100%',
+  textAlign: 'left',
+  transition: 'background 0.15s',
+};
+
+const mesureBtnStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.5rem',
+  padding: '0.45rem 0.6rem',
   borderRadius: '0.375rem',
   border: 'none',
   cursor: 'pointer',
-  fontSize: '0.8rem',
+  fontSize: '0.83rem',
   fontWeight: 500,
+  width: '100%',
+  textAlign: 'left',
   transition: 'all 0.15s',
 };
 
@@ -527,11 +871,11 @@ const chipActiveStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '0.25rem',
-  padding: '0.25rem 0.5rem',
+  padding: '0.2rem 0.5rem',
   borderRadius: '999px',
-  background: 'var(--accent-color, #2563EB)',
+  background: '#059669',
   color: '#fff',
-  fontSize: '0.78rem',
+  fontSize: '0.76rem',
   fontWeight: 500,
 };
 
@@ -546,32 +890,42 @@ const chipRemoveStyle = {
   opacity: 0.8,
 };
 
-const dimBtnStyle = {
+const checkboxRowStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: '0.4rem',
-  padding: '0.35rem 0.5rem',
-  borderRadius: '0.375rem',
-  border: 'none',
-  background: 'transparent',
+  padding: '0.25rem 0',
   cursor: 'pointer',
-  fontSize: '0.82rem',
-  color: 'var(--text-primary)',
-  width: '100%',
-  transition: 'background 0.1s',
+};
+
+const linkBtnStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.25rem',
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  fontSize: '0.83rem',
+  color: '#059669',
+  fontWeight: 500,
+  padding: 0,
 };
 
 const thStyle = {
   padding: '0.5rem 0.75rem',
   textAlign: 'left',
-  borderBottom: '2px solid var(--border-color)',
-  fontSize: '0.8rem',
+  borderBottom: '2px solid var(--border-color, #e5e7eb)',
+  fontSize: '0.78rem',
   fontWeight: 600,
   color: 'var(--text-secondary)',
   whiteSpace: 'nowrap',
+  position: 'sticky',
+  top: 0,
+  background: 'var(--bg-card, #fff)',
 };
 
 const tdStyle = {
-  padding: '0.5rem 0.75rem',
+  padding: '0.45rem 0.75rem',
   borderBottom: '1px solid var(--border-color, #f3f4f6)',
+  fontSize: '0.83rem',
 };

@@ -127,7 +127,7 @@ export default function ExplorateurDonnees() {
         const res = await fetch('/api/referentiel/services');
         if (res.ok) {
           const data = await res.json();
-          setServices(Array.isArray(data) ? data : data?.data || []);
+          setServices(Array.isArray(data) ? data : data?.datas || data?.data || []);
         }
       } catch { /* ignore */ }
     })();

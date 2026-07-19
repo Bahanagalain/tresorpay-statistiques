@@ -218,11 +218,17 @@ async function resolveNomsDimensions(rows, dims) {
     if (ids.length === 0) continue;
 
     const model = dim.modelResolution;
+    const selectFields = { id: true, nomFr: true };
+    if (model === 'ministere') selectFields.shortName = true;
     const records = await prisma[model].findMany({
       where: { id: { in: ids } },
-      select: { id: true, nomFr: true },
+      select: selectFields,
     });
-    nomsCache[dim.cle] = new Map(records.map(r => [r.id, r.nomFr]));
+    if (model === 'ministere') {
+      nomsCache[dim.cle] = new Map(records.map(r => [r.id, { nom: r.nomFr, shortName: r.shortName }]));
+    } else {
+      nomsCache[dim.cle] = new Map(records.map(r => [r.id, r.nomFr]));
+    }
   }
 
   // Formatter les resultats
@@ -231,8 +237,12 @@ async function resolveNomsDimensions(rows, dims) {
     for (const dim of dims) {
       if (dim.type === 'fixed') {
         const rawVal = row[`dim_${dim.cle}`];
-        const nom = nomsCache[dim.cle]?.get(rawVal);
-        dimensions[dim.cle] = { id: rawVal, nom: nom || rawVal || '(non défini)' };
+        const cached = nomsCache[dim.cle]?.get(rawVal);
+        if (cached && typeof cached === 'object') {
+          dimensions[dim.cle] = { id: rawVal, nom: cached.nom || rawVal || '(non défini)', shortName: cached.shortName || null };
+        } else {
+          dimensions[dim.cle] = { id: rawVal, nom: cached || rawVal || '(non défini)' };
+        }
       } else {
         const val = row[`dim_champ_${dim.champId}`];
         dimensions[`champ_${dim.champId}`] = { id: val, nom: val || '(non défini)' };

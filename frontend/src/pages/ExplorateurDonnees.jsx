@@ -289,10 +289,11 @@ export default function ExplorateurDonnees() {
   const chartData = useMemo(() => {
     if (!resultats || resultats.length === 0) return [];
     return resultats.map((r) => {
-      const label = Object.values(r.dimensions || {}).map(d => d.nom).join(' / ');
+      const shortLabel = Object.values(r.dimensions || {}).map(d => d.shortName || d.nom).join(' / ');
+      const fullLabel = Object.values(r.dimensions || {}).map(d => d.nom).join(' / ');
       return {
-        name: label.length > 35 ? label.substring(0, 32) + '...' : label,
-        fullName: label,
+        name: shortLabel.length > 35 ? shortLabel.substring(0, 32) + '...' : shortLabel,
+        fullName: fullLabel,
         valeur: mesure === 'count' ? r.nombre : (mesure === 'avg' ? (r.nombre > 0 ? r.montant / r.nombre : 0) : r.montant),
         nombre: r.nombre,
         montant: r.montant,
@@ -309,8 +310,8 @@ export default function ExplorateurDonnees() {
     const grouped = {};
 
     resultats.forEach(r => {
-      const d1 = r.dimensions?.[dim1Key]?.nom || 'Autre';
-      const d2 = r.dimensions?.[dim2Key]?.nom || 'Autre';
+      const d1 = r.dimensions?.[dim1Key]?.shortName || r.dimensions?.[dim1Key]?.nom || 'Autre';
+      const d2 = r.dimensions?.[dim2Key]?.shortName || r.dimensions?.[dim2Key]?.nom || 'Autre';
       seriesSet.add(d2);
       if (!grouped[d1]) grouped[d1] = { name: d1 };
       grouped[d1][d2] = (grouped[d1][d2] || 0) + (mesure === 'count' ? r.nombre : r.montant);
@@ -329,8 +330,8 @@ export default function ExplorateurDonnees() {
         if (sortCol === 'nombre') { va = a.nombre; vb = b.nombre; }
         else if (sortCol === 'montant') { va = a.montant; vb = b.montant; }
         else {
-          va = a.dimensions?.[sortCol]?.nom || '';
-          vb = b.dimensions?.[sortCol]?.nom || '';
+          va = a.dimensions?.[sortCol]?.shortName || a.dimensions?.[sortCol]?.nom || '';
+          vb = b.dimensions?.[sortCol]?.shortName || b.dimensions?.[sortCol]?.nom || '';
           return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
         }
         return sortDir === 'asc' ? va - vb : vb - va;
@@ -766,7 +767,7 @@ export default function ExplorateurDonnees() {
                         <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--bg-secondary, #f9fafb)' }}>
                           <td style={tdStyle}>{i + 1}</td>
                           {groupBy.map(cle => (
-                            <td key={cle} style={tdStyle}>{r.dimensions?.[cle]?.nom || '-'}</td>
+                            <td key={cle} style={tdStyle}>{r.dimensions?.[cle]?.shortName || r.dimensions?.[cle]?.nom || '-'}</td>
                           ))}
                           <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                             {formatEntier(r.nombre)}

@@ -11,6 +11,7 @@ import {
   fetchExplorerDimensions, fetchExplorerExplore, fetchExplorerCrosstab,
   buildAnalyticsDateParams,
 } from '../api/analyticsApi';
+import { apiGet } from '../api/httpClient';
 import DatePresetFilter from '../components/ui/DatePresetFilter';
 import ExportButtons from '../components/ui/ExportButtons';
 import PivotTable from '../components/ui/PivotTable';
@@ -111,24 +112,20 @@ export default function ExplorateurDonnees() {
   const abortRef = useRef(null);
   const debounceRef = useRef(null);
 
-  // Load reference data
+  // Load reference data (via apiGet for auth headers)
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/referentiel/ministeres');
-        if (res.ok) {
-          const data = await res.json();
-          setMinisteres(Array.isArray(data) ? data : data?.datas || data?.data || []);
-        }
+        const data = await apiGet('/referentiel/ministeres');
+        const list = Array.isArray(data) ? data : data?.datas || data?.data || [];
+        setMinisteres(list);
       } catch { /* ignore */ }
     })();
     (async () => {
       try {
-        const res = await fetch('/api/referentiel/services');
-        if (res.ok) {
-          const data = await res.json();
-          setServices(Array.isArray(data) ? data : data?.datas || data?.data || []);
-        }
+        const data = await apiGet('/referentiel/services');
+        const list = Array.isArray(data) ? data : data?.datas || data?.data || [];
+        setServices(list);
       } catch { /* ignore */ }
     })();
   }, []);
@@ -203,9 +200,9 @@ export default function ExplorateurDonnees() {
       if (serviceFilter) filtres.service_id = serviceFilter;
       if (statutFilter) filtres.statut = statutFilter;
 
-      // Apply drill-down filters
+      // Apply drill-down filters (using correct backend filter keys)
       drillStack.forEach(d => {
-        filtres[d.dimension + '_id'] = d.value;
+        if (d.filterKey) filtres[d.filterKey] = d.value;
       });
 
       if (chartType === 'pivot') {
@@ -268,14 +265,35 @@ export default function ExplorateurDonnees() {
     setGroupBy(groupBy.filter(g => g !== cle));
   };
 
-  // Drill-down
-  const handleDrill = (dimensionValue, dimensionKey) => {
-    const nextDims = ['ministere', 'service', 'domaine', 'region', 'statut', 'mois'];
-    const currentIdx = nextDims.indexOf(dimensionKey || groupBy[0]);
-    const nextDim = nextDims[currentIdx + 1];
+  // Drill-down — map dimension keys to backend filter keys
+  const DRILL_FILTER_MAP = {
+    ministere: 'ministere_id',
+    service: 'service_id',
+    domaine: 'domaine_id',
+    region: 'orgunit_id',
+    statut: 'statut',
+    mois: 'mois',
+  };
+
+  const DRILL_CHAIN = ['ministere', 'service', 'domaine', 'region', 'statut', 'mois'];
+  const originalGroupByRef = useRef([]);
+
+  const handleDrill = (dimensionId, dimensionLabel, dimensionKey) => {
+    const currentIdx = DRILL_CHAIN.indexOf(dimensionKey || groupBy[0]);
+    const nextDim = DRILL_CHAIN[currentIdx + 1];
     if (!nextDim) return;
 
-    setDrillStack([...drillStack, { dimension: dimensionKey || groupBy[0], value: dimensionValue, label: dimensionValue }]);
+    // Save original groupBy on first drill
+    if (drillStack.length === 0) {
+      originalGroupByRef.current = [...groupBy];
+    }
+
+    setDrillStack([...drillStack, {
+      dimension: dimensionKey || groupBy[0],
+      filterKey: DRILL_FILTER_MAP[dimensionKey || groupBy[0]],
+      value: dimensionId,
+      label: dimensionLabel,
+    }]);
     setGroupBy([nextDim]);
   };
 
@@ -284,19 +302,21 @@ export default function ExplorateurDonnees() {
     const newStack = [...drillStack];
     newStack.pop();
     setDrillStack(newStack);
-    // Restore previous groupBy from last drill level
     if (newStack.length > 0) {
-      const nextDims = ['ministere', 'service', 'domaine', 'region', 'statut', 'mois'];
       const lastDim = newStack[newStack.length - 1].dimension;
-      const idx = nextDims.indexOf(lastDim);
-      if (idx >= 0 && nextDims[idx + 1]) setGroupBy([nextDims[idx + 1]]);
+      const idx = DRILL_CHAIN.indexOf(lastDim);
+      if (idx >= 0 && DRILL_CHAIN[idx + 1]) setGroupBy([DRILL_CHAIN[idx + 1]]);
     } else {
-      // Will go back to first level - keep current groupBy
+      // Restore original groupBy
+      setGroupBy(originalGroupByRef.current.length > 0 ? originalGroupByRef.current : ['ministere']);
     }
   };
 
   const resetDrill = () => {
     setDrillStack([]);
+    if (originalGroupByRef.current.length > 0) {
+      setGroupBy(originalGroupByRef.current);
+    }
   };
 
   // Sort table
@@ -312,18 +332,23 @@ export default function ExplorateurDonnees() {
   // Prepare chart data
   const chartData = useMemo(() => {
     if (!resultats || resultats.length === 0) return [];
+    const primaryDimKey = groupBy[0];
     return resultats.map((r) => {
       const shortLabel = Object.values(r.dimensions || {}).map(d => d.shortName || d.nom).join(' / ');
       const fullLabel = Object.values(r.dimensions || {}).map(d => d.nom).join(' / ');
+      // Get the ID of the primary dimension for drill-down
+      const primaryDim = r.dimensions?.[primaryDimKey];
       return {
         name: shortLabel.length > 35 ? shortLabel.substring(0, 32) + '...' : shortLabel,
         fullName: fullLabel,
-        valeur: mesure === 'count' ? r.nombre : (mesure === 'avg' ? (r.nombre > 0 ? r.montant / r.nombre : 0) : r.montant),
+        dimId: primaryDim?.id || primaryDim?.nom || fullLabel,
+        dimLabel: primaryDim?.shortName || primaryDim?.nom || fullLabel,
+        valeur: mesure === 'count' ? r.nombre : (mesure === 'avg' ? (r.moyenne != null ? r.moyenne : (r.nombre > 0 ? r.montant / r.nombre : 0)) : r.montant),
         nombre: r.nombre,
         montant: r.montant,
       };
     }).slice(0, 20);
-  }, [resultats, mesure]);
+  }, [resultats, mesure, groupBy]);
 
   // Prepare stacked data (for 2+ dimensions)
   const stackedData = useMemo(() => {
@@ -381,15 +406,13 @@ export default function ExplorateurDonnees() {
   const summaryText = useMemo(() => {
     if (!resultats || resultats.length === 0) return '';
     const dims = groupBy.map(getDimLabel).join(', ');
-    const total = totalCount || resultats.length;
-    let valueStr = '';
-    if (mesure === 'count') {
-      valueStr = formatEntier(resultats.reduce((s, r) => s + (r.nombre || 0), 0));
-    } else {
-      valueStr = formatMontant(resultats.reduce((s, r) => s + (r.montant || 0), 0));
-    }
-    return `${formatEntier(total)} soumissions groupées par ${dims} — ${getMesureLabel(mesure)} : ${valueStr}`;
-  }, [resultats, groupBy, mesure, totalCount, getDimLabel]);
+    const totalSoumissions = resultats.reduce((s, r) => s + (r.nombre || 0), 0);
+    const totalMontant = resultats.reduce((s, r) => s + (r.montant || 0), 0);
+    const groupCount = resultats.length;
+    const parts = [`${formatEntier(totalSoumissions)} soumissions`, `${groupCount} groupes par ${dims}`];
+    if (mesure === 'sum' || mesure === 'avg') parts.push(`total : ${formatMontant(totalMontant)}`);
+    return parts.join(' — ');
+  }, [resultats, groupBy, mesure, getDimLabel]);
 
   // Tooltip formatter
   const tooltipFormatter = (val) => {
@@ -717,7 +740,7 @@ export default function ExplorateurDonnees() {
                         <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 12 }} />
                         <Tooltip formatter={tooltipFormatter} labelFormatter={(_, p) => p?.[0]?.payload?.fullName || _} />
                         <Bar dataKey="valeur" name={mesure === 'count' ? 'Nombre' : 'Montant'} radius={[0, 4, 4, 0]}
-                          onClick={(data) => handleDrill(data.fullName || data.name, groupBy[0])}
+                          onClick={(data) => handleDrill(data.dimId, data.dimLabel || data.name, groupBy[0])}
                           style={{ cursor: 'pointer' }}
                         >
                           {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
@@ -734,7 +757,7 @@ export default function ExplorateurDonnees() {
                         <YAxis tickFormatter={tooltipFormatter} />
                         <Tooltip formatter={tooltipFormatter} labelFormatter={(_, p) => p?.[0]?.payload?.fullName || _} />
                         <Bar dataKey="valeur" name={mesure === 'count' ? 'Nombre' : 'Montant'} radius={[4, 4, 0, 0]}
-                          onClick={(data) => handleDrill(data.fullName || data.name, groupBy[0])}
+                          onClick={(data) => handleDrill(data.dimId, data.dimLabel || data.name, groupBy[0])}
                           style={{ cursor: 'pointer' }}
                         >
                           {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
@@ -766,7 +789,7 @@ export default function ExplorateurDonnees() {
                           outerRadius={120}
                           label={({ name, percent }) => `${name} (${(percent * 100).toFixed(1)}%)`}
                           labelLine={{ strokeWidth: 1 }}
-                          onClick={(data) => handleDrill(data.fullName || data.name, groupBy[0])}
+                          onClick={(data) => handleDrill(data.dimId, data.dimLabel || data.name, groupBy[0])}
                           style={{ cursor: 'pointer' }}
                         >
                           {chartData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
@@ -819,7 +842,7 @@ export default function ExplorateurDonnees() {
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedTableData.slice(0, 15).map((r, i) => (
+                      {sortedTableData.map((r, i) => (
                         <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--bg-secondary, #f9fafb)' }}>
                           <td style={tdStyle}>{i + 1}</td>
                           {groupBy.map(cle => (
@@ -835,9 +858,9 @@ export default function ExplorateurDonnees() {
                       ))}
                     </tbody>
                   </table>
-                  {sortedTableData.length > 15 && (
+                  {sortedTableData.length > 50 && (
                     <div style={{ padding: '0.5rem', fontSize: '0.78rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
-                      {sortedTableData.length - 15} lignes supplémentaires non affichées
+                      Affichage limité aux 50 premiers résultats
                     </div>
                   )}
                 </div>

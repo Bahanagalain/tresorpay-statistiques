@@ -108,6 +108,11 @@ function buildWhereClause(filtres = {}) {
     params.push(filtres.statut);
     paramIndex++;
   }
+  if (filtres.mois) {
+    conditions.push(`to_char(s.date_soumission, 'YYYY-MM') = $${paramIndex}`);
+    params.push(filtres.mois);
+    paramIndex++;
+  }
 
   // Filtres dynamiques sur champs formulaire
   if (filtres.champs && typeof filtres.champs === 'object') {

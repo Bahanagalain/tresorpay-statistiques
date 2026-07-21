@@ -9,6 +9,8 @@ import {
 } from '../services/explorer.service.js';
 
 export default async function explorerRoutes(fastify) {
+  fastify.addHook('preHandler', fastify.authentifier);
+
   // ═══════════════════════════════════════════════════════════════
   // GET /dimensions — liste des dimensions disponibles
   // ═══════════════════════════════════════════════════════════════

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ResponsiveGridLayout } from 'react-grid-layout';
-import { Plus, Save, ArrowLeft, LayoutDashboard, BookOpen, Maximize2, X, Sun, Moon } from 'lucide-react';
+import { Plus, Save, ArrowLeft, LayoutDashboard, BookOpen, Maximize2, X, Sun, Moon, Share2, UserPlus, Trash2 } from 'lucide-react';
 import {
   fetchDashboard, updateDashboard,
   addWidget, updateWidget, deleteWidget,
+  shareDashboard, unshareDashboard,
 } from '../../api/biApi';
 import WeaveSpinner from '../../components/ui/WeaveSpinner';
 import WidgetCard from '../../components/bi/WidgetCard';
@@ -32,6 +33,7 @@ function DashboardBuilderInner() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [presentationMode, setPresentationMode] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [titleSaved, setTitleSaved] = useState(false);
   const [debouncedFilters, setDebouncedFilters] = useState({});
   const [darkMode, setDarkMode] = useState(() => {
@@ -312,7 +314,7 @@ function DashboardBuilderInner() {
   const layouts = getLayouts();
 
   return (
-    <div className="bi-builder" ref={builderRef}>
+    <div className="bi-builder bi-dark-auto" ref={builderRef}>
       {/* Header */}
       <div className="bi-builder-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -350,6 +352,9 @@ function DashboardBuilderInner() {
           >
             {darkMode ? <Sun size={15} /> : <Moon size={15} />}
           </button>
+          <button className="bi-btn-secondary" onClick={() => setShareOpen(!shareOpen)} title="Partager">
+            <Share2 size={15} />
+          </button>
           <button className="bi-btn-secondary" onClick={() => setPresentationMode(true)} title="Mode présentation">
             <Maximize2 size={15} />
           </button>
@@ -364,6 +369,7 @@ function DashboardBuilderInner() {
       <FilterBar
         datasetCode={dashboard?.datasetCode}
         onFiltersChange={handleFiltersChange}
+        resultCount={widgets.length > 0 ? widgets.length : undefined}
       />
 
       {/* Drill-Down Breadcrumb */}
@@ -488,6 +494,74 @@ function DashboardBuilderInner() {
                 </div>
               ))}
             </ResponsiveGridLayout>
+          </div>
+        </div>
+      )}
+      {/* Panneau de partage */}
+      {shareOpen && (
+        <div className="bi-confirm-overlay" onClick={() => setShareOpen(false)}>
+          <div className="bi-confirm-dialog" onClick={e => e.stopPropagation()} style={{ width: 'min(460px, 90vw)', textAlign: 'left' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <p style={{ margin: 0 }}>Partager « {titre} »</p>
+              <button className="bi-btn-icon" onClick={() => setShareOpen(false)}><X size={16} /></button>
+            </div>
+
+            {dashboard?.partages?.length > 0 ? (
+              <div style={{ marginBottom: '0.75rem' }}>
+                <span className="bi-hint" style={{ display: 'block', marginBottom: '0.4rem' }}>Partagé avec :</span>
+                {dashboard.partages.map(p => (
+                  <div key={p.utilisateur?.id || p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0', borderBottom: '1px solid var(--border, #e5e7eb)' }}>
+                    <span style={{ fontSize: '0.82rem' }}>{p.utilisateur?.nomComplet || `Utilisateur #${p.utilisateurId}`}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span className="bi-hint" style={{ fontSize: '0.7rem' }}>{p.peutEditer ? 'Écriture' : 'Lecture'}</span>
+                      <button
+                        className="bi-btn-icon"
+                        title="Retirer"
+                        onClick={async () => {
+                          try {
+                            await unshareDashboard(dashboard.id, p.utilisateur?.id || p.utilisateurId);
+                            setDashboard(prev => ({ ...prev, partages: prev.partages.filter(pp => pp.id !== p.id) }));
+                          } catch {}
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="bi-hint" style={{ marginBottom: '0.75rem' }}>Ce dashboard n'est partagé avec personne.</p>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <input
+                type="number"
+                className="bi-input"
+                placeholder="ID utilisateur"
+                id="share-user-id"
+                style={{ flex: 1 }}
+                aria-label="ID de l'utilisateur à inviter"
+              />
+              <button
+                className="bi-btn-primary"
+                onClick={async () => {
+                  const input = document.getElementById('share-user-id');
+                  const uid = parseInt(input?.value, 10);
+                  if (!uid) return;
+                  try {
+                    const res = await shareDashboard(dashboard.id, uid, false);
+                    const partage = res?.datas || res;
+                    setDashboard(prev => ({ ...prev, partages: [...(prev.partages || []), partage] }));
+                    input.value = '';
+                  } catch (err) {
+                    alert(err.message || 'Erreur');
+                  }
+                }}
+              >
+                <UserPlus size={14} /> Inviter
+              </button>
+            </div>
           </div>
         </div>
       )}

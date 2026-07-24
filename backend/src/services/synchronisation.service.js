@@ -551,6 +551,36 @@ async function syncPostesComptables() {
   });
 }
 
+async function syncRegies() {
+  return syncEntite('Régies', '/revenue-authorities', async (r) => {
+    let ministereId = r.ministryId || null;
+    if (ministereId && !(await existeLocalement('ministere', ministereId))) ministereId = null;
+    let posteComptableId = r.accountingPostId || null;
+    if (posteComptableId && !(await existeLocalement('posteComptable', posteComptableId))) posteComptableId = null;
+
+    await prisma.regie.upsert({
+      where: { id: r.id },
+      create: {
+        id: r.id,
+        code: r.code || r.id.substring(0, 30),
+        nomFr: r.nameFr || r.name || '',
+        nomEn: r.nameEn || null,
+        ministereId, posteComptableId,
+        estActif: r.isActive !== false,
+        synchroniseLe: new Date(),
+      },
+      update: {
+        code: r.code || undefined,
+        nomFr: r.nameFr || r.name || undefined,
+        nomEn: r.nameEn || null,
+        ministereId, posteComptableId,
+        estActif: r.isActive !== false,
+        synchroniseLe: new Date(),
+      },
+    });
+  });
+}
+
 async function syncTypesStructure() {
   return syncEntite('TypesStructure', '/structure-types', async (t) => {
     await prisma.typeStructure.upsert({
@@ -1180,6 +1210,7 @@ const ETAPES_SYNC = [
   { nom: 'Bénéficiaires', fn: syncBeneficiaires, cle: 'beneficiaires' },
   { nom: 'Districts financiers', fn: syncDistrictsFinanciers, cle: 'districtsFinanciers' },
   { nom: 'Postes comptables', fn: syncPostesComptables, cle: 'postesComptables' },
+  { nom: 'Régies', fn: syncRegies, cle: 'regies' },
   { nom: 'Plateformes partenaires', fn: syncPlateformesPartenaire, cle: 'plateformesPartenaire' },
   { nom: 'Soumissions', fn: syncSoumissions, cle: 'soumissions' },
   { nom: 'Demandes partenaires', fn: syncDemandesPartenaire, cle: 'demandesPartenaire' },

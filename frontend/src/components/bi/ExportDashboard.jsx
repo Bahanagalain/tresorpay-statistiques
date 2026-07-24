@@ -1,14 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Download, FileText, Table, FileSpreadsheet, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import * as XLSX from 'xlsx';
 
 export default function ExportDashboard({ dashboardId, titre, widgets, gridRef }) {
-  const [exporting, setExporting] = useState(null); // 'pdf' | 'excel' | 'csv' | null
+  const [exporting, setExporting] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
 
   const safeTitre = (titre || 'dashboard').replace(/\s+/g, '_');
+
+  // Fermer le menu au clic extérieur
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMenu]);
 
   // ─── Export PDF ─────────────────────────────────────────────
   const handleExportPDF = async () => {
@@ -21,21 +32,22 @@ export default function ExportDashboard({ dashboardId, titre, widgets, gridRef }
       const dateStr = `Export du ${new Date().toLocaleDateString('fr-FR')} a ${new Date().toLocaleTimeString('fr-FR')}`;
 
       // --- En-tete premiere page ---
-      pdf.setFillColor(37, 99, 235);
+      pdf.setFillColor(26, 58, 92);
       pdf.rect(0, 0, w, 22, 'F');
 
-      pdf.setFontSize(11);
+      pdf.setFontSize(10);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(255, 255, 255);
-      pdf.text('TRESOR PUBLIC \u2014 Analytics', 15, 9);
+      pdf.text('TRÉSOR PUBLIC DU CAMEROUN', 15, 8);
 
       pdf.setFontSize(14);
       pdf.text(titre || 'Dashboard', 15, 16);
 
-      pdf.setFontSize(8);
+      pdf.setFontSize(7);
       pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(200, 220, 255);
-      pdf.text(dateStr, w - 15, 16, { align: 'right' });
+      pdf.setTextColor(180, 200, 220);
+      pdf.text(dateStr, w - 15, 9, { align: 'right' });
+      pdf.text('TrésorPay Analytics', w - 15, 16, { align: 'right' });
 
       // Capture chaque widget individuellement
       const gridEl = gridRef?.current || document.querySelector('.bi-grid-layout');
@@ -85,13 +97,20 @@ export default function ExportDashboard({ dashboardId, titre, widgets, gridRef }
         }
       }
 
-      // Pagination sur chaque page
+      // Pied de page sur chaque page
       for (let p = 1; p <= totalPages; p++) {
         pdf.setPage(p);
+        // Barre de pied
+        pdf.setFillColor(248, 249, 250);
+        pdf.rect(0, h - 12, w, 12, 'F');
+        pdf.setDrawColor(220, 220, 220);
+        pdf.line(0, h - 12, w, h - 12);
+
         pdf.setFontSize(7);
         pdf.setFont('helvetica', 'normal');
         pdf.setTextColor(140, 140, 140);
-        pdf.text(`Page ${p}/${totalPages}`, w - 15, h - 6, { align: 'right' });
+        pdf.text('TrésorPay Analytics — Document confidentiel', 15, h - 5);
+        pdf.text(`Page ${p}/${totalPages}`, w - 15, h - 5, { align: 'right' });
       }
 
       pdf.save(`${safeTitre}.pdf`);
@@ -149,7 +168,7 @@ export default function ExportDashboard({ dashboardId, titre, widgets, gridRef }
             if (ws[cellRef]) {
               ws[cellRef].s = {
                 font: { bold: true, color: { rgb: 'FFFFFF' } },
-                fill: { fgColor: { rgb: '2563EB' } },
+                fill: { fgColor: { rgb: '1A3A5C' } },
                 alignment: { horizontal: 'center' },
               };
             }
@@ -273,7 +292,7 @@ export default function ExportDashboard({ dashboardId, titre, widgets, gridRef }
   };
 
   return (
-    <div className="bi-export-wrapper">
+    <div className="bi-export-wrapper" ref={menuRef}>
       <button
         className="bi-btn-secondary"
         onClick={() => setShowMenu(!showMenu)}

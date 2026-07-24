@@ -99,6 +99,7 @@ model Ministere {
   groupesRevenu         GroupeRevenu[]
   plateformesPartenaire PlateformePartenaire[]
   structures            Structure[]
+  regies                Regie[]
 
   synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
 
@@ -262,12 +263,32 @@ model PosteComptable {
 
   districtFinancier DistrictFinancier? @relation(fields: [districtFinancierId], references: [id])
   orgUnit           OrgUnit?           @relation(fields: [orgUnitId], references: [id])
+  regies            Regie[]
 
   synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
 
   @@index([districtFinancierId])
   @@index([orgUnitId])
   @@map("postes_comptables")
+}
+
+model Regie {
+  id               String  @id @default(uuid())
+  code             String  @unique @db.VarChar(30)
+  nomFr            String  @map("nom_fr") @db.VarChar(200)
+  nomEn            String? @map("nom_en") @db.VarChar(200)
+  ministereId      String? @map("ministere_id")
+  posteComptableId String? @map("poste_comptable_id")
+  estActif         Boolean @default(true) @map("est_actif")
+
+  ministere     Ministere?     @relation(fields: [ministereId], references: [id])
+  posteComptable PosteComptable? @relation(fields: [posteComptableId], references: [id])
+
+  synchroniseLe DateTime @default(now()) @map("synchronise_le") @db.Timestamptz()
+
+  @@index([ministereId])
+  @@index([posteComptableId])
+  @@map("regies")
 }
 
 // ═══════════════════════════════════════════════════════════════

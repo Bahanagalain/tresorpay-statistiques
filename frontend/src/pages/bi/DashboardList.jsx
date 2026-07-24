@@ -211,7 +211,7 @@ export default function DashboardList() {
   if (loading) return <WeaveSpinner size={80} message="Chargement des dashboards..." />;
 
   return (
-    <div className="bi-dashboard-list">
+    <div className="bi-dashboard-list bi-dark-auto">
       <div className="bi-list-header">
         <h1>
           <LayoutDashboard size={22} />

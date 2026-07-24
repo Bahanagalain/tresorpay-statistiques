@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { X, Check, ChevronDown, Search, Building2, Landmark, Globe, MapPin, CreditCard, TrendingUp, HelpCircle, Layers } from 'lucide-react';
+import { X, Check, ChevronDown, Search, Building2, Landmark, Globe, MapPin, CreditCard, TrendingUp, HelpCircle, Layers, Map } from 'lucide-react';
 import { fetchDatasets, fetchDimensions, biQueryPreview } from '../../api/biApi';
 import { apiFetch } from '../../api/httpClient';
 import WeaveSpinner from '../ui/WeaveSpinner';
@@ -15,6 +15,7 @@ const SUJETS = [
   { value: 'service', label: 'Par Service', icon: Landmark },
   { value: 'domaine', label: 'Par Domaine', icon: Globe },
   { value: 'region', label: 'Par Région', icon: MapPin },
+  { value: 'arrondissement', label: 'Par Arrondissement', icon: Map },
   { value: 'groupe_revenu', label: 'Par Groupe de revenus', icon: Layers },
   { value: 'statut', label: 'Par Statut de paiement', icon: CreditCard },
   { value: 'temporel', label: 'Évolution temporelle', icon: TrendingUp },
@@ -36,6 +37,8 @@ const MESURE_OPTIONS = [
   { value: 'ECART', label: 'Écart (en souffrance)' },
   { value: 'RATIO', label: 'Taux de paiement (%)' },
   { value: 'TAUX_COMPLETUDE', label: 'Taux de complétude (%)' },
+  { value: 'DELAI_MOYEN', label: 'Délai moyen de paiement (jours)' },
+  { value: 'CUMUL', label: 'Cumul progressif du montant' },
 ];
 
 function mesuresToApi(selected) {
@@ -46,6 +49,8 @@ function mesuresToApi(selected) {
     if (m === 'ECART') return { type: 'ECART' };
     if (m === 'RATIO') return { type: 'RATIO', filtreNum: { statut: 'PAID' } };
     if (m === 'TAUX_COMPLETUDE') return { type: 'TAUX_COMPLETUDE' };
+    if (m === 'DELAI_MOYEN') return { type: 'DELAI_MOYEN' };
+    if (m === 'CUMUL') return { type: 'CUMUL', colonne: 'montant' };
     return { type: 'COUNT' };
   });
 }
@@ -57,6 +62,8 @@ function mesureDataKey(m) {
   if (m === 'ECART') return 'ecart';
   if (m === 'RATIO') return 'ratio';
   if (m === 'TAUX_COMPLETUDE') return 'taux_completude';
+  if (m === 'DELAI_MOYEN') return 'delai_moyen';
+  if (m === 'CUMUL') return 'montant_cumul';
   return 'nombre';
 }
 
@@ -179,6 +186,9 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   const [titre, setTitre] = useState(widget?.titre || '');
   const [titreEdited, setTitreEdited] = useState(false);
   const [couleur, setCouleur] = useState(widget?.chartConfig?.couleur || '');
+  const [seuil, setSeuil] = useState(widget?.chartConfig?.seuil ?? '');
+  const [seuilDirection, setSeuilDirection] = useState(widget?.chartConfig?.seuilDirection || 'above');
+  const [objectif, setObjectif] = useState(widget?.chartConfig?.objectif ?? '');
 
   // --- State: référentiels ---
   const [ministeres, setMinisteres] = useState([]);
@@ -206,10 +216,17 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
   // Escape pour fermer
   // ═══════════════════════════════════════════════════════════════
 
+  const saveRef = useRef(null);
+
   useEffect(() => {
-    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && saveRef.current) {
+        saveRef.current();
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
   // ═══════════════════════════════════════════════════════════════
@@ -221,6 +238,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       || (sujet === 'service' && (selectedMinistere || selectedService))
       || (sujet === 'domaine' && selectedDomaine)
       || (sujet === 'region' && selectedRegion)
+      || (sujet === 'arrondissement')
       || sujet === 'statut'
       || sujet === 'temporel';
 
@@ -325,6 +343,8 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
         if (m.type === 'ECART') return 'ECART';
         if (m.type === 'RATIO') return 'RATIO';
         if (m.type === 'TAUX_COMPLETUDE') return 'TAUX_COMPLETUDE';
+        if (m.type === 'DELAI_MOYEN') return 'DELAI_MOYEN';
+        if (m.type === 'CUMUL') return 'CUMUL';
         return 'COUNT';
       });
       setSelectedMesures(mesureKeys);
@@ -370,7 +390,7 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
         .catch(() => setDomaines([]))
         .finally(() => setLoadingDomaines(false));
     }
-    if (sujet === 'region' && regions.length === 0) {
+    if ((sujet === 'region' || sujet === 'arrondissement') && regions.length === 0) {
       setLoadingRegions(true);
       apiFetch('/referentiel/orgUnits')
         .then(res => {
@@ -468,6 +488,13 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       } else {
         parts.push('Par région');
       }
+    } else if (sujet === 'arrondissement') {
+      if (selectedRegion) {
+        const r = regions.find(x => x.id === selectedRegion);
+        parts.push((r?.nom || 'Arrondissement') + ' (arrond.)');
+      } else {
+        parts.push('Par arrondissement');
+      }
     } else if (sujet === 'groupe_revenu') {
       parts.push('Par groupe de revenus');
     } else if (sujet === 'statut') {
@@ -515,6 +542,11 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
       }
     } else if (sujet === 'region') {
       dimensions.push('region');
+      if (selectedRegion) {
+        filtres.region_id = selectedRegion;
+      }
+    } else if (sujet === 'arrondissement') {
+      dimensions.push('arrondissement');
       if (selectedRegion) {
         filtres.region_id = selectedRegion;
       }
@@ -633,6 +665,8 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
         mesures: mesuresToApi(selectedMesures),
         tri: { colonne: mesureDataKey(selectedMesures[0]), direction: 'desc' },
         ...(couleur ? { couleur } : {}),
+        ...(seuil !== '' ? { seuil: Number(seuil), seuilDirection } : {}),
+        ...(objectif !== '' ? { objectif: Number(objectif) } : {}),
       },
       filtresLocaux: {
         ...filtres,
@@ -645,6 +679,9 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
 
   const { dimensions: currentDims } = buildQueryParams();
   const canSave = titre.trim() && sujet && currentDims.length > 0;
+
+  // Connecter le raccourci ⌘+Enter au save
+  saveRef.current = canSave ? handleSave : null;
 
   // ═══════════════════════════════════════════════════════════════
   // Données preview pour le renderer
@@ -812,8 +849,8 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
                       />
                     )}
 
-                    {/* Par Région */}
-                    {sujet === 'region' && (
+                    {/* Par Région / Arrondissement */}
+                    {(sujet === 'region' || sujet === 'arrondissement') && (
                       <SearchableSelect
                         options={regions}
                         value={selectedRegion}
@@ -958,6 +995,50 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
                         ))}
                       </div>
                     </div>
+
+                    {/* Seuil d'alerte (KPI) */}
+                    {typeWidget === 'KPI_CARD' && (
+                      <div style={{ marginTop: '0.75rem' }}>
+                        <span className="bi-hint" style={{ display: 'block', marginBottom: '0.3rem' }}>Alerte seuil (optionnel)</span>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <select
+                            className="bi-input"
+                            value={seuilDirection}
+                            onChange={e => setSeuilDirection(e.target.value)}
+                            style={{ width: 'auto', flex: '0 0 auto' }}
+                            aria-label="Direction du seuil"
+                          >
+                            <option value="above">Alerte si au-dessus de</option>
+                            <option value="below">Alerte si en-dessous de</option>
+                          </select>
+                          <input
+                            type="number"
+                            className="bi-input"
+                            value={seuil}
+                            onChange={e => setSeuil(e.target.value)}
+                            placeholder="Valeur seuil"
+                            style={{ width: 120 }}
+                            aria-label="Valeur du seuil"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Objectif (KPI avec jauge) */}
+                    {typeWidget === 'KPI_CARD' && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <span className="bi-hint" style={{ display: 'block', marginBottom: '0.3rem' }}>Objectif (barre de progression, optionnel)</span>
+                        <input
+                          type="number"
+                          className="bi-input"
+                          value={objectif}
+                          onChange={e => setObjectif(e.target.value)}
+                          placeholder="Ex: 1000000"
+                          style={{ width: 200 }}
+                          aria-label="Valeur de l'objectif"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -966,10 +1047,11 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
 
           {/* ─── Preview (colonne droite) ─── */}
           <div className="bi-editor-preview">
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Aperçu</h3>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Aperçu</h3>
+            {titre && <div className="bi-editor-preview-title" title={titre}>{titre}</div>}
             {previewLoading && <WeaveSpinner size={50} />}
             {!previewLoading && rendererData.length > 0 && (
-              <div style={{ height: 350 }}>
+              <div style={{ flex: 1, minHeight: 300 }}>
                 <WidgetRenderer
                   type={typeWidget}
                   data={rendererData}
@@ -995,7 +1077,12 @@ export default function WidgetEditor({ widget, dashboardId, onSave, onClose }) {
 
         <div className="bi-editor-panel-footer">
           <button className="bi-btn-secondary" onClick={onClose}>Annuler</button>
-          <button className="bi-btn-primary" onClick={handleSave} disabled={!canSave}>
+          <button
+            className="bi-btn-primary"
+            onClick={handleSave}
+            disabled={!canSave}
+            title={!canSave ? 'Complétez le sujet, le périmètre et le titre pour valider' : 'Valider (⌘+Enter)'}
+          >
             <Check size={15} /> Valider
           </button>
         </div>

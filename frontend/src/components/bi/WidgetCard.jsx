@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Edit, Trash2, BarChart3, Filter, Copy } from 'lucide-react';
+import { Edit, Trash2, BarChart3, Filter, Copy, GripVertical } from 'lucide-react';
 import { executeWidget, executeWidgetKpi } from '../../api/biApi';
 import WidgetRenderer from './WidgetRenderer';
 import { useCrossFilter } from './CrossFilterContext';
@@ -168,16 +168,18 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onDuplic
   }, [onChartDoubleClick, widget.id]);
 
   return (
-    <div
+    <article
       className={`bi-widget-card bi-widget-animate-in ${isFilterSource ? 'bi-widget-filter-source' : ''}`}
+      aria-label={widget.titre || 'Widget'}
       style={{
         animationDelay: `${index * 0.05}s`,
         ...(widget.chartConfig?.couleur ? { borderLeft: `3px solid ${widget.chartConfig.couleur}` } : {}),
       }}
     >
-      <div className="bi-widget-card-header">
+      <div className="bi-widget-card-header" role="toolbar" aria-label="Actions du widget">
+        <span className="bi-drag-handle" aria-hidden="true"><GripVertical size={14} /></span>
         <h4 title={widget.titre}>
-          <BarChart3 size={13} style={{ marginRight: 4, opacity: 0.5 }} />
+          <BarChart3 size={13} style={{ marginRight: 4, opacity: 0.5 }} aria-hidden="true" />
           {widget.titre || 'Widget'}
           {isFilterSource && (
             <span className="bi-widget-filter-badge" title="Ce widget filtre les autres">
@@ -186,38 +188,45 @@ export default function WidgetCard({ widget, filters, onEdit, onDelete, onDuplic
           )}
         </h4>
         <div className="bi-widget-actions">
-          <button onClick={() => onEdit(widget)} title="Modifier">
+          <button onClick={() => onEdit(widget)} title="Modifier" aria-label={`Modifier ${widget.titre}`}>
             <Edit size={13} />
           </button>
           {onDuplicate && (
-            <button onClick={() => onDuplicate(widget)} title="Dupliquer">
+            <button onClick={() => onDuplicate(widget)} title="Dupliquer" aria-label={`Dupliquer ${widget.titre}`}>
               <Copy size={13} />
             </button>
           )}
-          <button className="danger" onClick={() => onDelete(widget.id)} title="Supprimer">
+          <button className="danger" onClick={() => onDelete(widget.id)} title="Supprimer" aria-label={`Supprimer ${widget.titre}`}>
             <Trash2 size={13} />
           </button>
         </div>
       </div>
       <div className="bi-widget-card-body" onDoubleClick={handleDoubleClick}>
-        {loading && <WidgetSkeleton type={widget.typeWidget} />}
+        <div className={`bi-widget-skeleton-wrap ${loading ? 'visible' : ''}`}>
+          <WidgetSkeleton type={widget.typeWidget} />
+        </div>
         {error && <p style={{ fontSize: '0.78rem', color: '#dc2626' }}>{error}</p>}
-        {!loading && !error && (
-          <WidgetRenderer
-            type={widget.typeWidget}
-            data={data}
-            config={{
-              dataKey: widget.chartConfig?.tri?.colonne || 'nombre',
-              mesure: widget.chartConfig?.tri?.colonne || 'nombre',
-              dimension: 'nom',
-            }}
-            onChartClick={handleChartClick}
-          />
+        {!error && data !== null && (
+          <div className={`bi-widget-content-wrap ${!loading ? 'visible' : ''}`}>
+            <WidgetRenderer
+              type={widget.typeWidget}
+              data={data}
+              config={{
+                dataKey: widget.chartConfig?.tri?.colonne || 'nombre',
+                mesure: widget.chartConfig?.tri?.colonne || 'nombre',
+                dimension: 'nom',
+                seuil: widget.chartConfig?.seuil,
+                seuilDirection: widget.chartConfig?.seuilDirection,
+                objectif: widget.chartConfig?.objectif,
+              }}
+              onChartClick={handleChartClick}
+            />
+          </div>
         )}
       </div>
       {!loading && !error && freshness && (
-        <span className="bi-widget-freshness">Mis à jour {freshness}</span>
+        <span className="bi-widget-freshness" aria-live="polite">Mis à jour {freshness}</span>
       )}
-    </div>
+    </article>
   );
 }

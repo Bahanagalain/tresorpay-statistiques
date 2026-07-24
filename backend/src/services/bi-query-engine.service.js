@@ -23,6 +23,7 @@ const DATASETS = {
       domaine: { sql: 's.domaine_id', model: 'domaine', champ: 'nomFr' },
       region: { sql: 's.org_unit_id', model: 'orgUnit', champ: 'nomFr', filtre: { type: 'REGION' } },
       departement: { sql: 's.org_unit_id', model: 'orgUnit', champ: 'nomFr', filtre: { type: 'DEPARTMENT' } },
+      arrondissement: { sql: 's.org_unit_id', model: 'orgUnit', champ: 'nomFr', filtre: { type: 'ARRONDISSEMENT' } },
       org_unit: { sql: 's.org_unit_id', model: 'orgUnit', champ: 'nomFr' },
       statut: { sql: 's.statut_paiement', model: null },
       formulaire: { sql: 's.formulaire_id', model: null, labelSql: 's.formulaire_nom' },
@@ -31,6 +32,12 @@ const DATASETS = {
         model: 'groupeRevenu',
         champ: 'nomFr',
         join: 'LEFT JOIN services_gouv svc_gr ON svc_gr.id = s.service_id',
+      },
+      regie: {
+        sql: 'reg.id',
+        model: 'regie',
+        champ: 'nomFr',
+        join: 'LEFT JOIN regies reg ON reg.ministere_id = s.ministere_id',
       },
     },
     filtres: {
@@ -230,6 +237,19 @@ export async function executerRequete(req) {
         mesuresMeta.push({ cle: 'taux_completude', type: 'TAUX_COMPLETUDE', format: 'pourcentage' });
         break;
       }
+      case 'DELAI_MOYEN': {
+        // Délai moyen de paiement en jours (date_paiement - date_soumission pour les PAID)
+        mesureSqls.push(`COALESCE(AVG(CASE WHEN ${ds.alias}.statut_paiement = 'PAID' AND ${ds.alias}.date_paiement IS NOT NULL THEN EXTRACT(DAY FROM ${ds.alias}.date_paiement - ${ds.alias}.date_soumission) ELSE NULL END), 0) AS delai_moyen`);
+        mesuresMeta.push({ cle: 'delai_moyen', type: 'DELAI_MOYEN', format: 'decimal' });
+        break;
+      }
+      case 'CUMUL': {
+        // Cumul progressif du montant — post-processing (somme cumulée)
+        const colCum = resolveColonneMesure(m.colonne, ds);
+        mesureSqls.push(`COALESCE(SUM(${colCum}), 0) AS montant_cumul`);
+        mesuresMeta.push({ cle: 'montant_cumul', type: 'CUMUL', format: 'montant', postProcess: 'cumul' });
+        break;
+      }
       default:
         mesureSqls.push('COUNT(*) AS nombre');
         mesuresMeta.push({ cle: 'nombre', type: 'COUNT', format: 'entier' });
@@ -265,6 +285,16 @@ export async function executerRequete(req) {
   // ── Post-processing : résolution noms + formatage ──
   const formattedRows = await formatRows(rows, dims, mesuresMeta);
 
+  // ── Post-processing : cumul progressif ──
+  const cumulMesures = mesuresMeta.filter(m => m.postProcess === 'cumul');
+  for (const m of cumulMesures) {
+    let cumul = 0;
+    for (const row of formattedRows) {
+      cumul += Number(row[m.cle] || 0);
+      row[m.cle] = cumul;
+    }
+  }
+
   // ── Compter le total (sans LIMIT) ──
   let total = formattedRows.length;
   if (formattedRows.length >= maxLimite) {
@@ -297,7 +327,7 @@ export async function executerRequete(req) {
             return [d.cle, d.cle];
           }
         }
-        const fixedLabels = { ministere: 'Ministère', service: 'Service', domaine: 'Domaine', region: 'Région', departement: 'Département', org_unit: 'Unité org.', statut: 'Statut', periode: 'Période', formulaire: 'Formulaire', groupe_revenu: 'Groupe de revenus', plateforme: 'Plateforme', methode_paiement: 'Méthode paiement', operateur: 'Opérateur' };
+        const fixedLabels = { ministere: 'Ministère', service: 'Service', domaine: 'Domaine', region: 'Région', departement: 'Département', arrondissement: 'Arrondissement', org_unit: 'Unité org.', statut: 'Statut', periode: 'Période', formulaire: 'Formulaire', groupe_revenu: 'Groupe de revenus', regie: 'Régie', plateforme: 'Plateforme', methode_paiement: 'Méthode paiement', operateur: 'Opérateur' };
         return [d.cle, fixedLabels[d.cle] || d.cle];
       }))),
       mesures: mesuresMeta,
@@ -406,7 +436,7 @@ function resolveColonneMesure(colonne, ds) {
 }
 
 function resolveOrderColumn(colonne, mesuresMeta) {
-  const validCols = ['nombre', 'montant_total', 'montant_paye', 'montant_moyen', 'valeur_min', 'valeur_max', 'ratio', 'ecart', 'taux_completude'];
+  const validCols = ['nombre', 'montant_total', 'montant_paye', 'montant_moyen', 'valeur_min', 'valeur_max', 'ratio', 'ecart', 'taux_completude', 'delai_moyen', 'montant_cumul'];
   if (validCols.includes(colonne)) {
     if (colonne === 'ratio') return '_ratio_numerateur';
     if (colonne === 'taux_completude') return '_completude_num';

@@ -149,8 +149,12 @@
 .bi-builder-body {
   flex: 1;
   padding: 1.25rem;
-  background: var(--bg-muted, #f8f9fb);
+  background-color: var(--bg-muted, #f8f9fb);
   overflow-y: auto;
+  background-image:
+    repeating-linear-gradient(90deg, transparent, transparent calc(100% / 12 - 1px), rgba(0,0,0,0.04) calc(100% / 12 - 1px), rgba(0,0,0,0.04) calc(100% / 12)),
+    repeating-linear-gradient(0deg, transparent, transparent 79px, rgba(0,0,0,0.03) 79px, rgba(0,0,0,0.03) 80px);
+  background-attachment: local;
 }
 
 .bi-grid-empty {
@@ -186,6 +190,29 @@
   padding: 0.6rem 0.85rem;
   border-bottom: 1px solid var(--border, #e5e7eb);
   min-height: 38px;
+  cursor: grab;
+}
+
+.bi-widget-card-header:active {
+  cursor: grabbing;
+}
+
+/* ─── Drag handle grip icon ─── */
+.bi-drag-handle {
+  display: flex;
+  align-items: center;
+  margin-right: 0.35rem;
+  opacity: 0.25;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.bi-widget-card:hover .bi-drag-handle {
+  opacity: 0.5;
+}
+
+.bi-widget-card-header:active .bi-drag-handle {
+  opacity: 0.8;
 }
 
 .bi-widget-card-header h4 {
@@ -233,6 +260,42 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  position: relative;
+}
+
+/* ─── Skeleton → Content crossfade ─── */
+.bi-widget-skeleton-wrap,
+.bi-widget-content-wrap {
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.3s ease;
+}
+
+.bi-widget-skeleton-wrap {
+  position: absolute;
+  inset: 0;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bi-widget-skeleton-wrap.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.bi-widget-content-wrap {
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.bi-widget-content-wrap.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ─── Widget Editor Modal ─── */
@@ -617,6 +680,12 @@
   font-weight: 800;
   color: var(--text-primary, #1f2937);
   line-height: 1.1;
+  animation: kpiValueIn 0.5s ease-out 0.15s both;
+}
+
+@keyframes kpiValueIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .bi-kpi-trend {
@@ -647,6 +716,44 @@
   max-width: 180px;
   margin-top: 0.35rem;
   opacity: 0.8;
+}
+
+/* ─── KPI Alerte seuil ─── */
+.bi-kpi-alert {
+  border-left: 3px solid #dc2626 !important;
+  background: rgba(220, 38, 38, 0.03);
+}
+
+.bi-kpi-alert .bi-kpi-value {
+  color: #dc2626;
+}
+
+/* ─── KPI Barre de progression (objectif) ─── */
+.bi-kpi-progress {
+  width: 100%;
+  max-width: 160px;
+  margin-top: 0.3rem;
+}
+
+.bi-kpi-progress-track {
+  height: 5px;
+  background: var(--border, #e5e7eb);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bi-kpi-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease-out;
+}
+
+.bi-kpi-progress-label {
+  font-size: 0.62rem;
+  color: var(--text-tertiary, #9ca3af);
+  margin-top: 0.15rem;
+  display: block;
+  text-align: center;
 }
 
 /* ─── Create Modal ─── */
@@ -1557,24 +1664,36 @@
   text-align: center;
   padding: 2rem 1rem;
   color: var(--text-tertiary, #9ca3af);
-  gap: 0.4rem;
+  gap: 0.5rem;
+  height: 100%;
+  min-height: 120px;
 }
 
-.bi-empty-state svg {
-  opacity: 0.35;
+.bi-empty-state-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--bg-muted, #f3f4f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 0.25rem;
+  color: var(--text-tertiary, #9ca3af);
+  opacity: 0.6;
 }
 
 .bi-empty-state p {
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 600;
   margin: 0;
   color: var(--text-secondary, #6b7280);
 }
 
 .bi-empty-state span {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-tertiary, #9ca3af);
+  max-width: 220px;
+  line-height: 1.4;
 }
 
 /* ─── Table : Sticky Headers + Sort ─── */
@@ -1616,32 +1735,59 @@
 
 /* ─── Custom Tooltip (Charts) ─── */
 .bi-custom-tooltip {
-  background: #fff;
+  background: var(--card-bg, #fff);
   border: 1px solid var(--border, #e5e7eb);
-  border-radius: 8px;
-  padding: 0.6rem 0.8rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   font-size: 0.78rem;
-  max-width: 220px;
+  max-width: 260px;
+  backdrop-filter: blur(8px);
 }
 
 .bi-custom-tooltip-label {
   font-weight: 600;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.35rem;
   color: var(--text-primary, #1f2937);
+  font-size: 0.82rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  padding-bottom: 0.3rem;
 }
 
 .bi-custom-tooltip-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 1rem;
-  padding: 0.1rem 0;
+  padding: 0.2rem 0;
   color: var(--text-secondary, #6b7280);
 }
 
-.bi-custom-tooltip-row span:last-child {
-  font-weight: 600;
+.bi-custom-tooltip-key {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bi-custom-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.bi-custom-tooltip-row strong {
+  font-weight: 700;
   color: var(--text-primary, #1f2937);
+}
+
+.bi-custom-tooltip-avg {
+  font-size: 0.7rem;
+  color: var(--text-tertiary, #9ca3af);
+  border-top: 1px dashed var(--border, #e5e7eb);
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  font-style: italic;
 }
 
 /* ─── Confirmation Dialog ─── */
@@ -1832,15 +1978,64 @@
 
 /* ─── Editor panel layout tweaks ─── */
 .bi-editor-config {
-  flex: 1 1 55%;
+  flex: 1 1 50%;
   min-width: 0;
 }
 
 .bi-editor-preview {
   width: auto;
-  flex: 0 0 40%;
-  min-width: 260px;
-  max-width: 420px;
+  flex: 0 0 50%;
+  min-width: 300px;
+  max-width: 560px;
+}
+
+/* ─── Preview title ─── */
+.bi-editor-preview-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+/* ─── Validation temps réel ─── */
+.bi-input.invalid {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+}
+
+.bi-validation-msg {
+  font-size: 0.7rem;
+  color: #dc2626;
+  margin-top: 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.bi-btn-primary[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: auto;
+}
+
+.bi-btn-primary[disabled]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: #fff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  z-index: 10;
+  margin-bottom: 4px;
 }
 
 /* ─── Mode Présentation ─── */
@@ -1889,6 +2084,63 @@
 
 .bi-presentation-close:hover {
   background: var(--bg-muted, #f3f4f6);
+}
+
+/* ─── Heatmap Grid ─── */
+.bi-heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  padding: 0.25rem;
+  overflow-y: auto;
+}
+
+.bi-heatmap-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.35rem;
+  border-radius: 6px;
+  text-align: center;
+  min-height: 52px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  cursor: default;
+}
+
+.bi-heatmap-cell:hover {
+  transform: scale(1.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1;
+}
+
+.bi-heatmap-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.bi-heatmap-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-top: 0.15rem;
+}
+
+/* ─── Pivot Table ─── */
+.bi-pivot-table tfoot .bi-pivot-total-row {
+  border-top: 2px solid var(--text-primary, #1f2937);
+  background: var(--bg-muted, #f3f4f6);
+}
+
+.bi-pivot-table tfoot .bi-pivot-total-row td {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .bi-presentation-body {
@@ -1980,7 +2232,7 @@
   .bi-dashboard-list,
   .bi-builder,
   .bi-indicateur-builder,
-  .bi-empty-state svg,
+  .bi-empty-state-icon,
   .bi-confirm-dialog,
   .bi-editor-overlay,
   .bi-library-overlay,
@@ -2007,8 +2259,16 @@
   .bi-stepper-circle,
   .bi-stepper-line,
   .bi-filter-badge,
-  .bi-simple-table tbody td {
+  .bi-simple-table tbody td,
+  .bi-widget-skeleton-wrap,
+  .bi-widget-content-wrap {
     transition: none;
+  }
+  .bi-kpi-value {
+    animation: none;
+  }
+  .bi-widget-content-wrap {
+    transform: none;
   }
 }
 
@@ -2190,7 +2450,7 @@
 }
 
 /* ─── Empty state — gentle bounce ─── */
-.bi-empty-state svg {
+.bi-empty-state-icon {
   animation: emptyBounce 2s ease-in-out infinite;
 }
 
@@ -2499,4 +2759,99 @@
   background: var(--bg-hover);
   color: var(--text-primary);
   border-color: var(--border);
+}
+
+/* ─── Dark mode : nouveaux composants (P0-P2) ─── */
+.bi-dark .bi-heatmap-cell {
+  border-color: var(--border);
+}
+
+.bi-dark .bi-empty-state-icon {
+  background: var(--bg-hover);
+  color: var(--text-tertiary);
+}
+
+.bi-dark .bi-kpi-alert {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.bi-dark .bi-kpi-progress-track {
+  background: var(--border);
+}
+
+.bi-dark .bi-pivot-table tfoot .bi-pivot-total-row {
+  background: var(--bg-hover);
+  border-color: var(--text-tertiary);
+}
+
+.bi-dark .bi-editor-preview-title {
+  color: var(--text-primary);
+}
+
+.bi-dark .bi-validation-msg {
+  color: #f87171;
+}
+
+.bi-dark .bi-filter-badge {
+  background: rgba(137, 180, 250, 0.1);
+  border-color: rgba(137, 180, 250, 0.2);
+  color: var(--primary);
+}
+
+.bi-dark .bi-widget-skeleton-wrap {
+  background: var(--card-bg);
+}
+
+.bi-dark .bi-dashboard-card-color {
+  border-color: var(--border);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ACCESSIBILITÉ (WCAG AA)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Focus visible sur tous les éléments interactifs */
+.bi-widget-card button:focus-visible,
+.bi-filter-bar select:focus-visible,
+.bi-pill:focus-visible,
+.bi-sujet-item:focus-visible,
+.bi-chart-type-item:focus-visible,
+.bi-library-card:focus-visible,
+.bi-library-dashboard-apply:focus-visible,
+.bi-filter-badge:focus-visible,
+.bi-color-dot:focus-visible {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
+}
+
+/* Badges filtres : cliquables au clavier */
+.bi-filter-badge {
+  cursor: pointer;
+}
+
+.bi-filter-badge svg {
+  pointer-events: auto;
+}
+
+/* Skip link (caché sauf au focus) */
+.bi-skip-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.bi-skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+/* Contraste minimum garanti */
+.bi-hint {
+  color: var(--text-secondary, #4B5563);
 }

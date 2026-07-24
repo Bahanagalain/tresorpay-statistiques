@@ -64,6 +64,19 @@ export async function duplicateDashboard(id) {
   return apiFetch(`/bi/dashboards/${id}/duplicate`, { method: 'POST' });
 }
 
+// ─── Partages ───
+
+export async function shareDashboard(dashboardId, utilisateurId, peutEditer = false) {
+  return apiFetch(`/bi/dashboards/${dashboardId}/partages`, {
+    method: 'POST',
+    body: JSON.stringify({ utilisateurId, peutEditer }),
+  });
+}
+
+export async function unshareDashboard(dashboardId, utilisateurId) {
+  return apiFetch(`/bi/dashboards/${dashboardId}/partages/${utilisateurId}`, { method: 'DELETE' });
+}
+
 // ═══════════════════════════════════════════════════════════════
 // WIDGETS
 // ═══════════════════════════════════════════════════════════════

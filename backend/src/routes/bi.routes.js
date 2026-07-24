@@ -5,7 +5,12 @@
 
 import prisma from '../config/prisma.js';
 import { executerRequete, executerTableauCroise, getDimensionsDisponibles, getValeursFiltres } from '../services/bi-query-engine.service.js';
-import { cacheGetOrSet, cacheInvalidate } from '../services/cache.service.js';
+import { cacheGetOrSet, cacheInvalidate, cacheGet, cacheSet } from '../services/cache.service.js';
+import crypto from 'crypto';
+
+function hashObj(obj) {
+  return crypto.createHash('md5').update(JSON.stringify(obj)).digest('hex').slice(0, 12);
+}
 
 export default async function biRoutes(fastify) {
   fastify.addHook('preHandler', fastify.authentifier);
@@ -216,6 +221,45 @@ export default async function biRoutes(fastify) {
     return { message: 'Dashboard supprimé' };
   });
 
+  // ─── Partages ───
+  fastify.post('/dashboards/:id/partages', {
+    schema: {
+      tags: ['BI'],
+      summary: 'Partager un dashboard avec un utilisateur',
+      body: {
+        type: 'object',
+        required: ['utilisateurId'],
+        properties: {
+          utilisateurId: { type: 'integer' },
+          peutEditer: { type: 'boolean' },
+        },
+      },
+    },
+  }, async (request) => {
+    const dashboardId = parseInt(request.params.id, 10);
+    const { utilisateurId, peutEditer = false } = request.body;
+
+    const partage = await prisma.biDashboardPartage.upsert({
+      where: { dashboardId_utilisateurId: { dashboardId, utilisateurId } },
+      update: { peutEditer },
+      create: { dashboardId, utilisateurId, peutEditer },
+      include: { utilisateur: { select: { id: true, nomComplet: true } } },
+    });
+    return { message: 'Dashboard partagé', datas: partage };
+  });
+
+  fastify.delete('/dashboards/:dashboardId/partages/:utilisateurId', {
+    schema: { tags: ['BI'], summary: 'Retirer le partage d\'un dashboard' },
+  }, async (request) => {
+    const dashboardId = parseInt(request.params.dashboardId, 10);
+    const utilisateurId = parseInt(request.params.utilisateurId, 10);
+
+    await prisma.biDashboardPartage.delete({
+      where: { dashboardId_utilisateurId: { dashboardId, utilisateurId } },
+    });
+    return { message: 'Partage retiré' };
+  });
+
   fastify.post('/dashboards/:id/duplicate', {
     schema: { tags: ['BI'], summary: 'Dupliquer un dashboard' },
   }, async (request) => {
@@ -333,7 +377,7 @@ export default async function biRoutes(fastify) {
   // Exécuter la requête d'un widget (charge sa config et exécute)
   fastify.post('/widgets/:id/execute', {
     schema: { tags: ['BI'], summary: 'Exécuter la requête d\'un widget' },
-  }, async (request) => {
+  }, async (request, reply) => {
     const id = parseInt(request.params.id, 10);
     const widget = await prisma.biWidget.findUnique({
       where: { id },
@@ -359,7 +403,7 @@ export default async function biRoutes(fastify) {
       filtresFusionnes.champs = { ...(filtresGlobaux.champs || {}), ...(filtresLocaux.champs || {}) };
     }
 
-    const result = await executerRequete({
+    const reqParams = {
       dataset: widget.dataset?.code || 'soumissions',
       dimensions: widget.dimensions || [],
       mesures: widget.chartConfig?.mesures || [{ type: 'COUNT' }],
@@ -368,7 +412,17 @@ export default async function biRoutes(fastify) {
       limite: widget.limite || 50,
       tri: widget.chartConfig?.tri || { colonne: 'nombre', direction: 'desc' },
       drillDown: request.body?.drillDown,
-    });
+    };
+
+    const cacheKey = `bi:widget:${id}:${hashObj(reqParams)}`;
+    const result = await cacheGetOrSet(cacheKey, () => executerRequete(reqParams), 120);
+
+    // ETag support
+    const etag = hashObj(result);
+    if (request.headers['if-none-match'] === etag) {
+      return reply.code(304).send();
+    }
+    reply.header('etag', etag);
 
     return { datas: result };
   });
@@ -376,7 +430,7 @@ export default async function biRoutes(fastify) {
   // Exécuter un widget KPI avec données de tendance (période courante vs précédente)
   fastify.post('/widgets/:id/execute-kpi', {
     schema: { tags: ['BI'], summary: 'Exécuter un widget KPI avec tendance' },
-  }, async (request) => {
+  }, async (request, reply) => {
     const id = parseInt(request.params.id, 10);
     const widget = await prisma.biWidget.findUnique({
       where: { id },
@@ -401,6 +455,16 @@ export default async function biRoutes(fastify) {
       filtres: { ...filtresFusionnes },
       limite: 1,
     };
+
+    // Cache KPI (TTL 5 min)
+    const kpiCacheKey = `bi:kpi:${id}:${hashObj(filtresFusionnes)}`;
+    const cached = cacheGet(kpiCacheKey);
+    if (cached) {
+      const etag = hashObj(cached);
+      if (request.headers['if-none-match'] === etag) return reply.code(304).send();
+      reply.header('etag', etag);
+      return { datas: cached };
+    }
 
     // Période courante
     const now = new Date();
@@ -440,14 +504,24 @@ export default async function biRoutes(fastify) {
       }
     }
 
-    return {
-      datas: {
-        current: currentResult.rows[0] || {},
-        previous: prevResult.rows[0] || {},
-        spark: sparkData,
-        meta: currentResult.meta,
-      },
+    const kpiResult = {
+      current: currentResult.rows[0] || {},
+      previous: prevResult.rows[0] || {},
+      spark: sparkData,
+      meta: currentResult.meta,
     };
+
+    // Stocker en cache (TTL 5 min)
+    cacheSet(kpiCacheKey, kpiResult, 300);
+
+    // ETag support
+    const etag = hashObj(kpiResult);
+    if (request.headers['if-none-match'] === etag) {
+      return reply.code(304).send();
+    }
+    reply.header('etag', etag);
+
+    return { datas: kpiResult };
   });
 
   // ═══════════════════════════════════════════════════════════════

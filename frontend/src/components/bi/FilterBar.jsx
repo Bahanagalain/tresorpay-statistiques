@@ -83,14 +83,14 @@ export default function FilterBar({ datasetCode, onFiltersChange, resultCount })
   }, []);
 
   return (
-    <div className="bi-filter-bar">
+    <div className="bi-filter-bar" role="search" aria-label="Filtres du dashboard">
       <div className="bi-filter-bar-row">
-        <Filter size={14} style={{ opacity: 0.5, flexShrink: 0 }} />
+        <Filter size={14} style={{ opacity: 0.5, flexShrink: 0 }} aria-hidden="true" />
 
         <DatePresetFilter onChange={setPeriode} />
 
         {ministeres.length > 0 && (
-          <select value={ministere} onChange={e => setMinistere(e.target.value)}>
+          <select value={ministere} onChange={e => setMinistere(e.target.value)} aria-label="Filtrer par ministère">
             <option value="">Tous les ministères</option>
             {ministeres.map(m => (
               <option key={m.code || m} value={m.code || m}>{m.libelle || m}</option>
@@ -99,7 +99,7 @@ export default function FilterBar({ datasetCode, onFiltersChange, resultCount })
         )}
 
         {regions.length > 0 && (
-          <select value={region} onChange={e => setRegion(e.target.value)}>
+          <select value={region} onChange={e => setRegion(e.target.value)} aria-label="Filtrer par région">
             <option value="">Toutes les régions</option>
             {regions.map(r => (
               <option key={r.code || r} value={r.code || r}>{r.libelle || r}</option>
@@ -108,7 +108,7 @@ export default function FilterBar({ datasetCode, onFiltersChange, resultCount })
         )}
 
         {statuts.length > 0 && (
-          <select value={statut} onChange={e => setStatut(e.target.value)}>
+          <select value={statut} onChange={e => setStatut(e.target.value)} aria-label="Filtrer par statut">
             <option value="">Tous statuts</option>
             {statuts.map(s => (
               <option key={s.code || s} value={s.code || s}>{s.libelle || s}</option>
@@ -135,7 +135,7 @@ export default function FilterBar({ datasetCode, onFiltersChange, resultCount })
         )}
 
         {resultCount !== undefined && (
-          <span className="bi-result-count">{resultCount.toLocaleString('fr-FR')} résultats</span>
+          <span className="bi-result-count">{resultCount} widget{resultCount > 1 ? 's' : ''}</span>
         )}
       </div>
 

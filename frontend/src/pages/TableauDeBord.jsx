@@ -286,6 +286,7 @@ export default function TableauDeBord() {
   const [ministereDetailLoading, setMinistereDetailLoading] = useState(false);
   const [ministereComparison, setMinistereComparison] = useState(null);
   const [ministereServiceSort, setMinistereServiceSort] = useState({ col: 'montantPaye', dir: 'desc' });
+  const [evolGranularite, setEvolGranularite] = useState('mois');
 
   // Soumissions tab state
   const [soumissions, setSoumissions] = useState([]);
@@ -411,7 +412,7 @@ export default function TableauDeBord() {
       setMinistereDetailLoading(true);
       try {
         const [detail, comparison] = await Promise.all([
-          fetchMinistereDetail(selectedMinistereId, dateRange, controller.signal),
+          fetchMinistereDetail(selectedMinistereId, dateRange, controller.signal, evolGranularite),
           fetchMinistereComparison(selectedMinistereId, dateRange, controller.signal),
         ]);
         if (isMounted) {
@@ -427,7 +428,7 @@ export default function TableauDeBord() {
 
     loadMinistereCockpit();
     return () => { isMounted = false; controller.abort(); };
-  }, [selectedMinistereId, activeTab, dateRange.startDate, dateRange.endDate]);
+  }, [selectedMinistereId, activeTab, dateRange.startDate, dateRange.endDate, evolGranularite]);
 
   // ── Load ministere drill-down ─────────────────────────────
   useEffect(() => {
@@ -1509,9 +1510,19 @@ export default function TableauDeBord() {
                   <div className="chart-card" style={{ flex: 2 }}>
                     <div className="chart-card__header">
                       <div>
-                        <h2 className="chart-title"><BarChart3 size={15} /> Évolution mensuelle</h2>
+                        <h2 className="chart-title"><BarChart3 size={15} /> Évolution</h2>
                         <span className="chart-sub">Répartition par statut de paiement</span>
                       </div>
+                      <select
+                        className="mck-gran-select"
+                        value={evolGranularite}
+                        onChange={(e) => setEvolGranularite(e.target.value)}
+                      >
+                        <option value="jour">7 derniers jours</option>
+                        <option value="mois">Par mois</option>
+                        <option value="trimestre">Par trimestre</option>
+                        <option value="annee">Par année</option>
+                      </select>
                     </div>
                     {mEvolution.length > 0 ? (
                       <ResponsiveContainer width="100%" height={240}>

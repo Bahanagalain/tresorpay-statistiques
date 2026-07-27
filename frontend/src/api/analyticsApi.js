@@ -143,8 +143,10 @@ export async function fetchRepartitionMinisteres(range, signal) {
   }));
 }
 
-export async function fetchMinistereDetail(id, range, signal) {
-  const raw = await cachedGet(`/analytics/repartition/ministeres/${encodeURIComponent(id)}`, buildAnalyticsDateParams(range), signal);
+export async function fetchMinistereDetail(id, range, signal, granularite) {
+  const params = { ...buildAnalyticsDateParams(range) };
+  if (granularite) params.granularite = granularite;
+  const raw = await cachedGet(`/analytics/repartition/ministeres/${encodeURIComponent(id)}`, params, signal);
   return unwrap(raw);
 }
 

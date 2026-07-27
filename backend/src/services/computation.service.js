@@ -281,7 +281,7 @@ export async function computeRepartitionMinisteres(dateDebut, dateFin, scope) {
 // DETAIL MINISTERE
 // ═══════════════════════════════════════════════════════════════
 
-export async function computeMinistereDetail(ministereId, dateDebut, dateFin, scope) {
+export async function computeMinistereDetail(ministereId, dateDebut, dateFin, scope, granularite = 'mois') {
   const where = buildSoumissionWhere(dateDebut, dateFin, { ministereId }, scope);
 
   const [ministere, kpiAgg, payeAgg] = await Promise.all([
@@ -354,25 +354,39 @@ export async function computeMinistereDetail(ministereId, dateDebut, dateFin, sc
     })
     .sort((a, b) => b.montantPaye - a.montantPaye || a.nom.localeCompare(b.nom));
 
-  // Evolution mensuelle du ministere
+  // Evolution du ministere (granularite: jour, mois, trimestre, annee)
   const soumissions = await prisma.soumission.findMany({
     where,
     select: { montant: true, statutPaiement: true, dateSoumission: true },
     orderBy: { dateSoumission: 'asc' },
   });
 
-  const moisMap = {};
+  const granMap = {};
   for (const s of soumissions) {
     if (!s.dateSoumission) continue;
     const d = new Date(s.dateSoumission);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    if (!moisMap[key]) {
-      moisMap[key] = { periode: formatMoisLabel(d), cle: key, paye: 0, enAttente: 0, echoue: 0 };
+    let key, label;
+    if (granularite === 'jour') {
+      key = d.toISOString().slice(0, 10);
+      label = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    } else if (granularite === 'trimestre') {
+      const q = Math.floor(d.getMonth() / 3) + 1;
+      key = `${d.getFullYear()}-Q${q}`;
+      label = `T${q} ${d.getFullYear()}`;
+    } else if (granularite === 'annee') {
+      key = `${d.getFullYear()}`;
+      label = `${d.getFullYear()}`;
+    } else {
+      key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      label = formatMoisLabel(d);
+    }
+    if (!granMap[key]) {
+      granMap[key] = { periode: label, cle: key, paye: 0, enAttente: 0, echoue: 0 };
     }
     const montant = toNumber(s.montant);
-    if (s.statutPaiement === 'PAID') moisMap[key].paye += montant;
-    else if (s.statutPaiement === 'PENDING') moisMap[key].enAttente += montant;
-    else if (s.statutPaiement === 'FAILED') moisMap[key].echoue += montant;
+    if (s.statutPaiement === 'PAID') granMap[key].paye += montant;
+    else if (s.statutPaiement === 'PENDING') granMap[key].enAttente += montant;
+    else if (s.statutPaiement === 'FAILED') granMap[key].echoue += montant;
   }
 
   const totalSoumissions = kpiAgg._count || 0;
@@ -385,7 +399,7 @@ export async function computeMinistereDetail(ministereId, dateDebut, dateFin, sc
     soumissionsPayees,
     tauxPaiement: totalSoumissions > 0 ? Math.round((soumissionsPayees / totalSoumissions) * 10000) / 100 : 0,
     services: servicesDetail,
-    evolution: Object.values(moisMap).sort((a, b) => a.cle.localeCompare(b.cle)),
+    evolution: Object.values(granMap).sort((a, b) => a.cle.localeCompare(b.cle)),
   };
 }
 

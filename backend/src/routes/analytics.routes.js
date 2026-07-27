@@ -145,15 +145,16 @@ export default async function analyticsRoutes(fastify) {
       querystring: {
         type: 'object',
         properties: {
-          date_debut: { type: 'string', format: 'date' },
-          date_fin:   { type: 'string', format: 'date' },
+          date_debut:  { type: 'string', format: 'date' },
+          date_fin:    { type: 'string', format: 'date' },
+          granularite: { type: 'string', enum: ['jour', 'mois', 'trimestre', 'annee'] },
         },
       },
     },
   }, async (request) => {
     const { id } = request.params;
-    const { date_debut, date_fin } = request.query;
-    const data = await computeMinistereDetail(id, date_debut || null, date_fin || null);
+    const { date_debut, date_fin, granularite } = request.query;
+    const data = await computeMinistereDetail(id, date_debut || null, date_fin || null, undefined, granularite || 'mois');
     return { datas: data, message: 'Détail ministère récupéré avec succès' };
   });
 

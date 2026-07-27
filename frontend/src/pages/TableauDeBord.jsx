@@ -285,7 +285,7 @@ export default function TableauDeBord() {
   const [ministereDetail, setMinistereDetail] = useState(null);
   const [ministereDetailLoading, setMinistereDetailLoading] = useState(false);
   const [ministereComparison, setMinistereComparison] = useState(null);
-  const [ministereServiceSort, setMinistereServiceSort] = useState({ col: 'montant', dir: 'desc' });
+  const [ministereServiceSort, setMinistereServiceSort] = useState({ col: 'montantPaye', dir: 'desc' });
 
   // Soumissions tab state
   const [soumissions, setSoumissions] = useState([]);
@@ -1609,8 +1609,8 @@ export default function TableauDeBord() {
                             <th style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => handleSortCol('nom')}>
                               Service{sortIcon('nom')}
                             </th>
-                            <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSortCol('montant')}>
-                              Montant soumis{sortIcon('montant')}
+                            <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSortCol('montantPaye')}>
+                              Collecté{sortIcon('montantPaye')}
                             </th>
                             <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSortCol('nombreSoumissions')}>
                               Soumissions{sortIcon('nombreSoumissions')}
@@ -1620,10 +1620,9 @@ export default function TableauDeBord() {
                           </tr>
                         </thead>
                         <tbody>
-                          {(() => {
-                            const totalSoumis = mServices.reduce((s, sv) => s + (sv.montant || 0), 0);
-                            return sortedServices.map((svc, i) => {
-                            const pct = totalSoumis > 0 ? (svc.montant / totalSoumis) * 100 : 0;
+                          {sortedServices.map((svc, i) => {
+                            const svcPaye = svc.montantPaye || 0;
+                            const pct = mRevenus > 0 ? (svcPaye / mRevenus) * 100 : 0;
                             return (
                               <tr key={svc.serviceId || i}
                                 onClick={() => { setDrillService(svc); setDrillServiceData(null); }}
@@ -1634,7 +1633,7 @@ export default function TableauDeBord() {
                                   {svc.nom}
                                 </td>
                                 <td style={{ textAlign: 'right', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
-                                  {fmtFull(svc.montant)}
+                                  {fmtFull(svcPaye)}
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
                                   {fmtEntier(svc.nombreSoumissions || 0)}
@@ -1654,8 +1653,7 @@ export default function TableauDeBord() {
                                 </td>
                               </tr>
                             );
-                          });
-                          })()}
+                          })}
                         </tbody>
                       </table>
                     </div>

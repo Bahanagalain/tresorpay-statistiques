@@ -300,10 +300,16 @@ export async function computeMinistereDetail(ministereId, dateDebut, dateFin, sc
   if (!ministere) return null;
 
   // Services du ministere — inclure TOUS les services actifs, meme sans soumission
-  const [servicesGroupes, allServices] = await Promise.all([
+  const [servicesGroupes, servicesPayes, allServices] = await Promise.all([
     prisma.soumission.groupBy({
       by: ['serviceId'],
       where: { ...where, serviceId: { not: null } },
+      _count: true,
+      _sum: { montant: true },
+    }),
+    prisma.soumission.groupBy({
+      by: ['serviceId'],
+      where: { ...where, serviceId: { not: null }, statutPaiement: 'PAID' },
       _count: true,
       _sum: { montant: true },
     }),
@@ -322,19 +328,31 @@ export async function computeMinistereDetail(ministereId, dateDebut, dateFin, sc
       nombreSoumissions: g._count || 0,
     };
   }
+  const payesMap = {};
+  for (const g of servicesPayes) {
+    payesMap[g.serviceId] = {
+      montantPaye: toNumber(g._sum?.montant),
+      soumissionsPayees: g._count || 0,
+    };
+  }
 
   const servicesDetail = allServices
     .map((svc) => {
-      const stats = statsMap[svc.id];
+      const stats = statsMap[svc.id] || { montant: 0, nombreSoumissions: 0 };
+      const payes = payesMap[svc.id] || { montantPaye: 0, soumissionsPayees: 0 };
       return {
         serviceId: svc.id,
         nom: svc.nomFr || 'Inconnu',
-        montant: stats ? stats.montant : 0,
-        nombreSoumissions: stats ? stats.nombreSoumissions : 0,
-        tauxPaiement: 0,
+        montant: stats.montant,
+        montantPaye: payes.montantPaye,
+        nombreSoumissions: stats.nombreSoumissions,
+        soumissionsPayees: payes.soumissionsPayees,
+        tauxPaiement: stats.nombreSoumissions > 0
+          ? Math.round((payes.soumissionsPayees / stats.nombreSoumissions) * 10000) / 100
+          : 0,
       };
     })
-    .sort((a, b) => b.montant - a.montant || a.nom.localeCompare(b.nom));
+    .sort((a, b) => b.montantPaye - a.montantPaye || a.nom.localeCompare(b.nom));
 
   // Evolution mensuelle du ministere
   const soumissions = await prisma.soumission.findMany({

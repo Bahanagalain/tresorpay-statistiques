@@ -1496,9 +1496,8 @@ export default function TableauDeBord() {
                   </div>
                 </div>
 
-                {/* ── Grille 2 colonnes : Evolution + Donut ── */}
                 {/* Évolution */}
-                <div className="chart-card">
+                <div className="chart-card" style={{ minHeight: 340 }}>
                     <div className="chart-card__header">
                       <div>
                         <h2 className="chart-title"><BarChart3 size={15} /> Évolution</h2>
@@ -1532,7 +1531,7 @@ export default function TableauDeBord() {
                       );
                     })()}
                     {mEvolution.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={220}>
+                      <ResponsiveContainer width="100%" height={260}>
                         <BarChart data={mEvolution} margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
                           <XAxis dataKey="periode" tick={{ fontSize: 10 }} />

@@ -1496,8 +1496,9 @@ export default function TableauDeBord() {
                   </div>
                 </div>
 
-                {/* Évolution */}
-                <div className="chart-card" style={{ minHeight: 340 }}>
+                <div className="mck-charts-grid">
+                  {/* Évolution */}
+                  <div className="chart-card" style={{ flex: 3 }}>
                     <div className="chart-card__header">
                       <div>
                         <h2 className="chart-title"><BarChart3 size={15} /> Évolution</h2>
@@ -1531,7 +1532,7 @@ export default function TableauDeBord() {
                       );
                     })()}
                     {mEvolution.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={260}>
+                      <ResponsiveContainer width="100%" height={250}>
                         <BarChart data={mEvolution} margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
                           <XAxis dataKey="periode" tick={{ fontSize: 10 }} />
@@ -1544,7 +1545,6 @@ export default function TableauDeBord() {
                           <Bar dataKey="paye" name="Payé" stackId="a" fill="#059669" radius={[0, 0, 0, 0]} />
                           <Bar dataKey="enAttente" name="En attente" stackId="a" fill="#D97706" radius={[0, 0, 0, 0]} />
                           <Bar dataKey="echoue" name="Échoué" stackId="a" fill="#DC2626" radius={[4, 4, 0, 0]} />
-                          <Legend iconSize={10} wrapperStyle={{ fontSize: '0.7rem' }} />
                         </BarChart>
                       </ResponsiveContainer>
                     ) : (
@@ -1553,6 +1553,41 @@ export default function TableauDeBord() {
                       </div>
                     )}
                   </div>
+
+                  {/* Top 5 services — bar chart horizontal */}
+                  <div className="chart-card" style={{ flex: 2 }}>
+                    <div className="chart-card__header">
+                      <div>
+                        <h2 className="chart-title"><Layers size={15} /> Top 5 Services</h2>
+                        <span className="chart-sub">Par montant collecté</span>
+                      </div>
+                    </div>
+                    {(() => {
+                      const top5 = [...mServices]
+                        .sort((a, b) => (b.montantPaye || 0) - (a.montantPaye || 0))
+                        .slice(0, 5)
+                        .map(s => ({ nom: s.nom.length > 28 ? s.nom.slice(0, 26) + '…' : s.nom, montantPaye: s.montantPaye || 0 }));
+                      return top5.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={250}>
+                          <BarChart data={top5} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                            <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 9 }} />
+                            <YAxis type="category" dataKey="nom" width={140} tick={{ fontSize: 9 }} />
+                            <Tooltip
+                              formatter={(val) => fmtFull(val)}
+                              contentStyle={{ fontSize: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}
+                            />
+                            <Bar dataKey="montantPaye" name="Collecté" fill={selectedMin?.couleur || '#059669'} radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                          Aucun service avec revenus
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
 
                 {/* ── Tableau complet des services ── */}
                 <div className="chart-card">

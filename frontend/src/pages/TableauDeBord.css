@@ -1038,6 +1038,31 @@
   text-align: center;
 }
 
+/* ── Totaux évolution ── */
+.mck-evol-totals {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0 0 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--glass-border);
+  flex-wrap: wrap;
+}
+.mck-evol-totals strong {
+  margin-left: 0.25rem;
+}
+.mck-evol-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 0.2rem;
+  vertical-align: middle;
+}
+
 /* ── Granularité dropdown ── */
 .mck-gran-select {
   padding: 0.3rem 0.6rem;

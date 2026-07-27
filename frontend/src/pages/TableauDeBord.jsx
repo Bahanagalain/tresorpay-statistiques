@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, Cell, PieChart, Pie,
+  AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import {
@@ -8,7 +8,7 @@ import {
   AlertTriangle, Building2, Calendar, X, Search,
   RotateCcw, FileSpreadsheet, FileDown, Maximize, RefreshCw,
   AlertCircle, MapPin, XCircle, ChevronRight, ChevronDown, ArrowLeft,
-  LayoutDashboard, Layers, BarChart3, PieChart as PieChartIcon,
+  LayoutDashboard, Layers, BarChart3,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -1388,7 +1388,9 @@ export default function TableauDeBord() {
       {activeTab === 'ministeres' && (() => {
         const md = ministereDetail;
         const mServices = Array.isArray(md?.services) ? md.services : [];
-        const mEvolution = Array.isArray(md?.evolution) ? md.evolution : [];
+        const mEvolutionRaw = Array.isArray(md?.evolution) ? md.evolution : [];
+        // Limiter à 7 derniers jours quand granularité = jour
+        const mEvolution = evolGranularite === 'jour' ? mEvolutionRaw.slice(-7) : mEvolutionRaw;
         const mRevenus = md?.totalRevenus || 0;
         const mSoumissions = md?.totalSoumissions || 0;
         const mPayees = md?.soumissionsPayees || 0;
@@ -1397,16 +1399,6 @@ export default function TableauDeBord() {
           ? mSoumissions - mPayees - Math.max(0, mSoumissions - mPayees)
           : 0);
         const mEchouees = mSoumissions - mPayees;
-
-        // Compute status breakdown from evolution data
-        const totalPaye = mEvolution.reduce((s, e) => s + (e.paye || 0), 0);
-        const totalEnAttente = mEvolution.reduce((s, e) => s + (e.enAttente || 0), 0);
-        const totalEchoue = mEvolution.reduce((s, e) => s + (e.echoue || 0), 0);
-        const statutData = [
-          { name: 'Payé', value: totalPaye, color: '#059669' },
-          { name: 'En attente', value: totalEnAttente, color: '#D97706' },
-          { name: 'Échoué', value: totalEchoue, color: '#DC2626' },
-        ].filter(d => d.value > 0);
 
         // Part dans le total global
         const partGlobale = kpi.totalRevenus > 0 ? ((mRevenus / kpi.totalRevenus) * 100).toFixed(1) : 0;
@@ -1505,9 +1497,8 @@ export default function TableauDeBord() {
                 </div>
 
                 {/* ── Grille 2 colonnes : Evolution + Donut ── */}
-                <div className="mck-charts-grid">
-                  {/* Evolution mensuelle */}
-                  <div className="chart-card" style={{ flex: 2 }}>
+                {/* Évolution */}
+                <div className="chart-card">
                     <div className="chart-card__header">
                       <div>
                         <h2 className="chart-title"><BarChart3 size={15} /> Évolution</h2>
@@ -1524,8 +1515,24 @@ export default function TableauDeBord() {
                         <option value="annee">Par année</option>
                       </select>
                     </div>
+                    {/* Totaux de la période visible */}
+                    {mEvolution.length > 0 && (() => {
+                      const ePaye = mEvolution.reduce((s, e) => s + (e.paye || 0), 0);
+                      const eAttente = mEvolution.reduce((s, e) => s + (e.enAttente || 0), 0);
+                      const eEchoue = mEvolution.reduce((s, e) => s + (e.echoue || 0), 0);
+                      return (
+                        <div className="mck-evol-totals">
+                          <span><span className="mck-evol-dot" style={{ background: '#059669' }} /> Payé <strong style={{ color: '#059669' }}>{fmt(ePaye)}</strong></span>
+                          <span><span className="mck-evol-dot" style={{ background: '#D97706' }} /> En attente <strong style={{ color: '#D97706' }}>{fmt(eAttente)}</strong></span>
+                          <span><span className="mck-evol-dot" style={{ background: '#DC2626' }} /> Échoué <strong style={{ color: '#DC2626' }}>{fmt(eEchoue)}</strong></span>
+                          <span style={{ color: 'var(--text-tertiary)', fontSize: '0.65rem', marginLeft: 'auto' }}>
+                            {mEvolution[0]?.periode} — {mEvolution[mEvolution.length - 1]?.periode}
+                          </span>
+                        </div>
+                      );
+                    })()}
                     {mEvolution.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={240}>
+                      <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={mEvolution} margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} />
                           <XAxis dataKey="periode" tick={{ fontSize: 10 }} />
@@ -1547,55 +1554,6 @@ export default function TableauDeBord() {
                       </div>
                     )}
                   </div>
-
-                  {/* Donut répartition par statut */}
-                  <div className="chart-card" style={{ flex: 1 }}>
-                    <div className="chart-card__header">
-                      <div>
-                        <h2 className="chart-title"><PieChartIcon size={15} /> Répartition statuts</h2>
-                        <span className="chart-sub">Montants par statut de paiement</span>
-                      </div>
-                    </div>
-                    {statutData.length > 0 ? (
-                      <div style={{ position: 'relative' }}>
-                        <ResponsiveContainer width="100%" height={240}>
-                          <PieChart>
-                            <Pie
-                              data={statutData}
-                              cx="50%" cy="50%"
-                              innerRadius={55} outerRadius={85}
-                              paddingAngle={3}
-                              dataKey="value"
-                              animationDuration={800}
-                            >
-                              {statutData.map((entry, i) => (
-                                <Cell key={i} fill={entry.color} stroke="none" />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              formatter={(val) => fmtFull(val)}
-                              contentStyle={{ fontSize: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        {/* Légende custom sous le donut */}
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '-0.5rem', flexWrap: 'wrap' }}>
-                          {statutData.map((s) => (
-                            <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem' }}>
-                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
-                              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{s.name}</span>
-                              <span style={{ color: s.color, fontWeight: 800 }}>{fmt(s.value)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
-                        Aucune donnée
-                      </div>
-                    )}
-                  </div>
-                </div>
 
                 {/* ── Tableau complet des services ── */}
                 <div className="chart-card">

@@ -1517,7 +1517,7 @@ export default function TableauDeBord() {
                     <div className="mck-kpi-card__icon" style={{ background: '#05966915', color: '#059669' }}><TrendingUp size={18} /></div>
                     <div>
                       <div className="mck-kpi-card__label">Revenus collectés</div>
-                      <div className="mck-kpi-card__value" style={{ color: '#059669' }}>{fmtFull(mRevenus)} FCFA</div>
+                      <div className="mck-kpi-card__value" style={{ color: '#059669' }}>{fmtFull(mRevenus)}</div>
                     </div>
                   </div>
                   <div className="mck-kpi-card">
@@ -1564,7 +1564,7 @@ export default function TableauDeBord() {
                           <XAxis dataKey="periode" tick={{ fontSize: 10 }} />
                           <YAxis tickFormatter={fmtFull} tick={{ fontSize: 10 }} />
                           <Tooltip
-                            formatter={(val) => fmtFull(val) + ' FCFA'}
+                            formatter={(val) => fmtFull(val)}
                             labelStyle={{ fontWeight: 700 }}
                             contentStyle={{ fontSize: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}
                           />
@@ -1606,7 +1606,7 @@ export default function TableauDeBord() {
                               ))}
                             </Pie>
                             <Tooltip
-                              formatter={(val) => fmtFull(val) + ' FCFA'}
+                              formatter={(val) => fmtFull(val)}
                               contentStyle={{ fontSize: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}
                             />
                           </PieChart>
@@ -1654,7 +1654,7 @@ export default function TableauDeBord() {
                               Service{sortIcon('nom')}
                             </th>
                             <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSortCol('montant')}>
-                              Revenus{sortIcon('montant')}
+                              Montant soumis{sortIcon('montant')}
                             </th>
                             <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSortCol('nombreSoumissions')}>
                               Soumissions{sortIcon('nombreSoumissions')}
@@ -1664,8 +1664,10 @@ export default function TableauDeBord() {
                           </tr>
                         </thead>
                         <tbody>
-                          {sortedServices.map((svc, i) => {
-                            const pct = mRevenus > 0 ? (svc.montant / mRevenus) * 100 : 0;
+                          {(() => {
+                            const totalSoumis = mServices.reduce((s, sv) => s + (sv.montant || 0), 0);
+                            return sortedServices.map((svc, i) => {
+                            const pct = totalSoumis > 0 ? (svc.montant / totalSoumis) * 100 : 0;
                             return (
                               <tr key={svc.serviceId || i}
                                 onClick={() => { setDrillService(svc); setDrillServiceData(null); }}
@@ -1696,7 +1698,8 @@ export default function TableauDeBord() {
                                 </td>
                               </tr>
                             );
-                          })}
+                          });
+                          })()}
                         </tbody>
                       </table>
                     </div>

@@ -1337,7 +1337,7 @@ export async function computeDashboard(dateDebut, dateFin, scope) {
   return {
     kpi,
     evolution,
-    ministeres: ministeres.slice(0, 10),
+    ministeres,
     services: services.slice(0, 10),
     domaines: domaines.slice(0, 10),
     regions,

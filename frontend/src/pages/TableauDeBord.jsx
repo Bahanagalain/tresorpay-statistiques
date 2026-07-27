@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, Cell,
+  AreaChart, Area, BarChart, Bar, Cell, PieChart, Pie,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import {
   TrendingUp, TrendingDown, FileText, CheckCircle, Clock,
-  AlertTriangle, Building2, Calendar, X,
+  AlertTriangle, Building2, Calendar, X, Search,
   RotateCcw, FileSpreadsheet, FileDown, Maximize, RefreshCw,
   AlertCircle, MapPin, XCircle, ChevronRight, ChevronDown, ArrowLeft,
-  LayoutDashboard,
+  LayoutDashboard, Layers, BarChart3, PieChart as PieChartIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -19,6 +19,7 @@ import { exportToPDF, exportToExcel } from '../utils/exportUtils';
 import {
   fetchDashboard,
   fetchMinistereDetail,
+  fetchMinistereComparison,
   fetchServiceDetail,
   fetchRegionDetail,
   fetchMonPerimetre,
@@ -317,6 +318,13 @@ export default function TableauDeBord() {
   const [drillServiceLoading, setDrillServiceLoading] = useState(false);
   const [drillServiceError, setDrillServiceError] = useState('');
 
+  // Ministère cockpit state
+  const [selectedMinistereId, setSelectedMinistereId] = useState(null);
+  const [ministereDetail, setMinistereDetail] = useState(null);
+  const [ministereDetailLoading, setMinistereDetailLoading] = useState(false);
+  const [ministereComparison, setMinistereComparison] = useState(null);
+  const [ministereServiceSort, setMinistereServiceSort] = useState({ col: 'montant', dir: 'desc' });
+
   // Soumissions tab state
   const [soumissions, setSoumissions] = useState([]);
   const [soumPagination, setSoumPagination] = useState({ page: 1, total: 0, totalPages: 0 });
@@ -422,6 +430,42 @@ export default function TableauDeBord() {
     loadPerimetre();
     return () => { isMounted = false; controller.abort(); };
   }, [activeTab, hasScope, dateRange.endDate, dateRange.startDate]);
+
+  // ── Auto-select first ministry when list loads ─────────────
+  useEffect(() => {
+    if (ministeres.length > 0 && !selectedMinistereId) {
+      const sorted = [...ministeres].sort((a, b) => b.montant - a.montant);
+      setSelectedMinistereId(sorted[0]?.ministereId || null);
+    }
+  }, [ministeres, selectedMinistereId]);
+
+  // ── Load selected ministry detail for cockpit ─────────────
+  useEffect(() => {
+    if (!selectedMinistereId || activeTab !== 'ministeres') return;
+    let isMounted = true;
+    const controller = new AbortController();
+
+    async function loadMinistereCockpit() {
+      setMinistereDetailLoading(true);
+      try {
+        const [detail, comparison] = await Promise.all([
+          fetchMinistereDetail(selectedMinistereId, dateRange, controller.signal),
+          fetchMinistereComparison(selectedMinistereId, dateRange, controller.signal),
+        ]);
+        if (isMounted) {
+          setMinistereDetail(detail);
+          setMinistereComparison(comparison);
+        }
+      } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
+      } finally {
+        if (isMounted) setMinistereDetailLoading(false);
+      }
+    }
+
+    loadMinistereCockpit();
+    return () => { isMounted = false; controller.abort(); };
+  }, [selectedMinistereId, activeTab, dateRange.startDate, dateRange.endDate]);
 
   // ── Load ministere drill-down ─────────────────────────────
   useEffect(() => {
@@ -1383,118 +1427,293 @@ export default function TableauDeBord() {
         </div>
       )}
 
-      {/* ═══════════ TAB 2: MINISTERES & SERVICES ═══════════ */}
-      {activeTab === 'ministeres' && (
-        <div className="tdb-tab-content" style={{ overflow: 'auto' }}>
-          {/* Bandeau KPI compact */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', flexShrink: 0 }}>
-            <div className="tdb-mini-kpi-card">
-              <div className="tdb-mini-kpi-card__label">Montant Encaissé</div>
-              <div className="tdb-mini-kpi-card__value" style={{ color: '#059669' }}>{fmt(kpi.totalRevenus)} FCFA</div>
-            </div>
-            <div className="tdb-mini-kpi-card">
-              <div className="tdb-mini-kpi-card__label">Soumissions Payées</div>
-              <div className="tdb-mini-kpi-card__value">{fmtEntier(kpi.soumissionsPayees)}</div>
-            </div>
-            <div className="tdb-mini-kpi-card">
-              <div className="tdb-mini-kpi-card__label">En Attente</div>
-              <div className="tdb-mini-kpi-card__value" style={{ color: '#D97706' }}>{fmtEntier(kpi.soumissionsEnAttente)}</div>
-            </div>
-            <div className="tdb-mini-kpi-card">
-              <div className="tdb-mini-kpi-card__label">Échouées</div>
-              <div className="tdb-mini-kpi-card__value" style={{ color: '#DC2626' }}>{fmtEntier(kpi.soumissionsEchouees)}</div>
-            </div>
-          </div>
+      {/* ═══════════ TAB 2: MINISTERES & SERVICES — COCKPIT ═══════════ */}
+      {activeTab === 'ministeres' && (() => {
+        const md = ministereDetail;
+        const mServices = Array.isArray(md?.services) ? md.services : [];
+        const mEvolution = Array.isArray(md?.evolution) ? md.evolution : [];
+        const mRevenus = md?.totalRevenus || 0;
+        const mSoumissions = md?.totalSoumissions || 0;
+        const mPayees = md?.soumissionsPayees || 0;
+        const mTaux = md?.tauxPaiement || 0;
+        const mEnAttente = mSoumissions - mPayees - (mEvolution.reduce((s, e) => s + (e.echoue > 0 ? 1 : 0), 0) > 0
+          ? mSoumissions - mPayees - Math.max(0, mSoumissions - mPayees)
+          : 0);
+        const mEchouees = mSoumissions - mPayees;
 
-          {/* Top 10 Ministères */}
-          <div className="chart-card" style={{ flexShrink: 0 }}>
-            <div className="chart-card__header">
-              <div>
-                <h2 className="chart-title"><Building2 size={16}/> Top 10 Ministères</h2>
-                <span className="chart-sub">Cliquez une barre pour le détail</span>
-              </div>
-              <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
-            </div>
-            <ResponsiveContainer width="100%" height={Math.max(220, top10Ministeres.length * 30)}>
-              <BarChart data={top10Ministeres} layout="vertical" margin={{ left: 10, right: 20 }} onClick={handleMinistereClick} style={{ cursor: 'pointer' }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
-                <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 10 }}/>
-                <YAxis type="category" dataKey="shortName" width={120} tick={{ fontSize: 10 }}/>
-                <Tooltip content={<CustomTooltip/>}/>
-                <Bar dataKey="montant" name="Revenus" radius={[0, 4, 4, 0]} isAnimationActive animationDuration={1200}>
-                  {top10Ministeres.map((entry, i) => (
-                    <Cell key={entry.ministereId || i} fill={entry.couleur || `hsl(${160 + i * 14}, 65%, ${40 + i * 2}%)`}/>
+        // Compute status breakdown from evolution data
+        const totalPaye = mEvolution.reduce((s, e) => s + (e.paye || 0), 0);
+        const totalEnAttente = mEvolution.reduce((s, e) => s + (e.enAttente || 0), 0);
+        const totalEchoue = mEvolution.reduce((s, e) => s + (e.echoue || 0), 0);
+        const statutData = [
+          { name: 'Payé', value: totalPaye, color: '#059669' },
+          { name: 'En attente', value: totalEnAttente, color: '#D97706' },
+          { name: 'Échoué', value: totalEchoue, color: '#DC2626' },
+        ].filter(d => d.value > 0);
+
+        // Part dans le total global
+        const partGlobale = kpi.totalRevenus > 0 ? ((mRevenus / kpi.totalRevenus) * 100).toFixed(1) : 0;
+
+        // Sorted services
+        const sortedServices = [...mServices].sort((a, b) => {
+          const aVal = a[ministereServiceSort.col] || 0;
+          const bVal = b[ministereServiceSort.col] || 0;
+          if (typeof aVal === 'string') return ministereServiceSort.dir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+          return ministereServiceSort.dir === 'asc' ? aVal - bVal : bVal - aVal;
+        });
+
+        const handleSortCol = (col) => {
+          setMinistereServiceSort(prev =>
+            prev.col === col ? { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'desc' }
+          );
+        };
+
+        const sortIcon = (col) => ministereServiceSort.col === col ? (ministereServiceSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+
+        const selectedMin = ministeres.find(m => m.ministereId === selectedMinistereId);
+
+        return (
+          <div className="tdb-tab-content" style={{ overflow: 'auto' }}>
+
+            {/* ── Sélecteur de ministère ── */}
+            <div className="mck-selector-bar">
+              <div className="mck-selector-left">
+                <Building2 size={18} style={{ color: selectedMin?.couleur || 'var(--accent-dgi)' }} />
+                <select
+                  className="mck-ministry-select"
+                  value={selectedMinistereId || ''}
+                  onChange={(e) => {
+                    setSelectedMinistereId(e.target.value);
+                    setMinistereDetail(null);
+                    setMinistereComparison(null);
+                  }}
+                >
+                  {[...ministeres].sort((a, b) => b.montant - a.montant).map((m) => (
+                    <option key={m.ministereId} value={m.ministereId}>
+                      {m.shortName || m.nom} — {fmt(m.montant)} FCFA
+                    </option>
                   ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+                </select>
+              </div>
+              {md && (
+                <div className="mck-selector-right">
+                  <span className="mck-part-badge">
+                    {partGlobale}% du total national
+                  </span>
+                </div>
+              )}
+            </div>
 
-          {/* Top 10 Services — tableau */}
-          {top10Services.length > 0 && (
-            <div className="chart-card" style={{ flexShrink: 0 }}>
-              <div className="chart-card__header">
-                <div>
-                  <h2 className="chart-title">Top 10 Services</h2>
-                  <span className="chart-sub">Cliquez une ligne pour le détail</span>
+            {/* ── Loading / Content ── */}
+            {ministereDetailLoading && !md ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem' }}>
+                <WeaveSpinner size={60} message="Chargement des données..." />
+              </div>
+            ) : md ? (
+              <>
+                {/* ── KPI Cards ── */}
+                <div className="mck-kpi-grid">
+                  <div className="mck-kpi-card">
+                    <div className="mck-kpi-card__icon" style={{ background: '#05966915', color: '#059669' }}><TrendingUp size={18} /></div>
+                    <div>
+                      <div className="mck-kpi-card__label">Revenus collectés</div>
+                      <div className="mck-kpi-card__value" style={{ color: '#059669' }}>{fmtFull(mRevenus)} FCFA</div>
+                    </div>
+                  </div>
+                  <div className="mck-kpi-card">
+                    <div className="mck-kpi-card__icon" style={{ background: '#2563EB15', color: '#2563EB' }}><FileText size={18} /></div>
+                    <div>
+                      <div className="mck-kpi-card__label">Soumissions</div>
+                      <div className="mck-kpi-card__value">{fmtEntier(mSoumissions)}</div>
+                    </div>
+                  </div>
+                  <div className="mck-kpi-card">
+                    <div className="mck-kpi-card__icon" style={{ background: '#059669' + '15', color: '#059669' }}><CheckCircle size={18} /></div>
+                    <div>
+                      <div className="mck-kpi-card__label">Payées</div>
+                      <div className="mck-kpi-card__value" style={{ color: '#059669' }}>{fmtEntier(mPayees)}</div>
+                    </div>
+                  </div>
+                  <div className="mck-kpi-card">
+                    <div className="mck-kpi-card__icon" style={{ background: mTaux >= 50 ? '#05966915' : '#DC262615', color: mTaux >= 50 ? '#059669' : '#DC2626' }}>
+                      <BarChart3 size={18} />
+                    </div>
+                    <div>
+                      <div className="mck-kpi-card__label">Taux de paiement</div>
+                      <div className="mck-kpi-card__value" style={{ color: mTaux >= 75 ? '#059669' : mTaux >= 50 ? '#D97706' : '#DC2626' }}>
+                        {mTaux}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Grille 2 colonnes : Evolution + Donut ── */}
+                <div className="mck-charts-grid">
+                  {/* Evolution mensuelle */}
+                  <div className="chart-card" style={{ flex: 2 }}>
+                    <div className="chart-card__header">
+                      <div>
+                        <h2 className="chart-title"><BarChart3 size={15} /> Évolution mensuelle</h2>
+                        <span className="chart-sub">Répartition par statut de paiement</span>
+                      </div>
+                    </div>
+                    {mEvolution.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={mEvolution} margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="periode" tick={{ fontSize: 10 }} />
+                          <YAxis tickFormatter={fmtFull} tick={{ fontSize: 10 }} />
+                          <Tooltip
+                            formatter={(val) => fmtFull(val) + ' FCFA'}
+                            labelStyle={{ fontWeight: 700 }}
+                            contentStyle={{ fontSize: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}
+                          />
+                          <Bar dataKey="paye" name="Payé" stackId="a" fill="#059669" radius={[0, 0, 0, 0]} />
+                          <Bar dataKey="enAttente" name="En attente" stackId="a" fill="#D97706" radius={[0, 0, 0, 0]} />
+                          <Bar dataKey="echoue" name="Échoué" stackId="a" fill="#DC2626" radius={[4, 4, 0, 0]} />
+                          <Legend iconSize={10} wrapperStyle={{ fontSize: '0.7rem' }} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                        Aucune donnée d'évolution disponible
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Donut répartition par statut */}
+                  <div className="chart-card" style={{ flex: 1 }}>
+                    <div className="chart-card__header">
+                      <div>
+                        <h2 className="chart-title"><PieChartIcon size={15} /> Répartition statuts</h2>
+                        <span className="chart-sub">Montants par statut de paiement</span>
+                      </div>
+                    </div>
+                    {statutData.length > 0 ? (
+                      <div style={{ position: 'relative' }}>
+                        <ResponsiveContainer width="100%" height={240}>
+                          <PieChart>
+                            <Pie
+                              data={statutData}
+                              cx="50%" cy="50%"
+                              innerRadius={55} outerRadius={85}
+                              paddingAngle={3}
+                              dataKey="value"
+                              animationDuration={800}
+                            >
+                              {statutData.map((entry, i) => (
+                                <Cell key={i} fill={entry.color} stroke="none" />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(val) => fmtFull(val) + ' FCFA'}
+                              contentStyle={{ fontSize: '0.75rem', borderRadius: 8, border: '1px solid var(--glass-border)' }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        {/* Légende custom sous le donut */}
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '-0.5rem', flexWrap: 'wrap' }}>
+                          {statutData.map((s) => (
+                            <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem' }}>
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
+                              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{s.name}</span>
+                              <span style={{ color: s.color, fontWeight: 800 }}>{fmt(s.value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                        Aucune donnée
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Tableau complet des services ── */}
+                <div className="chart-card">
+                  <div className="chart-card__header">
+                    <div>
+                      <h2 className="chart-title"><Layers size={15} /> Services ({mServices.length})</h2>
+                      <span className="chart-sub">
+                        {md?.ministere?.nomFr || selectedMin?.nom || 'Ministère'} — tous les services
+                      </span>
+                    </div>
+                  </div>
+                  {sortedServices.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                      Aucun service enregistré pour ce ministère.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="mck-services-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: 36 }}>#</th>
+                            <th style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => handleSortCol('nom')}>
+                              Service{sortIcon('nom')}
+                            </th>
+                            <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSortCol('montant')}>
+                              Revenus{sortIcon('montant')}
+                            </th>
+                            <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSortCol('nombreSoumissions')}>
+                              Soumissions{sortIcon('nombreSoumissions')}
+                            </th>
+                            <th style={{ textAlign: 'right' }}>Taux</th>
+                            <th style={{ width: 120 }}>Part</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedServices.map((svc, i) => {
+                            const pct = mRevenus > 0 ? (svc.montant / mRevenus) * 100 : 0;
+                            return (
+                              <tr key={svc.serviceId || i}
+                                onClick={() => { setDrillService(svc); setDrillServiceData(null); }}
+                                className="mck-services-table__row"
+                              >
+                                <td className="mck-services-table__rank">{i + 1}</td>
+                                <td style={{ fontWeight: 600, color: 'var(--text-primary)', maxWidth: 350, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {svc.nom}
+                                </td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
+                                  {fmtFull(svc.montant)}
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {fmtEntier(svc.nombreSoumissions || 0)}
+                                </td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '0.72rem',
+                                  color: (svc.tauxPaiement || 0) >= 75 ? '#059669' : (svc.tauxPaiement || 0) >= 50 ? '#D97706' : '#DC2626'
+                                }}>
+                                  {svc.tauxPaiement || 0}%
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <div style={{ flex: 1, background: 'var(--bg-surface-elevated)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                                      <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: selectedMin?.couleur || '#059669', borderRadius: 4, transition: 'width 0.8s' }} />
+                                    </div>
+                                    <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', minWidth: 32, textAlign: 'right' }}>{pct.toFixed(1)}%</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <Building2 size={32} style={{ opacity: 0.4 }} />
+                  <p style={{ marginTop: '0.5rem' }}>Sélectionnez un ministère pour afficher ses statistiques.</p>
                 </div>
               </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
-                      <th style={{ textAlign: 'left', padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>#</th>
-                      <th style={{ textAlign: 'left', padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Service</th>
-                      <th style={{ textAlign: 'right', padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Revenus</th>
-                      <th style={{ textAlign: 'right', padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Soumissions</th>
-                      <th style={{ textAlign: 'right', padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.7rem' }}>Taux</th>
-                      <th style={{ width: 100, padding: '0.5rem 0.6rem' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {top10Services.map((svc, i) => {
-                      const pct = top10Services[0]?.montant > 0 ? (svc.montant / top10Services[0].montant) * 100 : 0;
-                      return (
-                        <tr key={svc.serviceId || i}
-                          style={{
-                            borderBottom: '1px solid var(--glass-border)',
-                            background: i % 2 === 0 ? 'transparent' : 'var(--bg-surface-elevated)',
-                            cursor: 'pointer', transition: 'background 0.15s',
-                          }}
-                          onClick={() => { setDrillService(svc); setDrillServiceData(null); }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(5,150,105,0.04)'}
-                          onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : 'var(--bg-surface-elevated)'}
-                        >
-                          <td style={{ padding: '0.5rem 0.6rem', color: 'var(--text-tertiary)', fontWeight: 700, fontSize: '0.7rem' }}>{i + 1}</td>
-                          <td style={{ padding: '0.5rem 0.6rem', color: 'var(--text-primary)', fontWeight: 600, maxWidth: 300 }}>
-                            {svc.nom}
-                          </td>
-                          <td style={{ padding: '0.5rem 0.6rem', textAlign: 'right', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
-                            {fmtFull(svc.montant)}
-                          </td>
-                          <td style={{ padding: '0.5rem 0.6rem', textAlign: 'right', color: 'var(--text-primary)' }}>
-                            {fmtEntier(svc.nombreSoumissions || 0)}
-                          </td>
-                          <td style={{ padding: '0.5rem 0.6rem', textAlign: 'right', fontWeight: 700, fontSize: '0.72rem',
-                            color: (svc.tauxPaiement || 0) >= 75 ? '#059669' : (svc.tauxPaiement || 0) >= 50 ? '#D97706' : '#DC2626'
-                          }}>
-                            {svc.tauxPaiement || 0}%
-                          </td>
-                          <td style={{ padding: '0.5rem 0.6rem' }}>
-                            <div style={{ background: 'var(--bg-surface-elevated)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${pct}%`, background: svc.couleur || '#059669', borderRadius: 4, transition: 'width 0.8s' }}/>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {/* ═══════════ TAB 3: REGIONS ═══════════ */}
       {activeTab === 'regions' && (

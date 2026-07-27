@@ -871,3 +871,192 @@
   display: flex;
   flex-direction: column;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Ministère Cockpit (MCK) — onglet Ministères & Services
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Sélecteur ── */
+.mck-selector-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  margin-bottom: 0.75rem;
+  flex-shrink: 0;
+}
+
+.mck-selector-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.mck-ministry-select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  appearance: auto;
+}
+.mck-ministry-select:hover,
+.mck-ministry-select:focus {
+  border-color: var(--accent-dgi, #059669);
+  outline: none;
+}
+
+.mck-selector-right {
+  flex-shrink: 0;
+}
+
+.mck-part-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.8rem;
+  background: var(--accent-dgi, #059669);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ── KPI Grid ── */
+.mck-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+  flex-shrink: 0;
+}
+
+.mck-kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.mck-kpi-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.mck-kpi-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.mck-kpi-card__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin-bottom: 0.15rem;
+}
+
+.mck-kpi-card__value {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* ── Charts grid ── */
+.mck-charts-grid {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-shrink: 0;
+}
+.mck-charts-grid > .chart-card {
+  min-width: 0;
+}
+
+/* ── Services table ── */
+.mck-services-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.mck-services-table thead tr {
+  border-bottom: 2px solid var(--glass-border);
+}
+.mck-services-table th {
+  padding: 0.55rem 0.6rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  user-select: none;
+}
+.mck-services-table__row {
+  border-bottom: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.mck-services-table__row:hover {
+  background: rgba(5, 150, 105, 0.04);
+}
+.mck-services-table__row:nth-child(even) {
+  background: var(--bg-surface-elevated);
+}
+.mck-services-table__row:nth-child(even):hover {
+  background: rgba(5, 150, 105, 0.06);
+}
+.mck-services-table td {
+  padding: 0.55rem 0.6rem;
+}
+.mck-services-table__rank {
+  color: var(--text-tertiary);
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-align: center;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .mck-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .mck-charts-grid {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .mck-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .mck-selector-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mck-selector-right {
+    text-align: center;
+  }
+}

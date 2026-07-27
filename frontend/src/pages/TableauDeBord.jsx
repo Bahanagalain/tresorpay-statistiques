@@ -70,44 +70,6 @@ const TAB_DEFS = [
 const YEAR_COLORS = ['#059669', '#2563EB', '#D97706', '#DC2626', '#8B5CF6'];
 const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 
-// Opérateurs de paiement — couleurs distinctes
-const OPERATEURS = [
-  { key: 'orangeMoney',  label: 'Orange Money',       color: '#FF6600' },
-  { key: 'mtnMomo',      label: 'MTN Mobile Money',   color: '#FFCC00' },
-  { key: 'expressPay',   label: 'Express Exchange',    color: '#E91E8C' },
-  { key: 'bcPme',        label: 'BC-PME',              color: '#4CAF50' },
-  { key: 'scb',          label: 'SCB Cameroun',        color: '#1A237E' },
-  { key: 'ecobank',      label: 'Ecobank',             color: '#0288D1' },
-  { key: 'autres',       label: 'Autres',              color: '#FF9800' },
-];
-
-// Générer données mock par jour avec opérateurs
-function generateDailyOperatorData() {
-  const data = [];
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  // 30 derniers jours
-  for (let d = 29; d >= 0; d--) {
-    const date = new Date(year, month, now.getDate() - d);
-    const dayLabel = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-    const base = isWeekend ? 0.3 : 1;
-    // Plus d'activité vers la fin du mois
-    const trend = 0.5 + (30 - d) / 30;
-    data.push({
-      jour: dayLabel,
-      orangeMoney:  Math.round((Math.random() * 25 + 5) * base * trend),
-      mtnMomo:      Math.round((Math.random() * 20 + 3) * base * trend),
-      expressPay:   Math.round((Math.random() * 6) * base * trend),
-      bcPme:        Math.round((Math.random() * 4) * base * trend),
-      scb:          Math.round((Math.random() * 3) * base * trend),
-      ecobank:      Math.round((Math.random() * 5) * base * trend),
-      autres:       Math.round((Math.random() * 4) * base * trend),
-    });
-  }
-  return data;
-}
 
 // ─── Utilitaires ────────────────────────────────────────────
 const fmt = (n) =>
@@ -733,9 +695,6 @@ export default function TableauDeBord() {
     }
   };
 
-  // ── Données journalières par opérateur (mock pour démo) ───
-  const dailyOperatorData = useMemo(() => generateDailyOperatorData(), []);
-
   // ── Render helper: Ministere detail panel content ─────────
   const renderMinistereDetail = () => {
     const d = drillMinistereData;
@@ -1065,36 +1024,33 @@ export default function TableauDeBord() {
             />
           </div>
 
-          {/* Tendance journalière par opérateur de paiement */}
+          {/* Évolution mensuelle des paiements (données réelles) */}
           <div className="chart-card" style={{ flex: 1, minHeight: 0 }}>
             <div className="chart-card__header">
               <div>
-                <h2 className="chart-title">Tendance des Paiements par Opérateur</h2>
-                <span className="chart-sub">30 derniers jours — ventilé par moyen de paiement</span>
+                <h2 className="chart-title">Évolution des Paiements</h2>
+                <span className="chart-sub">Répartition mensuelle par statut</span>
               </div>
               <button className="expand-graph-btn" onClick={handleExpand} title="Agrandir"><Maximize size={16}/></button>
             </div>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dailyOperatorData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--glass-border)" />
-                <XAxis dataKey="jour" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} interval={1} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip/>} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-                <Legend wrapperStyle={{ fontSize: '0.72rem' }} />
-                {OPERATEURS.map((op, i) => (
-                  <Bar
-                    key={op.key}
-                    dataKey={op.key}
-                    name={op.label}
-                    stackId="ops"
-                    fill={op.color}
-                    radius={i === OPERATEURS.length - 1 ? [2, 2, 0, 0] : undefined}
-                    isAnimationActive
-                    animationDuration={800}
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
+            {chartEvol.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartEvol} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--glass-border)" />
+                  <XAxis dataKey="periode" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={fmtFull} />
+                  <Tooltip content={<CustomTooltip/>} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
+                  <Legend wrapperStyle={{ fontSize: '0.72rem' }} />
+                  <Bar dataKey="paye" name="Payé" stackId="a" fill="#059669" radius={[0, 0, 0, 0]} isAnimationActive animationDuration={800} />
+                  <Bar dataKey="enAttente" name="En attente" stackId="a" fill="#D97706" radius={[0, 0, 0, 0]} isAnimationActive animationDuration={800} />
+                  <Bar dataKey="echoue" name="Échoué" stackId="a" fill="#DC2626" radius={[2, 2, 0, 0]} isAnimationActive animationDuration={800} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                Aucune donnée d'évolution disponible
+              </div>
+            )}
           </div>
 
           {/* 5 dernières soumissions */}
@@ -1488,9 +1444,9 @@ export default function TableauDeBord() {
                     setMinistereComparison(null);
                   }}
                 >
-                  {[...ministeres].sort((a, b) => b.montant - a.montant).map((m) => (
+                  {[...ministeres].sort((a, b) => (b.montantPaye || b.montant) - (a.montantPaye || a.montant)).map((m) => (
                     <option key={m.ministereId} value={m.ministereId}>
-                      {m.shortName || m.nom} — {fmt(m.montant)} FCFA
+                      {m.shortName || m.nom} — {fmt(m.montantPaye || 0)} FCFA collectés · {fmtEntier(m.nombreSoumissions)} soumissions
                     </option>
                   ))}
                 </select>

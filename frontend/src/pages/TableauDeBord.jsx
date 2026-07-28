@@ -288,6 +288,12 @@ export default function TableauDeBord() {
   const [ministereServiceSort, setMinistereServiceSort] = useState({ col: 'montantPaye', dir: 'desc' });
   const [evolGranularite, setEvolGranularite] = useState('mois');
 
+  // Région cockpit state
+  const [selectedRegionCode, setSelectedRegionCode] = useState(null);
+  const [regionDetail, setRegionDetail] = useState(null);
+  const [regionDetailLoading, setRegionDetailLoading] = useState(false);
+  const [regionDeptSort, setRegionDeptSort] = useState({ col: 'montantPaye', dir: 'desc' });
+
   // Soumissions tab state
   const [soumissions, setSoumissions] = useState([]);
   const [soumPagination, setSoumPagination] = useState({ page: 1, total: 0, totalPages: 0 });
@@ -393,6 +399,36 @@ export default function TableauDeBord() {
     loadPerimetre();
     return () => { isMounted = false; controller.abort(); };
   }, [activeTab, hasScope, dateRange.endDate, dateRange.startDate]);
+
+  // ── Auto-select first region when list loads ──────────────
+  useEffect(() => {
+    if (regions.length > 0 && !selectedRegionCode) {
+      const sorted = [...regions].sort((a, b) => (b.valeur || 0) - (a.valeur || 0));
+      setSelectedRegionCode(sorted[0]?.code || sorted[0]?.orgUnitId || null);
+    }
+  }, [regions, selectedRegionCode]);
+
+  // ── Load selected region detail for cockpit ──────────────
+  useEffect(() => {
+    if (!selectedRegionCode || activeTab !== 'regions') return;
+    let isMounted = true;
+    const controller = new AbortController();
+
+    async function loadRegionCockpit() {
+      setRegionDetailLoading(true);
+      try {
+        const data = await fetchRegionDetail(selectedRegionCode, dateRange, controller.signal);
+        if (isMounted) setRegionDetail(data);
+      } catch (err) {
+        if (!isMounted || err?.name === 'AbortError') return;
+      } finally {
+        if (isMounted) setRegionDetailLoading(false);
+      }
+    }
+
+    loadRegionCockpit();
+    return () => { isMounted = false; controller.abort(); };
+  }, [selectedRegionCode, activeTab, dateRange.startDate, dateRange.endDate]);
 
   // ── Auto-select first ministry when list loads ─────────────
   useEffect(() => {
@@ -1675,206 +1711,257 @@ export default function TableauDeBord() {
         );
       })()}
 
-      {/* ═══════════ TAB 3: REGIONS ═══════════ */}
-      {activeTab === 'regions' && (
-        <div className="tdb-tab-content">
-          {regions.length === 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: 'var(--text-secondary)' }}>
-              <div style={{ textAlign: 'center' }}>
-                <MapPin size={32} style={{ opacity: 0.4 }}/>
-                <p style={{ marginTop: '0.5rem' }}>Aucune donnee regionale disponible.</p>
+      {/* ═══════════ TAB 3: REGIONS — COCKPIT ═══════════ */}
+      {activeTab === 'regions' && (() => {
+        const rd = regionDetail;
+        const rDepts = Array.isArray(rd?.departements) ? rd.departements : [];
+        const rServices = Array.isArray(rd?.services) ? rd.services : [];
+        const rEvolution = Array.isArray(rd?.evolution) ? rd.evolution : [];
+        const rRevenus = rd?.totalRevenus || 0;
+        const rSoumissions = rd?.totalSoumissions || 0;
+        const rPayees = rd?.soumissionsPayees || 0;
+        const rTaux = rd?.tauxPaiement || 0;
+
+        const selectedReg = regions.find(r => (r.code || r.orgUnitId) === selectedRegionCode);
+        const partGlobaleReg = kpi.totalRevenus > 0 ? ((rRevenus / kpi.totalRevenus) * 100).toFixed(1) : 0;
+
+        const sortedDepts = [...rDepts].sort((a, b) => {
+          const aVal = a[regionDeptSort.col] || 0;
+          const bVal = b[regionDeptSort.col] || 0;
+          if (typeof aVal === 'string') return regionDeptSort.dir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+          return regionDeptSort.dir === 'asc' ? aVal - bVal : bVal - aVal;
+        });
+        const handleDeptSort = (col) => {
+          setRegionDeptSort(prev => prev.col === col ? { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'desc' });
+        };
+        const deptSortIcon = (col) => regionDeptSort.col === col ? (regionDeptSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+
+        return (
+          <div className="tdb-tab-content" style={{ overflow: 'auto' }}>
+
+            {/* ── Sélecteur de région ── */}
+            <div className="mck-selector-bar">
+              <div className="mck-selector-left">
+                <MapPin size={18} style={{ color: '#2563EB' }} />
+                <select
+                  className="mck-ministry-select"
+                  value={selectedRegionCode || ''}
+                  onChange={(e) => {
+                    setSelectedRegionCode(e.target.value);
+                    setRegionDetail(null);
+                  }}
+                >
+                  {[...regions].sort((a, b) => (b.valeur || 0) - (a.valeur || 0)).map((r) => (
+                    <option key={r.code || r.orgUnitId} value={r.code || r.orgUnitId}>
+                      {r.nom} — {fmt(r.valeur || 0)} FCFA · {fmtEntier(r.nombreSoumissions || 0)} soumissions
+                    </option>
+                  ))}
+                </select>
               </div>
+              {rd && (
+                <div className="mck-selector-right">
+                  <span className="mck-part-badge" style={{ background: '#2563EB' }}>
+                    {partGlobaleReg}% du total national
+                  </span>
+                </div>
+              )}
             </div>
-          ) : (
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              <div className="ddm-table-wrapper">
-                <table className="ddm-table" style={{ tableLayout: 'auto' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '28%' }}>Region</th>
-                      <th style={{ textAlign: 'right' }}>Revenus</th>
-                      <th style={{ textAlign: 'right' }}>Soumissions</th>
-                      <th style={{ textAlign: 'right' }}>Objectif</th>
-                      <th style={{ textAlign: 'center' }}>Statut</th>
-                      <th style={{ width: '5rem', textAlign: 'center' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...regions].sort((a, b) => (b.valeur || 0) - (a.valeur || 0)).map((region) => {
-                      const regionId = region.orgUnitId || region.code || region.nom;
-                      const isExpanded = drillRegion && (drillRegion.orgUnitId || drillRegion.code || drillRegion.nom) === regionId;
-                      const statutRaw = (region.statut || 'normal').toLowerCase();
-                      const statutColor = statutRaw === 'critical' || statutRaw === 'critique' ? '#DC2626'
-                        : statutRaw === 'warning' || statutRaw === 'attention' ? '#D97706'
-                        : '#059669';
-                      const statutLabel = statutRaw === 'critical' || statutRaw === 'critique' ? 'Critique'
-                        : statutRaw === 'warning' || statutRaw === 'attention' ? 'Attention'
-                        : 'Bon';
-                      const objectifPct = region.objectif > 0 ? Math.round((region.valeur / region.objectif) * 100) : null;
 
-                      return (
-                        <React.Fragment key={regionId}>
-                          <tr
-                            className="ddm-row"
-                            style={{ cursor: 'pointer', transition: 'background 0.15s' }}
-                            onClick={() => handleRegionClick(region)}
-                          >
-                            <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <MapPin size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-                                {region.nom}
-                              </div>
-                            </td>
-                            <td className="text-right" style={{ fontWeight: 800, color: '#059669', whiteSpace: 'nowrap' }}>
-                              {fmt(region.valeur || 0)} FCFA
-                            </td>
-                            <td className="text-right" style={{ fontWeight: 600 }}>
-                              {fmtEntier(region.nombreSoumissions || 0)}
-                            </td>
-                            <td className="text-right" style={{ whiteSpace: 'nowrap', color: objectifPct !== null ? (objectifPct >= 80 ? '#059669' : objectifPct >= 50 ? '#D97706' : '#DC2626') : 'var(--text-tertiary)' }}>
-                              {objectifPct !== null ? `${objectifPct}%` : '—'}
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                                fontSize: '0.7rem', fontWeight: 700, color: statutColor,
-                              }}>
-                                <span style={{
-                                  width: '8px', height: '8px', borderRadius: '50%',
-                                  background: statutColor, display: 'inline-block', flexShrink: 0,
-                                }} />
-                                {statutLabel}
-                              </span>
-                            </td>
-                            <td style={{ textAlign: 'center' }}>
-                              <span style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                                fontSize: '0.72rem', fontWeight: 700,
-                                color: isExpanded ? 'var(--accent-dgi)' : 'var(--text-tertiary)',
-                                transition: 'color 0.15s',
-                              }}>
-                                {isExpanded ? 'Fermer' : 'Voir'}
-                                <ChevronDown size={14} style={{
-                                  transition: 'transform 0.25s',
-                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                                }} />
-                              </span>
-                            </td>
-                          </tr>
+            {/* ── Loading / Content ── */}
+            {regionDetailLoading && !rd ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem' }}>
+                <WeaveSpinner size={60} message="Chargement des données régionales..." />
+              </div>
+            ) : rd ? (
+              <>
+                {/* ── KPI Cards ── */}
+                <div className="mck-kpi-grid">
+                  <div className="mck-kpi-card">
+                    <div className="mck-kpi-card__icon" style={{ background: '#05966915', color: '#059669' }}><TrendingUp size={18} /></div>
+                    <div>
+                      <div className="mck-kpi-card__label">Revenus collectés</div>
+                      <div className="mck-kpi-card__value" style={{ color: '#059669' }}>{fmtFull(rRevenus)}</div>
+                    </div>
+                  </div>
+                  <div className="mck-kpi-card">
+                    <div className="mck-kpi-card__icon" style={{ background: '#2563EB15', color: '#2563EB' }}><FileText size={18} /></div>
+                    <div>
+                      <div className="mck-kpi-card__label">Soumissions</div>
+                      <div className="mck-kpi-card__value">{fmtEntier(rSoumissions)}</div>
+                    </div>
+                  </div>
+                  <div className="mck-kpi-card">
+                    <div className="mck-kpi-card__icon" style={{ background: '#05966915', color: '#059669' }}><CheckCircle size={18} /></div>
+                    <div>
+                      <div className="mck-kpi-card__label">Payées</div>
+                      <div className="mck-kpi-card__value" style={{ color: '#059669' }}>{fmtEntier(rPayees)}</div>
+                    </div>
+                  </div>
+                  <div className="mck-kpi-card">
+                    <div className="mck-kpi-card__icon" style={{ background: rTaux >= 50 ? '#05966915' : '#DC262615', color: rTaux >= 50 ? '#059669' : '#DC2626' }}>
+                      <BarChart3 size={18} />
+                    </div>
+                    <div>
+                      <div className="mck-kpi-card__label">Taux de paiement</div>
+                      <div className="mck-kpi-card__value" style={{ color: rTaux >= 75 ? '#059669' : rTaux >= 50 ? '#D97706' : '#DC2626' }}>
+                        {rTaux}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                          {/* ── Expanded accordion row ── */}
-                          {isExpanded && (
-                            <tr>
-                              <td colSpan={6} style={{ padding: 0, borderBottom: '2px solid var(--accent-dgi)' }}>
-                                <div style={{
-                                  background: 'var(--bg-surface-elevated)',
-                                  padding: '1rem 1.25rem',
-                                  animation: 'fadeIn 0.25s ease',
-                                }}>
-                                  {/* Region KPI summary */}
-                                  {drillRegionLoading ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-                                      <WeaveSpinner size={40} message="Chargement..." />
-                                    </div>
-                                  ) : drillRegionError ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#DC2626', fontSize: '0.78rem', padding: '0.5rem 0' }}>
-                                      <AlertTriangle size={14} />
-                                      {drillRegionError}
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); setDrillRegionData(null); setDrillRegion({ ...drillRegion }); }}
-                                        style={{ marginLeft: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--bg-surface)', borderRadius: '6px', padding: '0.25rem 0.6rem', fontSize: '0.7rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
-                                      >
-                                        <RotateCcw size={10} /> Reessayer
-                                      </button>
-                                    </div>
-                                  ) : drillRegionData ? (() => {
-                                    const d = drillRegionData;
-                                    const departments = Array.isArray(d.departements) ? d.departements : (Array.isArray(d.children) ? d.children : []);
-                                    const regKpi = d.kpi || d;
-                                    const revenus = regKpi.valeur || regKpi.totalRevenus || regKpi.montant || 0;
-                                    const soumissions = regKpi.nombreSoumissions || regKpi.totalSoumissions || 0;
-                                    const statut = drillRegion?.statut || 'Normal';
+                {/* ── Grille 2 colonnes : Evolution + Top 5 services ── */}
+                <div className="mck-charts-grid">
+                  {/* Evolution mensuelle */}
+                  <div className="chart-card" style={{ flex: 3 }}>
+                    <div className="chart-card__header">
+                      <div>
+                        <h2 className="chart-title"><BarChart3 size={15} /> Évolution</h2>
+                        <span className="chart-sub">Répartition par statut de paiement</span>
+                      </div>
+                    </div>
+                    {rEvolution.length > 0 ? (
+                      <>
+                        <div className="mck-evol-totals">
+                          <span><span className="mck-evol-dot" style={{ background: '#059669' }} /> Payé <strong style={{ color: '#059669' }}>{fmt(rEvolution.reduce((s, e) => s + (e.paye || 0), 0))}</strong></span>
+                          <span><span className="mck-evol-dot" style={{ background: '#D97706' }} /> En attente <strong style={{ color: '#D97706' }}>{fmt(rEvolution.reduce((s, e) => s + (e.enAttente || 0), 0))}</strong></span>
+                          <span><span className="mck-evol-dot" style={{ background: '#DC2626' }} /> Échoué <strong style={{ color: '#DC2626' }}>{fmt(rEvolution.reduce((s, e) => s + (e.echoue || 0), 0))}</strong></span>
+                        </div>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <BarChart data={rEvolution} margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="periode" tick={{ fontSize: 10 }} />
+                            <YAxis tickFormatter={fmtFull} tick={{ fontSize: 10 }} />
+                            <Tooltip formatter={(val) => fmtFull(val)} labelStyle={{ fontWeight: 700 }} contentStyle={{ fontSize: '0.75rem', borderRadius: 8 }} />
+                            <Bar dataKey="paye" name="Payé" stackId="a" fill="#059669" />
+                            <Bar dataKey="enAttente" name="En attente" stackId="a" fill="#D97706" />
+                            <Bar dataKey="echoue" name="Échoué" stackId="a" fill="#DC2626" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                        Aucune donnée d'évolution
+                      </div>
+                    )}
+                  </div>
 
-                                    return (
-                                      <>
-                                        {/* KPI horizontal strip */}
-                                        <div style={{
-                                          display: 'flex', gap: '2rem', flexWrap: 'wrap',
-                                          padding: '0.6rem 0', marginBottom: '0.75rem',
-                                          borderBottom: '1px solid var(--glass-border)',
-                                        }}>
-                                          <div>
-                                            <div style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: '0.15rem' }}>Revenus</div>
-                                            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#059669' }}>{fmtFull(revenus)} FCFA</div>
-                                          </div>
-                                          <div>
-                                            <div style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: '0.15rem' }}>Soumissions</div>
-                                            <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{fmtEntier(soumissions)}</div>
-                                          </div>
-                                          <div>
-                                            <div style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: '0.15rem' }}>Statut</div>
-                                            <div style={{ fontSize: '1rem', fontWeight: 800, color: statutColor }}>{statut}</div>
-                                          </div>
-                                        </div>
-
-                                        {/* Departments sub-table */}
-                                        <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                                          Departements ({departments.length})
-                                        </div>
-                                        {departments.length === 0 ? (
-                                          <p style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>Aucun departement disponible.</p>
-                                        ) : (
-                                          <div className="ddm-table-wrapper" style={{ borderRadius: '8px' }}>
-                                            <table className="ddm-table">
-                                              <thead>
-                                                <tr>
-                                                  <th>Departement</th>
-                                                  <th style={{ textAlign: 'right' }}>Revenus</th>
-                                                  <th style={{ textAlign: 'right' }}>Soumissions</th>
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {departments.map((dep, i) => {
-                                                  const depMontant = dep.valeur || dep.montant || 0;
-                                                  const depSoum = dep.nombreSoumissions || 0;
-                                                  return (
-                                                    <tr key={dep.orgUnitId || dep.code || i} className="ddm-row">
-                                                      <td style={{ fontWeight: 600 }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                          <MapPin size={12} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-                                                          {dep.nom}
-                                                        </div>
-                                                      </td>
-                                                      <td className="text-right" style={{ fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
-                                                        {fmt(depMontant)} FCFA
-                                                      </td>
-                                                      <td className="text-right" style={{ fontWeight: 600 }}>
-                                                        {fmtEntier(depSoum)}
-                                                      </td>
-                                                    </tr>
-                                                  );
-                                                })}
-                                              </tbody>
-                                            </table>
-                                          </div>
-                                        )}
-                                      </>
-                                    );
-                                  })() : null}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
+                  {/* Top 5 services */}
+                  <div className="chart-card" style={{ flex: 2 }}>
+                    <div className="chart-card__header">
+                      <div>
+                        <h2 className="chart-title"><Layers size={15} /> Top 5 Services</h2>
+                        <span className="chart-sub">Par montant collecté dans la région</span>
+                      </div>
+                    </div>
+                    {(() => {
+                      const top5 = [...rServices]
+                        .sort((a, b) => (b.montantPaye || 0) - (a.montantPaye || 0))
+                        .slice(0, 5)
+                        .map(s => ({ nom: s.nom.length > 28 ? s.nom.slice(0, 26) + '…' : s.nom, montantPaye: s.montantPaye || 0 }));
+                      return top5.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={250}>
+                          <BarChart data={top5} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                            <XAxis type="number" tickFormatter={fmtFull} tick={{ fontSize: 9 }} />
+                            <YAxis type="category" dataKey="nom" width={140} tick={{ fontSize: 9 }} />
+                            <Tooltip formatter={(val) => fmtFull(val)} contentStyle={{ fontSize: '0.75rem', borderRadius: 8 }} />
+                            <Bar dataKey="montantPaye" name="Collecté" fill="#2563EB" radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                          Aucun service avec revenus
+                        </div>
                       );
-                    })}
-                  </tbody>
-                </table>
+                    })()}
+                  </div>
+                </div>
+
+                {/* ── Tableau des départements ── */}
+                <div className="chart-card">
+                  <div className="chart-card__header">
+                    <div>
+                      <h2 className="chart-title"><MapPin size={15} /> Départements ({rDepts.length})</h2>
+                      <span className="chart-sub">{rd?.region?.nomFr || selectedReg?.nom || 'Région'} — tous les départements</span>
+                    </div>
+                  </div>
+                  {sortedDepts.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                      Aucun département enregistré pour cette région.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="mck-services-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: 36 }}>#</th>
+                            <th style={{ textAlign: 'left', cursor: 'pointer' }} onClick={() => handleDeptSort('nom')}>
+                              Département{deptSortIcon('nom')}
+                            </th>
+                            <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => handleDeptSort('montantPaye')}>
+                              Collecté{deptSortIcon('montantPaye')}
+                            </th>
+                            <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => handleDeptSort('nombreSoumissions')}>
+                              Soumissions{deptSortIcon('nombreSoumissions')}
+                            </th>
+                            <th style={{ width: 120 }}>Part</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedDepts.map((dep, i) => {
+                            const depPaye = dep.montantPaye || 0;
+                            const pct = rRevenus > 0 ? (depPaye / rRevenus) * 100 : 0;
+                            return (
+                              <tr key={dep.orgUnitId || i} className="mck-services-table__row">
+                                <td className="mck-services-table__rank">{i + 1}</td>
+                                <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <MapPin size={12} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                                    {dep.nom}
+                                  </div>
+                                </td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, color: '#059669', whiteSpace: 'nowrap' }}>
+                                  {fmtFull(depPaye)}
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {fmtEntier(dep.nombreSoumissions || 0)}
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <div style={{ flex: 1, background: 'var(--bg-surface-elevated)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                                      <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: '#2563EB', borderRadius: 4, transition: 'width 0.8s' }} />
+                                    </div>
+                                    <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', minWidth: 32, textAlign: 'right' }}>{pct.toFixed(1)}%</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : regions.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <MapPin size={32} style={{ opacity: 0.4 }} />
+                  <p style={{ marginTop: '0.5rem' }}>Aucune donnée régionale disponible.</p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <MapPin size={32} style={{ opacity: 0.4 }} />
+                  <p style={{ marginTop: '0.5rem' }}>Sélectionnez une région.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ═══════════ TAB: MES DASHBOARDS ═══════════ */}
       {activeTab === 'dashboards' && (

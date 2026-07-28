@@ -930,13 +930,21 @@ export async function computeRegionDetail(regionCode, dateDebut, dateFin) {
     }),
   ]);
 
-  // Repartition par sous-unite
-  const sousUnitesGroupes = await prisma.soumission.groupBy({
-    by: ['orgUnitId'],
-    where,
-    _count: true,
-    _sum: { montant: true },
-  });
+  // Repartition par sous-unite (total + paye)
+  const [sousUnitesGroupes, sousUnitesPayes] = await Promise.all([
+    prisma.soumission.groupBy({
+      by: ['orgUnitId'],
+      where,
+      _count: true,
+      _sum: { montant: true },
+    }),
+    prisma.soumission.groupBy({
+      by: ['orgUnitId'],
+      where: { ...where, statutPaiement: 'PAID' },
+      _count: true,
+      _sum: { montant: true },
+    }),
+  ]);
 
   // Map vers les departements (agglomerer les arrondissements)
   const arrParentMap = {};
@@ -944,7 +952,7 @@ export async function computeRegionDetail(regionCode, dateDebut, dateFin) {
 
   const deptAgg = {};
   for (const su of sousUnites) {
-    deptAgg[su.id] = { nom: su.nomFr, code: su.code, type: su.type, montant: 0, nombreSoumissions: 0 };
+    deptAgg[su.id] = { nom: su.nomFr, code: su.code, type: su.type, montant: 0, montantPaye: 0, nombreSoumissions: 0, soumissionsPayees: 0 };
   }
 
   for (const g of sousUnitesGroupes) {
@@ -954,14 +962,29 @@ export async function computeRegionDetail(regionCode, dateDebut, dateFin) {
       deptAgg[deptId].nombreSoumissions += g._count || 0;
     }
   }
+  for (const g of sousUnitesPayes) {
+    const deptId = arrParentMap[g.orgUnitId] || g.orgUnitId;
+    if (deptAgg[deptId]) {
+      deptAgg[deptId].montantPaye += toNumber(g._sum?.montant);
+      deptAgg[deptId].soumissionsPayees += g._count || 0;
+    }
+  }
 
-  // Services dans la region
-  const servicesGroupes = await prisma.soumission.groupBy({
-    by: ['serviceId'],
-    where: { ...where, serviceId: { not: null } },
-    _count: true,
-    _sum: { montant: true },
-  });
+  // Services dans la region (total + paye)
+  const [servicesGroupes, servicesPayes] = await Promise.all([
+    prisma.soumission.groupBy({
+      by: ['serviceId'],
+      where: { ...where, serviceId: { not: null } },
+      _count: true,
+      _sum: { montant: true },
+    }),
+    prisma.soumission.groupBy({
+      by: ['serviceId'],
+      where: { ...where, serviceId: { not: null }, statutPaiement: 'PAID' },
+      _count: true,
+      _sum: { montant: true },
+    }),
+  ]);
 
   const serviceIds = servicesGroupes.map((g) => g.serviceId).filter(Boolean);
   const services = await prisma.serviceGouv.findMany({
@@ -971,14 +994,25 @@ export async function computeRegionDetail(regionCode, dateDebut, dateFin) {
   const servicesMap = {};
   for (const s of services) servicesMap[s.id] = s;
 
+  const svcPayesMap = {};
+  for (const g of servicesPayes) {
+    svcPayesMap[g.serviceId] = { montantPaye: toNumber(g._sum?.montant), soumissionsPayees: g._count || 0 };
+  }
+
   const servicesDetail = servicesGroupes
-    .map((g) => ({
-      serviceId: g.serviceId,
-      nom: servicesMap[g.serviceId]?.nomFr || 'Inconnu',
-      montant: toNumber(g._sum?.montant),
-      nombreSoumissions: g._count || 0,
-    }))
-    .sort((a, b) => b.montant - a.montant)
+    .map((g) => {
+      const p = svcPayesMap[g.serviceId] || { montantPaye: 0, soumissionsPayees: 0 };
+      return {
+        serviceId: g.serviceId,
+        nom: servicesMap[g.serviceId]?.nomFr || 'Inconnu',
+        montant: toNumber(g._sum?.montant),
+        montantPaye: p.montantPaye,
+        nombreSoumissions: g._count || 0,
+        soumissionsPayees: p.soumissionsPayees,
+        tauxPaiement: (g._count || 0) > 0 ? Math.round((p.soumissionsPayees / g._count) * 10000) / 100 : 0,
+      };
+    })
+    .sort((a, b) => b.montantPaye - a.montantPaye)
     .slice(0, 20);
 
   // Evolution mensuelle

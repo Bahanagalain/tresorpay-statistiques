@@ -8,7 +8,6 @@ const COMMANDS = [
   { id: 'nav-dash',     label: 'Tableau de Bord',            icon: LayoutDashboard, action: 'nav', path: '/tableau-de-bord',         group: 'Navigation' },
   { id: 'nav-perf',     label: 'Performance Ministères',     icon: Building2,       action: 'nav', path: '/performance-ministeres',  group: 'Navigation' },
   { id: 'nav-recettes', label: 'Répartition Recettes',       icon: Landmark,        action: 'nav', path: '/repartition-recettes',    group: 'Navigation' },
-  { id: 'nav-carto',    label: 'Cartographie',               icon: Building2,       action: 'nav', path: '/cartographie',            group: 'Navigation' },
   { id: 'nav-alertes',  label: 'Alertes & Anomalies',        icon: Shield,          action: 'nav', path: '/alertes',                 group: 'Navigation' },
 ];
 

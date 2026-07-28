@@ -41,7 +41,6 @@ export default function Sidebar() {
       links: [
         { to: '/performance-ministeres', icon: Building2, label: 'Performance Ministères', iconColor: '#2563EB' },
         { to: '/repartition-recettes', icon: PieChart, label: 'Répartition Recettes', iconColor: '#8B5CF6' },
-        { to: '/cartographie', icon: Map, label: 'Cartographie', iconColor: '#14B8A6' },
         { to: '/activite-citoyens', icon: Users, label: 'Activité Citoyens', iconColor: '#EC4899' },
         { to: '/explorateur', icon: Search, label: 'Explorateur Données', iconColor: '#F59E0B' },
         { to: '/bi/dashboards', icon: LayoutDashboard, label: 'Mes Dashboards', iconColor: '#6366F1' },

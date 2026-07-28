@@ -6,7 +6,6 @@ import Login from './pages/Login';
 import TableauDeBord from './pages/TableauDeBord';
 import PerformanceCDI from './pages/PerformanceCDI';
 import RepartitionFiscale from './pages/RepartitionFiscale';
-import CartographieRegionale from './pages/CartographieRegionale';
 import AnalyseContribuables from './pages/AnalyseContribuables';
 import AlertesAnomalies from './pages/AlertesAnomalies';
 import ConformiteRIB from './pages/ConformiteRIB';
@@ -38,7 +37,6 @@ function App() {
           <Route path="tableau-de-bord" element={<TableauDeBord />} />
           <Route path="performance-ministeres" element={<PerformanceCDI />} />
           <Route path="repartition-recettes" element={<RepartitionFiscale />} />
-          <Route path="cartographie" element={<CartographieRegionale />} />
           <Route path="activite-citoyens" element={<AnalyseContribuables />} />
           <Route path="explorateur" element={<ExplorateurDonnees />} />
 

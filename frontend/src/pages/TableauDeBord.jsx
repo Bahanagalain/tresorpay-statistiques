@@ -32,6 +32,7 @@ import { getDateRangeFromPreset } from '../utils/dateUtils';
 import { usePeriodFilter, setPeriodState } from '../hooks/usePeriodFilter';
 import { formatEntier, formatMontant } from '../utils/format';
 import './TableauDeBord.css';
+import '../components/ui/DrillDownModal.css';
 
 // ─── Profils utilisateur ────────────────────────────────────
 function getUserProfile(user) {
@@ -747,7 +748,7 @@ export default function TableauDeBord() {
         <div className="ddm-kpis">
           <div className="ddm-kpi">
             <span className="ddm-kpi__label">Revenus</span>
-            <span className="ddm-kpi__value" style={{ color: '#059669' }}>{fmtFull(revenus)} FCFA</span>
+            <span className="ddm-kpi__value" style={{ color: '#059669' }}>{fmtFull(revenus)}</span>
           </div>
           <div className="ddm-kpi">
             <span className="ddm-kpi__label">Soumissions</span>
@@ -828,7 +829,7 @@ export default function TableauDeBord() {
         <div className="ddm-kpis">
           <div className="ddm-kpi">
             <span className="ddm-kpi__label">Revenus</span>
-            <span className="ddm-kpi__value" style={{ color: '#059669' }}>{fmtFull(revenus)} FCFA</span>
+            <span className="ddm-kpi__value" style={{ color: '#059669' }}>{fmtFull(revenus)}</span>
           </div>
           <div className="ddm-kpi">
             <span className="ddm-kpi__label">Soumissions</span>
@@ -1389,8 +1390,8 @@ export default function TableauDeBord() {
                     { label: 'Service', value: selectedSoumission.service || '\u2014' },
                     { label: 'Ministere', value: selectedSoumission.ministere || '\u2014' },
                     { label: 'Formulaire', value: selectedSoumission.formulaireNom || '\u2014' },
-                    { label: 'Montant soumis', value: fmtFull(selectedSoumission.montant) + ' FCFA', highlight: true },
-                    { label: 'Montant paye', value: fmtFull(selectedSoumission.montantPaye) + ' FCFA', highlight: true, color: '#059669' },
+                    { label: 'Montant soumis', value: fmtFull(selectedSoumission.montant), highlight: true },
+                    { label: 'Montant paye', value: fmtFull(selectedSoumission.montantPaye), highlight: true, color: '#059669' },
                     { label: 'Date soumission', value: selectedSoumission.dateSoumission ? selectedSoumission.dateSoumission.split('-').reverse().join('/') : '\u2014' },
                     { label: 'Date paiement', value: selectedSoumission.datePaiement ? selectedSoumission.datePaiement.split('-').reverse().join('/') : '\u2014' },
                   ].map((item, i) => (
@@ -2119,7 +2120,7 @@ export default function TableauDeBord() {
                           </div>
                         )}
                       </div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)' }}>{fmtFull(yk.totalRevenus)} FCFA</div>
+                      <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)' }}>{fmtFull(yk.totalRevenus)}</div>
                       <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginTop: '0.15rem' }}>
                         {yk.variation !== null
                           ? `${yk.variation >= 0 ? '\u2191' : '\u2193'} ${Math.abs(yk.variation).toFixed(1)}% vs ${yk.prevYear} \u00b7 ${yk.mois} mois`

@@ -11,6 +11,7 @@ import AlertesAnomalies from './pages/AlertesAnomalies';
 import ConformiteRIB from './pages/ConformiteRIB';
 import MonitoringOTP from './pages/MonitoringOTP';
 import GenerationRapports from './pages/GenerationRapports';
+import RapportsDecades from './pages/RapportsDecades';
 import Synchronisation from './pages/Synchronisation';
 import AuditActivite from './pages/AuditActivite';
 import Administration from './pages/Administration';
@@ -45,6 +46,7 @@ function App() {
           <Route path="alertes" element={<AlertesAnomalies />} />
           <Route path="journal-soumissions" element={<GenerationRapports />} />
           <Route path="rapports" element={<GenerationRapports />} />
+          <Route path="rapports-decades" element={<RapportsDecades />} />
 
           <Route path="bi/dashboards" element={<React.Suspense fallback={<div style={{padding:'2rem'}}>Chargement...</div>}><DashboardList /></React.Suspense>} />
           <Route path="bi/dashboards/:id" element={<React.Suspense fallback={<div style={{padding:'2rem'}}>Chargement...</div>}><DashboardBuilder /></React.Suspense>} />

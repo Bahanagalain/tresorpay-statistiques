@@ -22,6 +22,8 @@ import {
   computePartenaireDetail,
   computeCitoyens,
   computeAudit,
+  computeDecades,
+  computeSyntheseMensuelle,
 } from '../services/computation.service.js';
 import prisma from '../config/prisma.js';
 
@@ -563,5 +565,55 @@ export default async function analyticsRoutes(fastify) {
     result.evolution = evolution;
 
     return { datas: result };
+  });
+
+  // ─── Décades ───────────────────────────────────────
+  fastify.get('/rapports/decades', {
+    schema: {
+      tags: ['Rapports'],
+      summary: 'Rapport des recettes par décade (3 périodes de 10 jours)',
+      security: [{ bearerAuth: [] }],
+      querystring: {
+        type: 'object',
+        required: ['annee', 'mois'],
+        properties: {
+          annee: { type: 'integer' },
+          mois: { type: 'integer', minimum: 1, maximum: 12 },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const annee = parseInt(request.query.annee);
+    const mois = parseInt(request.query.mois);
+    if (!annee || !mois || mois < 1 || mois > 12) {
+      return reply.code(400).send({ error: 'Paramètres annee et mois requis (mois entre 1 et 12)' });
+    }
+    const data = await computeDecades(annee, mois);
+    return { datas: data, message: 'Décades générées avec succès' };
+  });
+
+  // ─── Synthèse mensuelle ────────────────────────────
+  fastify.get('/rapports/synthese-mensuelle', {
+    schema: {
+      tags: ['Rapports'],
+      summary: 'Synthèse mensuelle des recettes',
+      security: [{ bearerAuth: [] }],
+      querystring: {
+        type: 'object',
+        required: ['annee', 'mois'],
+        properties: {
+          annee: { type: 'integer' },
+          mois: { type: 'integer', minimum: 1, maximum: 12 },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    const annee = parseInt(request.query.annee);
+    const mois = parseInt(request.query.mois);
+    if (!annee || !mois || mois < 1 || mois > 12) {
+      return reply.code(400).send({ error: 'Paramètres annee et mois requis (mois entre 1 et 12)' });
+    }
+    const data = await computeSyntheseMensuelle(annee, mois);
+    return { datas: data, message: 'Synthèse mensuelle générée avec succès' };
   });
 }

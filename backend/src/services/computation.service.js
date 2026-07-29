@@ -1157,10 +1157,27 @@ export async function computeSoumissionDetail(uniqueCode) {
       orgUnit: {
         select: { id: true, nomFr: true, nomEn: true, code: true, type: true },
       },
+      valeursChamps: {
+        include: {
+          champFormulaire: {
+            select: { cleChamp: true, libelleChamp: true, typeChamp: true, ordreAffichage: true },
+          },
+        },
+        orderBy: { champFormulaire: { ordreAffichage: 'asc' } },
+      },
     },
   });
 
   if (!soumission) return null;
+
+  // Champs formulaire extraits (label → valeur)
+  const champsFormulaire = (soumission.valeursChamps || []).map((v) => ({
+    cle: v.champFormulaire?.cleChamp,
+    label: v.champFormulaire?.libelleChamp || v.champFormulaire?.cleChamp,
+    type: v.champFormulaire?.typeChamp,
+    valeur: v.valeur,
+    valeurNumerique: v.valeurNumerique,
+  }));
 
   return {
     id: soumission.id,
@@ -1176,10 +1193,12 @@ export async function computeSoumissionDetail(uniqueCode) {
     soumetteurEmail: soumission.soumetteurEmail,
     soumetteurTelephone: soumission.soumetteurTelephone,
     montant: toNumber(soumission.montant),
+    montantPaye: toNumber(soumission.montantPaye),
     statutPaiement: soumission.statutPaiement,
     dateSoumission: soumission.dateSoumission,
     datePaiement: soumission.datePaiement,
     donneesFormulaire: soumission.donneesFormulaire,
+    champsFormulaire,
     synchroniseLe: soumission.synchroniseLe,
   };
 }
@@ -1706,4 +1725,122 @@ export async function computeAudit(dateDebut, dateFin) {
     evolution: Object.values(jourMap).sort((a, b) => a.date.localeCompare(b.date)),
     recentes,
   };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RAPPORTS DÉCADES & SYNTHÈSE MENSUELLE
+// ═══════════════════════════════════════════════════════════════
+
+function getDecadeRanges(year, month) {
+  const lastDay = new Date(year, month, 0).getDate();
+  return [
+    { label: '1ère Décade', debut: new Date(year, month - 1, 1), fin: new Date(year, month - 1, 10, 23, 59, 59, 999) },
+    { label: '2ème Décade', debut: new Date(year, month - 1, 11), fin: new Date(year, month - 1, 21, 23, 59, 59, 999) },
+    { label: '3ème Décade', debut: new Date(year, month - 1, 22), fin: new Date(year, month - 1, lastDay, 23, 59, 59, 999) },
+  ];
+}
+
+/**
+ * Rapport décade/synthèse : recettes payées agrégées par service, avec
+ * ventilation optionnelle par bénéficiaire.
+ */
+export async function computeRapportPeriode(dateDebut, dateFin) {
+  const where = {
+    statutPaiement: { in: ['PAID', 'PARTIAL'] },
+    datePaiement: {
+      gte: new Date(dateDebut),
+      lte: (() => { const d = new Date(dateFin); d.setHours(23, 59, 59, 999); return d; })(),
+    },
+  };
+
+  // Agrégation par service
+  const parService = await prisma.soumission.groupBy({
+    by: ['serviceId'],
+    where,
+    _count: true,
+    _sum: { montantPaye: true, montant: true },
+  });
+
+  // Charger les services avec leurs bénéficiaires
+  const serviceIds = parService.map((s) => s.serviceId).filter(Boolean);
+  const services = await prisma.serviceGouv.findMany({
+    where: { id: { in: serviceIds } },
+    include: {
+      ministere: { select: { id: true, nomFr: true, code: true } },
+      groupeRevenu: { select: { id: true, nomFr: true } },
+      serviceBeneficiaire: {
+        include: {
+          beneficiaire: { select: { id: true, code: true, nom: true, rib: true } },
+        },
+      },
+    },
+  });
+
+  const servicesMap = Object.fromEntries(services.map((s) => [s.id, s]));
+
+  // Construire les lignes du rapport
+  const lignes = parService
+    .filter((g) => g.serviceId)
+    .map((g) => {
+      const svc = servicesMap[g.serviceId] || {};
+      const montantPaye = toNumber(g._sum?.montantPaye);
+      const montantSoumis = toNumber(g._sum?.montant);
+
+      // Répartition bénéficiaires
+      const beneficiaires = (svc.serviceBeneficiaire || []).map((sb) => ({
+        code: sb.beneficiaire?.code || '',
+        nom: sb.beneficiaire?.nom || '',
+        rib: sb.beneficiaire?.rib || '',
+        pourcentage: toNumber(sb.pourcentage),
+        montant: Math.round(montantPaye * toNumber(sb.pourcentage) / 100),
+      }));
+
+      return {
+        serviceId: g.serviceId,
+        serviceNom: svc.nomFr || 'Service inconnu',
+        serviceCode: svc.serviceCode || '',
+        ministereNom: svc.ministere?.nomFr || '',
+        ministereCode: svc.ministere?.code || '',
+        groupeRevenu: svc.groupeRevenu?.nomFr || '',
+        nombreTransactions: g._count || 0,
+        montantSoumis,
+        montantPaye,
+        beneficiaires,
+      };
+    })
+    .sort((a, b) => b.montantPaye - a.montantPaye);
+
+  const totalPaye = lignes.reduce((s, l) => s + l.montantPaye, 0);
+  const totalSoumis = lignes.reduce((s, l) => s + l.montantSoumis, 0);
+  const totalTransactions = lignes.reduce((s, l) => s + l.nombreTransactions, 0);
+
+  return {
+    periode: { debut: dateDebut, fin: dateFin },
+    totaux: { montantPaye: totalPaye, montantSoumis: totalSoumis, nombreTransactions: totalTransactions },
+    lignes,
+  };
+}
+
+export async function computeDecades(annee, mois) {
+  const decades = getDecadeRanges(annee, mois);
+  const resultats = [];
+
+  for (const decade of decades) {
+    const data = await computeRapportPeriode(
+      decade.debut.toISOString().slice(0, 10),
+      decade.fin.toISOString().slice(0, 10),
+    );
+    resultats.push({ ...decade, debut: decade.debut.toISOString().slice(0, 10), fin: decade.fin.toISOString().slice(0, 10), ...data });
+  }
+
+  return { annee, mois, decades: resultats };
+}
+
+export async function computeSyntheseMensuelle(annee, mois) {
+  const lastDay = new Date(annee, mois, 0).getDate();
+  const debut = `${annee}-${String(mois).padStart(2, '0')}-01`;
+  const fin = `${annee}-${String(mois).padStart(2, '0')}-${lastDay}`;
+
+  const data = await computeRapportPeriode(debut, fin);
+  return { annee, mois, ...data };
 }

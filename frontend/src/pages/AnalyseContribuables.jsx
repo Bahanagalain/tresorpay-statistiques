@@ -138,43 +138,85 @@ function DetailPanel({ detail, loading, onClose }) {
           <WeaveSpinner size={50} message="Chargement du détail..." />
         </div>
       ) : detail ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.2rem' }}>
-          {/* Identité */}
-          <div>
-            <h4 style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', margin: '0 0 0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Identification
-            </h4>
-            <DetailRow label="Code unique" value={safeString(detail.uniqueCode)} mono />
-            <DetailRow label="Nom" value={safeString(detail.soumetteurNom)} />
-            <DetailRow label="Email" value={safeString(detail.soumetteurEmail)} />
-            <DetailRow label="Téléphone" value={safeString(detail.soumetteurTelephone)} />
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.2rem' }}>
+            {/* Identité */}
+            <div>
+              <SectionTitle>Identification</SectionTitle>
+              <DetailRow label="Code unique" value={detail.uniqueCode} mono />
+              <DetailRow label="ID externe" value={detail.externalId} mono />
+              <DetailRow label="Contribuable" value={detail.soumetteurNom} />
+              <DetailRow label="Email" value={detail.soumetteurEmail} />
+              <DetailRow label="Téléphone" value={detail.soumetteurTelephone} />
+            </div>
+            {/* Service */}
+            <div>
+              <SectionTitle>Service & Ministère</SectionTitle>
+              <DetailRow label="Service" value={resolveNom(detail.service)} />
+              <DetailRow label="Ministère" value={resolveNom(detail.ministere)} />
+              <DetailRow label="Domaine" value={resolveNom(detail.domaine)} />
+              <DetailRow label="Formulaire" value={detail.formulaireNom} />
+              <DetailRow label="ID Formulaire" value={detail.formulaireId} mono />
+              <DetailRow label="Unité org." value={resolveNom(detail.orgUnit)} />
+              {detail.orgUnit?.type && <DetailRow label="Type unité" value={detail.orgUnit.type} />}
+            </div>
+            {/* Paiement */}
+            <div>
+              <SectionTitle>Paiement</SectionTitle>
+              <DetailRow label="Montant soumis" value={formatMontant(detail.montant)} highlight />
+              <DetailRow label="Montant payé" value={formatMontant(detail.montantPaye)} highlight />
+              <DetailRow label="Statut" value={<StatutBadge statut={detail.statutPaiement} />} />
+              <DetailRow label="Date soumission" value={formatDate(detail.dateSoumission)} />
+              <DetailRow label="Date paiement" value={formatDate(detail.datePaiement)} />
+              <DetailRow label="Synchronisé le" value={formatDate(detail.synchroniseLe)} />
+            </div>
           </div>
-          {/* Service */}
-          <div>
-            <h4 style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', margin: '0 0 0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Service
-            </h4>
-            <DetailRow label="Service" value={safeString(detail.service)} />
-            <DetailRow label="Ministère" value={safeString(detail.ministere)} />
-            <DetailRow label="Domaine" value={safeString(detail.domaine)} />
-            <DetailRow label="Formulaire" value={safeString(detail.formulaireNom)} />
-            <DetailRow label="Unité org." value={safeString(detail.orgUnit)} />
-          </div>
-          {/* Paiement */}
-          <div>
-            <h4 style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', margin: '0 0 0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Paiement
-            </h4>
-            <DetailRow label="Montant" value={formatMontant(detail.montant)} highlight />
-            <DetailRow label="Montant payé" value={formatMontant(detail.montantPaye)} highlight />
-            <DetailRow label="Statut" value={<StatutBadge statut={detail.statutPaiement} />} />
-            <DetailRow label="Date soumission" value={formatDate(detail.dateSoumission)} />
-            <DetailRow label="Date paiement" value={formatDate(detail.datePaiement)} />
-          </div>
+
+          {/* Champs formulaire extraits (structurés) */}
+          {detail.champsFormulaire?.length > 0 && (
+            <div style={{ marginTop: '1.2rem' }}>
+              <SectionTitle>Informations du formulaire</SectionTitle>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0' }}>
+                {detail.champsFormulaire.map((champ) => (
+                  <DetailRow
+                    key={champ.cle}
+                    label={champ.label}
+                    value={champ.valeurNumerique != null ? formatMontant(champ.valeurNumerique) : champ.valeur}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Données formulaire brutes (JSON) — si pas de champs structurés */}
+          {(!detail.champsFormulaire || detail.champsFormulaire.length === 0) && detail.donneesFormulaire && typeof detail.donneesFormulaire === 'object' && Object.keys(detail.donneesFormulaire).length > 0 && (
+            <div style={{ marginTop: '1.2rem' }}>
+              <SectionTitle>Données du formulaire</SectionTitle>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0' }}>
+                {Object.entries(detail.donneesFormulaire).map(([key, val]) => (
+                  <DetailRow key={key} label={key} value={typeof val === 'object' ? JSON.stringify(val) : String(val ?? '—')} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
     </div>
   );
+}
+
+function SectionTitle({ children }) {
+  return (
+    <h4 style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', margin: '0 0 0.6rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+      {children}
+    </h4>
+  );
+}
+
+function resolveNom(obj) {
+  if (!obj) return null;
+  if (typeof obj === 'string') return obj;
+  return obj.nomFr || obj.nom || obj.name || obj.label || obj.code || null;
 }
 
 function DetailRow({ label, value, mono, highlight }) {
@@ -311,8 +353,13 @@ export default function AnalyseContribuables() {
   const sortedDonnees = useMemo(() => {
     const items = data?.donnees || [];
     if (!sortBy) return items;
+    const getSortVal = (item, key) => {
+      const raw = item[key];
+      if (raw && typeof raw === 'object') return raw.nomFr || raw.nom || '';
+      return raw;
+    };
     return [...items].sort((a, b) => {
-      let va = a[sortBy], vb = b[sortBy];
+      let va = getSortVal(a, sortBy), vb = getSortVal(b, sortBy);
       if (typeof va === 'number' && typeof vb === 'number') {
         return sortDir === 'asc' ? va - vb : vb - va;
       }
@@ -345,14 +392,14 @@ export default function AnalyseContribuables() {
 
   // Export data
   const getExportData = useCallback(() => ({
-    headers: ['Code unique', 'Soumetteur', 'Email', 'Téléphone', 'Service', 'Ministère', 'Montant', 'Montant payé', 'Statut', 'Date'],
+    headers: ['Code unique', 'Soumetteur', 'Email', 'Téléphone', 'Service', 'Ministère', 'Montant soumis', 'Montant payé', 'Statut', 'Date'],
     rows: (data?.donnees || []).map(s => [
       s.uniqueCode || '',
       s.soumetteurNom || '',
       s.soumetteurEmail || '',
       s.soumetteurTelephone || '',
-      safeString(s.service),
-      safeString(s.ministere),
+      resolveNom(s.service) || '',
+      resolveNom(s.ministere) || '',
       formatMontant(s.montant),
       formatMontant(s.montantPaye),
       STATUT_CONFIG[s.statutPaiement]?.label || s.statutPaiement || '',
@@ -638,11 +685,11 @@ export default function AnalyseContribuables() {
                           maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {serviceStr || '—'}
+                            {resolveNom(s.service) || '—'}
                           </div>
-                          {ministereStr && (
+                          {resolveNom(s.ministere) && (
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', lineHeight: 1.3, marginTop: '1px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {ministereStr}
+                              {resolveNom(s.ministere)}
                             </div>
                           )}
                         </td>

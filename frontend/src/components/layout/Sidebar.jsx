@@ -58,7 +58,8 @@ export default function Sidebar() {
     {
       section: 'RAPPORTS',
       links: [
-        { to: '/rapports', icon: FileBarChart, label: 'Génération Rapports', iconColor: '#F97316' },
+        { to: '/rapports-decades', icon: FileBarChart, label: 'Décades & Synthèses', iconColor: '#F97316' },
+        { to: '/rapports', icon: FileBarChart, label: 'Rapports personnalisés', iconColor: '#D97706' },
       ],
     },
     {

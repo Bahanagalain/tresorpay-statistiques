@@ -380,3 +380,14 @@ export async function fetchExplorerCrosstab(body, signal) {
   const raw = await apiPost('/analytics/explorer/crosstab', body, { signal });
   return unwrap(raw);
 }
+
+// ─── Rapports Décades & Synthèse ─────────────────────────────
+export async function fetchDecades(annee, mois, signal) {
+  const raw = await apiGet('/analytics/rapports/decades', { annee, mois }, { signal });
+  return unwrap(raw);
+}
+
+export async function fetchSyntheseMensuelle(annee, mois, signal) {
+  const raw = await apiGet('/analytics/rapports/synthese-mensuelle', { annee, mois }, { signal });
+  return unwrap(raw);
+}
